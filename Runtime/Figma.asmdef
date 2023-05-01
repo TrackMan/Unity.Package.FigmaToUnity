@@ -1,0 +1,8 @@
+{
+    "name": "Figma",
+    "rootNamespace": "",
+    "references": [
+        "AsyncAwaitUtil",
+        "CommonUtils"
+    ]
+}

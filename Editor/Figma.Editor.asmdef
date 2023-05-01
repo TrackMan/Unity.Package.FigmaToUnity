@@ -1,0 +1,13 @@
+{
+    "name": "Figma.Editor",
+    "rootNamespace": "",
+    "references": [
+        "Unity.VectorGraphics.Editor",
+        "AsyncAwaitUtil",
+        "CommonUtils",
+        "Figma"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ]
+}
