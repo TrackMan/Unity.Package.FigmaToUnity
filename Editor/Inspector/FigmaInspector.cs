@@ -621,6 +621,7 @@ namespace Figma.Inspectors
                 {
                     TextureImporter importer = (TextureImporter)AssetImporter.GetAtPath(relativePath);
                     importer.npotScale = TextureImporterNPOTScale.None;
+                    importer.mipmapEnabled = false;
                     EditorUtility.SetDirty(importer);
                 }
 
