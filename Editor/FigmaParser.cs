@@ -2485,7 +2485,19 @@ namespace Figma
         }
         static bool IsSvgNode(BaseNodeMixin mixin)
         {
-            return mixin is LineNode || mixin is EllipseNode || mixin is RegularPolygonNode || mixin is StarNode || mixin is VectorNode || mixin is BooleanOperationNode;
+            return mixin is LineNode || mixin is EllipseNode || mixin is RegularPolygonNode || mixin is StarNode || mixin is VectorNode || (mixin is BooleanOperationNode && IsBooleanOperationVisible(mixin));
+        }
+        static bool IsBooleanOperationVisible(BaseNodeMixin node)
+        {
+            if (node is not ChildrenMixin children) return false;
+
+            foreach (SceneNode child in children.children)
+            {
+                if (child is not BooleanOperationNode && IsVisible(child) && IsSvgNode(child)) return true;
+                else if (child is BooleanOperationNode) return IsBooleanOperationVisible(child);
+            }
+
+            return false;
         }
         static bool IsStateNode(BaseNodeMixin mixin)
         {
