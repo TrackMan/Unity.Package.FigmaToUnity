@@ -186,7 +186,7 @@ namespace Figma
         }
         public static VisualElement Find(this VisualElement value, string path, string className = default, bool throwException = true, bool silent = true) => Find<VisualElement>(value, path, className, throwException, silent);
 
-        public static T Clone<T>(this T value, VisualElement parent = default) where T : VisualElement
+        public static T Clone<T>(this T value, VisualElement parent = default, int index = -1) where T : VisualElement
         {
             parent ??= value.parent;
 
@@ -215,6 +215,7 @@ namespace Figma
 
                 parent.Add(elementClone);
                 if (value.parent == elementClone.parent) elementClone.PlaceBehind(value);
+                if (index >= 0) elementClone.name = $"{value.name} {nameof(VisualElement)}:{index}";
                 parent.MarkDirtyRepaint();
 
                 if (elementClone is ISubElement subElement)
@@ -239,7 +240,7 @@ namespace Figma
                 documenRoot.MarkDirtyRepaint();
             }
         }
-        public static VisualElement Clone(this VisualElement value, VisualElement parent = default) => Clone<VisualElement>(value, parent);
+        public static VisualElement Clone(this VisualElement value, VisualElement parent = default, int index = -1) => Clone<VisualElement>(value, parent, index);
 
         public static T Replace<T>(this VisualElement value, VisualElement prefab) where T : VisualElement
         {
@@ -579,8 +580,12 @@ namespace Figma
         static (VisualElement value, string path) FindRoot(VisualElement value, string path)
         {
             if (rootMetadata.ContainsKey(value)) return (value, path);
-            else if (value.parent is not null) return FindRoot(value.parent, path.NotNullOrEmpty() ? Path.Combine(value.name, path) : value.name);
-            else throw new ArgumentException();
+            if (value.parent is not null)
+            {
+                string name = value.name.Split($" {nameof(VisualElement)}:", StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? value.name;
+                return FindRoot(value.parent, path.NotNullOrEmpty() ? Path.Combine(name, path) : name);
+            }
+            throw new ArgumentException();
         }
 
         static void Initialize(object target, Type targetType, VisualElement targetRoot, bool throwException = false, bool silent = false)
