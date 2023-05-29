@@ -49,14 +49,6 @@ namespace Figma.Inspectors
         #endregion
 
         #region Properties
-        IEnumerable<string> FontsDirs
-        {
-            get
-            {
-                foreach (SerializedProperty fontsDir in fontsDirs)
-                    yield return fontsDir.stringValue;
-            }
-        }
         static string PAT
         {
             get => EditorPrefs.GetString("Figma/Editor/PAT", "");
@@ -144,7 +136,13 @@ namespace Figma.Inspectors
 
                 if (folder.NotNullOrEmpty())
                 {
-                    UpdateTitle(document, (Figma)target, title.stringValue, folder, relativeFolder, Event.current.modifiers == EventModifiers.Control, downloadImages);
+                    IEnumerable<string> FontsDirs()
+                    {
+                        foreach (SerializedProperty fontsDir in fontsDirs)
+                            yield return fontsDir.stringValue;
+                    }
+
+                    UpdateTitle(document, (Figma)target, title.stringValue, folder, relativeFolder, Event.current.modifiers == EventModifiers.Control, downloadImages, FontsDirs());
                 }
             }
 
@@ -204,7 +202,7 @@ namespace Figma.Inspectors
         #endregion
 
         #region Support Methods
-        async void UpdateTitle(UIDocument document, Figma figma, string title, string folder, string relativeFolder, bool systemCopyBuffer, bool downloadImages)
+        static async void UpdateTitle(UIDocument document, Figma figma, string title, string folder, string relativeFolder, bool systemCopyBuffer, bool downloadImages, IEnumerable<string> fontDirs)
         {
             if (!Directory.Exists(Path.Combine(folder, "Images"))) Directory.CreateDirectory(Path.Combine(folder, "Images"));
             if (!Directory.Exists(Path.Combine(folder, "Elements"))) Directory.CreateDirectory(Path.Combine(folder, "Elements"));
@@ -221,7 +219,7 @@ namespace Figma.Inspectors
 
             try
             {
-                await UpdateTitleAsync(document, figma, progress, title, folder, relativeFolder, systemCopyBuffer, downloadImages, cancellationToken.Token);
+                await UpdateTitleAsync(document, figma, progress, title, folder, relativeFolder, systemCopyBuffer, downloadImages, fontDirs, cancellationToken.Token);
             }
             catch (Exception exception)
             {
@@ -237,7 +235,7 @@ namespace Figma.Inspectors
                 cancellationToken.Dispose();
             }
         }
-        async Task UpdateTitleAsync(UIDocument document, Figma figma, int progress, string title, string folder, string relativeFolder, bool systemCopyBuffer, bool downloadImages, CancellationToken token)
+        static async Task UpdateTitleAsync(UIDocument document, Figma figma, int progress, string title, string folder, string relativeFolder, bool systemCopyBuffer, bool downloadImages, IEnumerable<string> fontDirs, CancellationToken token)
         {
             string CutJson(string json, string propertyToCut)
             {
@@ -283,7 +281,7 @@ namespace Figma.Inspectors
                 if (File.Exists(FileUtil.GetPhysicalPath($"{relativeFolder}/{localFontsPath}")))
                     return localFontsPath;
 
-                foreach (string fontsDir in FontsDirs)
+                foreach (string fontsDir in fontDirs)
                 {
                     string projectFontPath = $"{fontsDir}/{name}.{extension}";
                     if (File.Exists(FileUtil.GetPhysicalPath(projectFontPath)))
