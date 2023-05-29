@@ -34,19 +34,6 @@ namespace Figma
 
             return (startIndex + i) == path.Length || path[startIndex + i].IsSeparator();
         }
-        public static bool BeginsWith(this string path, params string[] values)
-        {
-            int i = 0;
-            foreach (string value in values)
-            {
-                if (path.BeginsWith(value, i)) i += value.Length;
-                else return false;
-
-                if (i < path.Length && path[i].IsSeparator()) ++i;
-            }
-
-            return i == path.Length || path[i].IsSeparator();
-        }
         #endregion
     }
 }

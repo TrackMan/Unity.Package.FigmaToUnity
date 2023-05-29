@@ -10,13 +10,16 @@ using System.Threading.Tasks;
 using System.Reflection;
 using System.Globalization;
 using System.Collections.Generic;
-using Trackman;
+using System.Diagnostics.CodeAnalysis;
 using Unity.VectorGraphics.Editor;
 using UnityEditor;
 using UnityEditor.PackageManager;
 using UnityEditor.PackageManager.Requests;
 using UnityEngine;
 using UnityEngine.UIElements;
+using Trackman;
+
+// ReSharper disable MemberCanBeMadeStatic.Local
 
 namespace Figma.Inspectors
 {
@@ -25,13 +28,15 @@ namespace Figma.Inspectors
     using PackageInfo = UnityEditor.PackageManager.PackageInfo;
 
     [CustomEditor(typeof(Figma), true)]
+    [SuppressMessage("Roslynator", "RCS1213:Remove unused member declaration.")]
     public class FigmaInspector : Editor
     {
         const string uiDocumentsOnlyIcon = "d_Refresh@2x";
         const string uiDocumentWithImagesIcon = "d_RawImage Icon";
         const string folderIcon = "d_Project";
         const int maxConcurrentRequests = 5;
-        static readonly string[] propertiesToCut = new string[] { "componentProperties" };
+        const string api = "https://api.figma.com/v1";
+        static readonly string[] propertiesToCut = { "componentProperties" };
 
         #region Fields
         SerializedProperty title;
@@ -70,10 +75,10 @@ namespace Figma.Inspectors
                 packages.AddRange(listRequest.Result);
             }
 
-            title = serializedObject.FindProperty("title");
-            filter = serializedObject.FindProperty("filter");
-            reorder = serializedObject.FindProperty("reorder");
-            fontsDirs = serializedObject.FindProperty("fontsDirs");
+            title = serializedObject.FindProperty(nameof(title));
+            filter = serializedObject.FindProperty(nameof(filter));
+            reorder = serializedObject.FindProperty(nameof(reorder));
+            fontsDirs = serializedObject.FindProperty(nameof(fontsDirs));
 
             document = ((MonoBehaviour)target).GetComponent<UIDocument>();
             UpdatePackages();
@@ -102,46 +107,25 @@ namespace Figma.Inspectors
                 GUI.backgroundColor = Color.white;
                 GUILayout.EndHorizontal();
             }
-            else PAT = EditorGUILayout.TextField("Personal Access Token", PAT);
+            else
+            {
+                PAT = EditorGUILayout.TextField("Personal Access Token", PAT);
+            }
         }
         void OnAssetGUI()
         {
-            EditorGUILayout.BeginVertical(GUI.skin.box);
-            EditorGUILayout.PropertyField(title);
-
-            VisualTreeAsset visualTreeAsset = document.visualTreeAsset;
-
-            EditorGUI.BeginDisabledGroup(true);
-            EditorGUILayout.ObjectField("Asset", visualTreeAsset, typeof(VisualTreeAsset), true);
-            EditorGUI.EndDisabledGroup();
-
-            EditorGUILayout.BeginHorizontal();
-            bool forceUpdate = default;
-            bool downloadImages = false;
-
-            if (GUILayout.Button(new GUIContent("Update UI", EditorGUIUtility.IconContent(uiDocumentsOnlyIcon).image), GUILayout.Height(20)) ||
-                (downloadImages = GUILayout.Button(new GUIContent("Update UI & Images", EditorGUIUtility.IconContent(uiDocumentWithImagesIcon).image), GUILayout.Width(184), GUILayout.Height(20))) ||
-                (forceUpdate = GUILayout.Button(new GUIContent(EditorGUIUtility.FindTexture(folderIcon)), GUILayout.Width(36))))
-                Update(forceUpdate ? EditorUtility.DisplayDialog("Figma Updater", "Do you want to update images as well?", "Yes", "No") : downloadImages);
-
-            EditorGUILayout.EndHorizontal();
-            EditorGUILayout.EndVertical();
-
-            void Update(bool downloadImages)
+            void Update(string assetPath, bool downloadImages)
             {
-                string assetPath = forceUpdate ? default : AssetDatabase.GetAssetPath(visualTreeAsset);
                 string folder;
                 string relativeFolder;
 
                 if (assetPath.NullOrEmpty())
                 {
                     assetPath = EditorUtility.SaveFilePanel("Save VisualTreeAsset", Application.dataPath, document.name, "uxml");
-                    if (Path.GetFullPath(assetPath).StartsWith(Path.GetFullPath(Application.dataPath)))
+                    if (!Path.GetFullPath(assetPath).StartsWith(Path.GetFullPath(Application.dataPath)))
                     {
-                    }
-                    else
-                    {
-                        PackageInfo packageInfo = packages.Find(x => Path.GetFullPath(assetPath).StartsWith($"{Path.GetFullPath(x.resolvedPath)}\\"));
+                        string path = assetPath;
+                        PackageInfo packageInfo = packages.Find(x => Path.GetFullPath(path).StartsWith($"{Path.GetFullPath(x.resolvedPath)}\\"));
                         assetPath = $"{packageInfo.assetPath}/{Path.GetFullPath(assetPath).Replace(Path.GetFullPath(packageInfo.resolvedPath), "")}";
                     }
                 }
@@ -163,6 +147,28 @@ namespace Figma.Inspectors
                     UpdateTitle(document, (Figma)target, title.stringValue, folder, relativeFolder, Event.current.modifiers == EventModifiers.Control, downloadImages);
                 }
             }
+
+            EditorGUILayout.BeginVertical(GUI.skin.box);
+            EditorGUILayout.PropertyField(title);
+
+            VisualTreeAsset visualTreeAsset = document.visualTreeAsset;
+
+            EditorGUI.BeginDisabledGroup(true);
+            EditorGUILayout.ObjectField("Asset", visualTreeAsset, typeof(VisualTreeAsset), true);
+            EditorGUI.EndDisabledGroup();
+
+            EditorGUILayout.BeginHorizontal();
+            bool forceUpdate = default;
+            bool downloadImages = false;
+
+            if (GUILayout.Button(new GUIContent("Update UI", EditorGUIUtility.IconContent(uiDocumentsOnlyIcon).image), GUILayout.Height(20)) ||
+                (downloadImages = GUILayout.Button(new GUIContent("Update UI & Images", EditorGUIUtility.IconContent(uiDocumentWithImagesIcon).image), GUILayout.Width(184), GUILayout.Height(20))) ||
+                (forceUpdate = GUILayout.Button(new GUIContent(EditorGUIUtility.FindTexture(folderIcon)), GUILayout.Width(36))))
+                Update(forceUpdate ? default : AssetDatabase.GetAssetPath(visualTreeAsset),
+                       forceUpdate ? EditorUtility.DisplayDialog("Figma Updater", "Do you want to update images as well?", "Yes", "No") : downloadImages);
+
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.EndVertical();
         }
         void OnFigmaGUI()
         {
@@ -174,7 +180,7 @@ namespace Figma.Inspectors
 
             if (document && document.visualTreeAsset)
             {
-                foreach (MonoBehaviour element in document.GetComponentsInChildren<IRootElement>())
+                foreach (MonoBehaviour element in document.GetComponentsInChildren<IRootElement>().Cast<MonoBehaviour>())
                 {
                     Type elementType = element.GetType();
                     UxmlAttribute uxml = elementType.GetCustomAttribute<UxmlAttribute>();
@@ -205,13 +211,14 @@ namespace Figma.Inspectors
 
             string processName = $"Figma Update {figma.name}{(downloadImages ? " & Images" : string.Empty)}";
 
-            CancellationTokenSource cancellationToken = new CancellationTokenSource();
+            using CancellationTokenSource cancellationToken = new();
             int progress = Progress.Start(processName, default, Progress.Options.Managed);
             Progress.RegisterCancelCallback(progress, () =>
-                    {
-                        cancellationToken.Cancel();
-                        return true;
-                    });
+            {
+                if (cancellationToken is not null) cancellationToken.Cancel();
+                return true;
+            });
+
             try
             {
                 await UpdateTitleAsync(document, figma, progress, title, folder, relativeFolder, systemCopyBuffer, downloadImages, cancellationToken.Token);
@@ -232,16 +239,12 @@ namespace Figma.Inspectors
         }
         async Task UpdateTitleAsync(UIDocument document, Figma figma, int progress, string title, string folder, string relativeFolder, bool systemCopyBuffer, bool downloadImages, CancellationToken token)
         {
-            string remapsFilename = $"{folder}/remaps_{figma.name}.json";
-            Dictionary<string, string> remaps = File.Exists(remapsFilename) ? JsonUtility.FromJson<Dictionary<string, string>>(File.ReadAllText(remapsFilename)) : new();
-            Func<bool> cleanup = default;
-
             string CutJson(string json, string propertyToCut)
             {
-                while (json.IndexOf(propertyToCut) > 0)
+                while (json.IndexOf(propertyToCut, StringComparison.Ordinal) > 0)
                 {
                     bool touched = false;
-                    int startIndex = json.IndexOf(propertyToCut);
+                    int startIndex = json.IndexOf(propertyToCut, StringComparison.Ordinal);
                     int counter = 0;
 
                     for (int i = startIndex; i > 0; --i)
@@ -259,7 +262,10 @@ namespace Figma.Inspectors
                             touched = true;
                             ++counter;
                         }
-                        else if (json[i] == '}') --counter;
+                        else if (json[i] == '}')
+                        {
+                            --counter;
+                        }
 
                         if (touched && counter == 0)
                         {
@@ -271,25 +277,24 @@ namespace Figma.Inspectors
 
                 return json;
             }
-
             string GetFontPath(string name, string extension)
             {
                 string localFontsPath = $"Fonts/{name}.{extension}";
                 if (File.Exists(FileUtil.GetPhysicalPath($"{relativeFolder}/{localFontsPath}")))
-                {
                     return localFontsPath;
-                }
 
                 foreach (string fontsDir in FontsDirs)
                 {
                     string projectFontPath = $"{fontsDir}/{name}.{extension}";
                     if (File.Exists(FileUtil.GetPhysicalPath(projectFontPath)))
-                    {
                         return $"/{projectFontPath}";
-                    }
                 }
                 return default;
             }
+
+            string remapsFilename = $"{folder}/remaps_{figma.name}.json";
+            Dictionary<string, string> remaps = File.Exists(remapsFilename) ? JsonUtility.FromJson<Dictionary<string, string>>(await File.ReadAllTextAsync(remapsFilename, token)) : new();
+            Func<bool> cleanup = default;
 
             #region GetAssetPath, GetAssetSize
             (bool valid, string path) GetAssetPath(string name, string extension)
@@ -324,9 +329,9 @@ namespace Figma.Inspectors
                         {
                             TextureImporter importer = (TextureImporter)AssetImporter.GetAtPath(Path.Combine(relativeFolder, path));
                             importer.GetSourceTextureWidthAndHeight(out int width, out int height);
-                            return (valid, width, height);
+                            return (true, width, height);
                         }
-                        else return (valid, -1, -1);
+                        return (false, -1, -1);
 
                     case "svg":
                         if (valid)
@@ -334,15 +339,15 @@ namespace Figma.Inspectors
                             SVGImporter importer = (SVGImporter)AssetImporter.GetAtPath(Path.Combine(relativeFolder, path));
                             UnityEngine.Object vectorImage = AssetDatabase.LoadMainAssetAtPath(Path.Combine(relativeFolder, path));
 
-                            if (vectorImage.GetType().GetField("size", BindingFlags.NonPublic | BindingFlags.Instance) is FieldInfo fieldInfo)
+                            if (vectorImage.GetType().GetField("size", BindingFlags.NonPublic | BindingFlags.Instance) is { } fieldInfo)
                             {
                                 Vector2 size = (Vector2)fieldInfo.GetValue(vectorImage);
-                                return (valid, Mathf.CeilToInt(size.x), Mathf.CeilToInt(size.y));
+                                return (true, Mathf.CeilToInt(size.x), Mathf.CeilToInt(size.y));
                             }
 
-                            return (valid, importer.TextureWidth == -1 ? -1 : importer.TextureWidth, importer.TextureHeight == -1 ? -1 : importer.TextureHeight);
+                            return (true, importer.TextureWidth == -1 ? -1 : importer.TextureWidth, importer.TextureHeight == -1 ? -1 : importer.TextureHeight);
                         }
-                        else return (valid, -1, -1);
+                        return (false, -1, -1);
 
                     default:
                         throw new NotSupportedException();
@@ -353,7 +358,7 @@ namespace Figma.Inspectors
             #region Getting Figma's data
             const string figmaTmpJson = "Temp/FigmaUI.json";
             Dictionary<string, string> headers = new() { { "X-FIGMA-TOKEN", PAT } };
-            string json = default;
+            string json;
 
             Progress.Report(progress, 1, 4, "Downloading nodes");
 
@@ -364,11 +369,11 @@ namespace Figma.Inspectors
             }
             else
             {
-                json = Encoding.UTF8.GetString(await $"https://api.figma.com/v1/files/{title}?geometry=paths".HttpGetAsync(headers, cancellationToken: token));
+                json = Encoding.UTF8.GetString(await $"{api}/files/{title}?geometry=paths".HttpGetAsync(headers, cancellationToken: token));
             }
 
             if (systemCopyBuffer) GUIUtility.systemCopyBuffer = json;
-            if (!File.Exists(figmaTmpJson)) File.WriteAllText(figmaTmpJson, json);
+            if (!File.Exists(figmaTmpJson)) await File.WriteAllTextAsync(figmaTmpJson, json, token);
 
             foreach (string propertyToCut in propertiesToCut) json = CutJson(json, propertyToCut);
             #endregion
@@ -378,14 +383,14 @@ namespace Figma.Inspectors
 
             MonoBehaviour[] elements = figma.GetComponentsInChildren<IRootElement>().Cast<MonoBehaviour>().ToArray();
             NodeMetadata.Initialize(document, figma, elements, files.document);
-            FigmaParser parser = new FigmaParser(files.document, files.styles, GetAssetPath, GetAssetSize);
+            FigmaParser parser = new(files.document, files.styles, GetAssetPath, GetAssetSize);
 
             Progress.Report(progress, 2, 4, "Downloading missing nodes");
 
             #region AddMissingComponents
             if (parser.MissingComponents.Count > 0)
             {
-                Nodes nodes = JsonUtility.FromJson<Nodes>(await $"https://api.figma.com/v1/files/{title}/nodes?ids={string.Join(",", parser.MissingComponents.Distinct())}".HttpGetAsync(headers, cancellationToken: token));
+                Nodes nodes = JsonUtility.FromJson<Nodes>(await $"{api}/files/{title}/nodes?ids={string.Join(",", parser.MissingComponents.Distinct())}".HttpGetAsync(headers, cancellationToken: token));
                 foreach (Nodes.Document value in nodes.nodes.Values.Where(value => value is not null))
                 {
                     value.document.parent = files.document;
@@ -436,7 +441,7 @@ namespace Figma.Inspectors
 
                         if (response.StatusCode == HttpStatusCode.OK)
                         {
-                            File.WriteAllBytes(relativePath, await response.Content.ReadAsByteArrayAsync());
+                            await File.WriteAllBytesAsync(relativePath, await response.Content.ReadAsByteArrayAsync(), token);
                             addForImport(nodeID, relativePath);
                         }
 
@@ -454,7 +459,7 @@ namespace Figma.Inspectors
                 Task svgToPngSyncTask = Task.CompletedTask;
                 Task svgSyncTask = Task.CompletedTask;
 
-                bool Cleanup()
+                bool CleanupAfter()
                 {
                     Progress.SetDescription(progress, "Remove dangling images");
 
@@ -479,15 +484,14 @@ namespace Figma.Inspectors
                     SaveRemaps(remaps);
                     return true;
                 }
-
-                cleanup = Cleanup;
+                cleanup = CleanupAfter;
 
                 #region WriteImageFillNodes
                 if (parser.ImageFillNodes.Any(x => x.ShouldDownload(UxmlDownloadImages.ImageFills)))
                 {
                     Progress.SetDescription(progress, "Downloading image fills");
 
-                    byte[] bytes = await $"https://api.figma.com/v1/files/{title}/images".HttpGetAsync(headers, cancellationToken: token);
+                    byte[] bytes = await $"{api}/files/{title}/images".HttpGetAsync(headers, cancellationToken: token);
                     Files.Images filesImages = JsonUtility.FromJson<Files.Images>(bytes);
 
                     IEnumerable<string> imageRefs = parser.ImageFillNodes.Where(x => x.ShouldDownload(UxmlDownloadImages.ImageFills)).Cast<GeometryMixin>().Select(y => y.fills.OfType<ImagePaint>().First().imageRef);
@@ -503,7 +507,7 @@ namespace Figma.Inspectors
                     Progress.SetDescription(progress, "Downloading png images");
                     int i = 0;
                     IEnumerable<IGrouping<int, string>> items = parser.PngNodes.Where(x => x.ShouldDownload(UxmlDownloadImages.RenderAsPng)).Select(y => y.id).GroupBy(_ => i++ / 100);
-                    Task<byte[]>[] tasks = items.Select((group) => $"https://api.figma.com/v1/images/{title}?ids={string.Join(",", group)}&format=png".HttpGetAsync(headers, cancellationToken: token)).ToArray();
+                    Task<byte[]>[] tasks = items.Select((group) => $"{api}/images/{title}?ids={string.Join(",", group)}&format=png".HttpGetAsync(headers, cancellationToken: token)).ToArray();
                     await Task.WhenAll(tasks);
                     IEnumerable<KeyValuePair<string, string>> images = tasks.SelectMany(t => JsonUtility.FromJson<Images>(t.Result).images);
                     svgToPngSyncTask = images.ForEachParallelAsync(maxConcurrentRequests, DownloadMethodFor("png", AddPngImport), token);
@@ -516,15 +520,14 @@ namespace Figma.Inspectors
                     void AddSvgImport(string id, string path)
                     {
                         BaseNode node = parser.SvgNodes.Find(x => x.id == id);
-                        LayoutMixin layout = node as LayoutMixin;
-                        importSvg.Add((path, (int)layout.absoluteBoundingBox.width, (int)layout.absoluteBoundingBox.height));
+                        if (node is LayoutMixin layout) importSvg.Add((path, (int)layout.absoluteBoundingBox.width, (int)layout.absoluteBoundingBox.height));
                     }
 
                     Progress.SetDescription(progress, "Downloading svg images");
                     int i = 0;
 
                     IEnumerable<IGrouping<int, BaseNode>> nodesGroups = parser.SvgNodes.Where(x => x.ShouldDownload(UxmlDownloadImages.RenderAsSvg)).GroupBy(_ => i++ / 100);
-                    Task<byte[]>[] tasks = nodesGroups.Select((nodes) => $"https://api.figma.com/v1/images/{title}?ids={string.Join(",", nodes.Select(x => x.id))}&format=svg".HttpGetAsync(headers, cancellationToken: token)).ToArray();
+                    Task<byte[]>[] tasks = nodesGroups.Select((nodes) => $"{api}/images/{title}?ids={string.Join(",", nodes.Select(x => x.id))}&format=svg".HttpGetAsync(headers, cancellationToken: token)).ToArray();
                     await Task.WhenAll(tasks);
                     IEnumerable<KeyValuePair<string, string>> images = tasks.SelectMany(t => JsonUtility.FromJson<Images>(t.Result).images);
                     svgSyncTask = images.ForEachParallelAsync(maxConcurrentRequests, DownloadMethodFor("svg", AddSvgImport), token);
@@ -534,14 +537,19 @@ namespace Figma.Inspectors
                 try
                 {
                     AssetDatabase.StartAssetEditing();
-                    await Task.WhenAll(new[] { fillsSyncTask, svgToPngSyncTask, svgSyncTask });
+                    await Task.WhenAll(fillsSyncTask, svgToPngSyncTask, svgSyncTask);
 
                     Progress.SetDescription(progress, "Write Gradients");
-                    foreach (KeyValuePair<string, GradientPaint> keyValue in parser.Gradients)
+                    foreach ((string key, GradientPaint gradient) in parser.Gradients)
                     {
                         CultureInfo defaultCulture = CultureInfo.GetCultureInfo("en-US");
-                        GradientPaint gradient = keyValue.Value;
-                        XmlWriter writer = XmlWriter.Create(Path.Combine(folder, $"{GetAssetPath(keyValue.Key, "svg").path}"), new XmlWriterSettings() { Indent = true, NewLineOnAttributes = true, IndentChars = "    " });
+                        XmlWriter writer = XmlWriter.Create(Path.Combine(folder, $"{GetAssetPath(key, "svg").path}"), new XmlWriterSettings
+                        {
+                            Indent = true,
+                            NewLineOnAttributes = true,
+                            IndentChars = "    ",
+                            Async = true
+                        });
                         writer.WriteStartElement("svg");
                         {
                             writer.WriteStartElement("defs");
@@ -580,25 +588,25 @@ namespace Figma.Inspectors
                                     writer.WriteStartElement("stop");
                                     writer.WriteAttributeString("offset", $"{stop.position.ToString("F2", defaultCulture)}");
                                     writer.WriteAttributeString("style", $"stop-color:rgb({(byte)(stop.color.r * 255)},{(byte)(stop.color.g * 255)},{(byte)(stop.color.b * 255)});stop-opacity:{stop.color.a.ToString("F2", defaultCulture)}");
-                                    writer.WriteEndElement();
+                                    await writer.WriteEndElementAsync();
                                 }
 
-                                writer.WriteEndElement();
+                                await writer.WriteEndElementAsync();
                             }
 
-                            writer.WriteEndElement();
+                            await writer.WriteEndElementAsync();
 
                             writer.WriteStartElement("rect");
                             writer.WriteAttributeString("width", "100");
                             writer.WriteAttributeString("height", "100");
                             writer.WriteAttributeString("fill", "url(#gradient)");
-                            writer.WriteEndElement();
+                            await writer.WriteEndElementAsync();
                         }
 
-                        writer.WriteEndElement();
+                        await writer.WriteEndElementAsync();
                         writer.Close();
 
-                        string relativePath = Path.Combine(relativeFolder, $"{GetAssetPath(keyValue.Key, "svg").path}").Replace('\\', '/');
+                        string relativePath = Path.Combine(relativeFolder, $"{GetAssetPath(key, "svg").path}").Replace('\\', '/');
 
                         importGradient.Add(relativePath);
                         requiredImages.Add(relativePath);
@@ -617,18 +625,16 @@ namespace Figma.Inspectors
                 AssetDatabase.ImportAsset(Path.Combine(relativeFolder, "Images"), ImportAssetOptions.ImportRecursive | ImportAssetOptions.ForceSynchronousImport);
 
                 Progress.SetDescription(progress, "Importing png...");
-                foreach (string relativePath in importPng)
+                foreach (TextureImporter importer in importPng.Select(relativePath => (TextureImporter)AssetImporter.GetAtPath(relativePath)))
                 {
-                    TextureImporter importer = (TextureImporter)AssetImporter.GetAtPath(relativePath);
                     importer.npotScale = TextureImporterNPOTScale.None;
                     importer.mipmapEnabled = false;
                     EditorUtility.SetDirty(importer);
                 }
 
                 Progress.SetDescription(progress, "Importing svg...");
-                foreach ((string path, int width, int height) value in importSvg)
+                foreach (SVGImporter importer in importSvg.Select(value => (SVGImporter)AssetImporter.GetAtPath(value.path)))
                 {
-                    SVGImporter importer = (SVGImporter)AssetImporter.GetAtPath(value.path);
 #if VECTOR_GRAPHICS_RASTER
                     importer.SvgType = SVGType.Texture2D;
                     importer.KeepTextureAspectRatio = false;
@@ -642,9 +648,8 @@ namespace Figma.Inspectors
                 }
 
                 Progress.SetDescription(progress, "Importing gradients...");
-                foreach (string path in importGradient)
+                foreach (SVGImporter importer in importGradient.Select(path => (SVGImporter)AssetImporter.GetAtPath(path)))
                 {
-                    SVGImporter importer = (SVGImporter)AssetImporter.GetAtPath(path);
                     importer.SvgType = SVGType.UIToolkit;
                     EditorUtility.SetDirty(importer);
                 }

@@ -2,6 +2,11 @@
 using System;
 using System.Collections.Generic;
 
+// ReSharper disable CollectionNeverUpdated.Global
+// ReSharper disable UnassignedField.Global
+// ReSharper disable BuiltInTypeReferenceStyle
+// ReSharper disable FieldCanBeMadeReadOnly.Global
+
 namespace Figma
 {
     using boolean = Boolean;
@@ -10,7 +15,7 @@ namespace Figma
     namespace global
     {
         ////////////////////////////////////////////////////////////////////////////////
-        // Datatypes
+        // Datatype
 
         // type Transform = [
         //  [number, number, number],
@@ -49,8 +54,8 @@ namespace Figma
                 this.height = height;
             }
 
-            public static Rect operator +(Rect a, Rect b) => new Rect(a.x + b.x, a.y + b.y, a.width + b.width, a.height + b.height);
-            public static Rect operator -(Rect a, Rect b) => new Rect(a.x - b.x, a.y - b.y, a.width - b.width, a.height - b.height);
+            public static Rect operator +(Rect a, Rect b) => new(a.x + b.x, a.y + b.y, a.width + b.width, a.height + b.height);
+            public static Rect operator -(Rect a, Rect b) => new(a.x - b.x, a.y - b.y, a.width - b.width, a.height - b.height);
         }
 
         public struct RGBA

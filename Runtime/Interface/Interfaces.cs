@@ -14,7 +14,7 @@ namespace Figma
     {
         #region Properties
         VisualElement Root { get; }
-        int RootOrder { get => 0; }
+        int RootOrder => 0;
         #endregion
 
         #region Methods

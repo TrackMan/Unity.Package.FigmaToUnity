@@ -6,7 +6,7 @@ namespace Figma
     public enum UxmlDownloadImages
     {
         Everything = 0,
-        Nothing = 1,
+        Nothing = 1 << 0,
         ImageFills = 1 << 1,
         RenderAsPng = 1 << 2,
         RenderAsSvg = 1 << 3,
@@ -30,7 +30,7 @@ namespace Figma
     public enum CopyStyleMask
     {
         None = 0,
-        Text = 1,
+        Text = 1 << 0,
         Position = 1 << 1,
         Size = 1 << 2,
         Flex = 1 << 3,

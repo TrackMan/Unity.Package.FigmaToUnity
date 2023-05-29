@@ -17,8 +17,10 @@ namespace Figma
             [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
             public static void Initialize()
             {
-                JsonSerializerSettings settings = new JsonSerializerSettings();
-                settings.NullValueHandling = NullValueHandling.Ignore;
+                JsonSerializerSettings settings = new()
+                {
+                    NullValueHandling = NullValueHandling.Ignore
+                };
                 settings.Converters.Add(new EffectArrayConverter());
                 settings.Converters.Add(new PaintArrayConverter());
                 settings.Converters.Add(new LayoutGridArrayConverter());
@@ -35,10 +37,7 @@ namespace Figma
         public abstract class ArrayConverter<T, U> : JsonConverter
         {
             #region Methods
-            public override bool CanConvert(Type objectType)
-            {
-                return objectType == typeof(T[]);
-            }
+            public override bool CanConvert(Type objectType) => objectType == typeof(T[]);
             public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
             {
                 JArray array = JArray.Load(reader);
@@ -53,10 +52,7 @@ namespace Figma
                 foreach (T node in array) serializer.Serialize(writer, node);
                 writer.WriteEndArray();
             }
-            protected U GetValue(JObject obj, string name = "type")
-            {
-                return (U)Enum.Parse(typeof(U), obj[name].Value<string>());
-            }
+            protected U GetValue(JObject obj, string name = "type") => (U)Enum.Parse(typeof(U), obj[name].Value<string>());
             protected abstract T ToObject(JObject obj, JsonSerializer serializer);
             #endregion
         }
@@ -66,19 +62,14 @@ namespace Figma
             #region Methods
             protected override Effect ToObject(JObject obj, JsonSerializer serializer)
             {
-                switch (GetValue(obj))
+                return GetValue(obj) switch
                 {
-                    case EffectType.INNER_SHADOW:
-                    case EffectType.DROP_SHADOW:
-                        return obj.ToObject<ShadowEffect>(serializer);
-
-                    case EffectType.LAYER_BLUR:
-                    case EffectType.BACKGROUND_BLUR:
-                        return obj.ToObject<BlurEffect>(serializer);
-
-                    default:
-                        throw new NotSupportedException();
-                }
+                    EffectType.INNER_SHADOW => obj.ToObject<ShadowEffect>(serializer),
+                    EffectType.DROP_SHADOW => obj.ToObject<ShadowEffect>(serializer),
+                    EffectType.LAYER_BLUR => obj.ToObject<BlurEffect>(serializer),
+                    EffectType.BACKGROUND_BLUR => obj.ToObject<BlurEffect>(serializer),
+                    _ => throw new NotSupportedException()
+                };
             }
             #endregion
         }
@@ -88,24 +79,17 @@ namespace Figma
             #region Methods
             protected override Paint ToObject(JObject obj, JsonSerializer serializer)
             {
-                switch (GetValue(obj))
+                return GetValue(obj) switch
                 {
-                    case PaintType.SOLID:
-                        return obj.ToObject<SolidPaint>(serializer);
-
-                    case PaintType.GRADIENT_LINEAR:
-                    case PaintType.GRADIENT_RADIAL:
-                    case PaintType.GRADIENT_ANGULAR:
-                    case PaintType.GRADIENT_DIAMOND:
-                        return obj.ToObject<GradientPaint>(serializer);
-
-                    case PaintType.IMAGE:
-                    case PaintType.EMOJI:
-                        return obj.ToObject<ImagePaint>(serializer);
-
-                    default:
-                        throw new ArgumentOutOfRangeException();
-                }
+                    PaintType.SOLID => obj.ToObject<SolidPaint>(serializer),
+                    PaintType.GRADIENT_LINEAR => obj.ToObject<GradientPaint>(serializer),
+                    PaintType.GRADIENT_RADIAL => obj.ToObject<GradientPaint>(serializer),
+                    PaintType.GRADIENT_ANGULAR => obj.ToObject<GradientPaint>(serializer),
+                    PaintType.GRADIENT_DIAMOND => obj.ToObject<GradientPaint>(serializer),
+                    PaintType.IMAGE => obj.ToObject<ImagePaint>(serializer),
+                    PaintType.EMOJI => obj.ToObject<ImagePaint>(serializer),
+                    _ => throw new ArgumentOutOfRangeException()
+                };
             }
             #endregion
         }
@@ -115,18 +99,13 @@ namespace Figma
             #region Methods
             protected override LayoutGrid ToObject(JObject obj, JsonSerializer serializer)
             {
-                switch (GetValue(obj, "pattern"))
+                return GetValue(obj, "pattern") switch
                 {
-                    case Pattern.COLUMNS:
-                    case Pattern.ROWS:
-                        return obj.ToObject<RowsColsLayoutGrid>(serializer);
-
-                    case Pattern.GRID:
-                        return obj.ToObject<GridLayoutGrid>(serializer);
-
-                    default:
-                        throw new NotSupportedException();
-                }
+                    Pattern.COLUMNS => obj.ToObject<RowsColsLayoutGrid>(serializer),
+                    Pattern.ROWS => obj.ToObject<RowsColsLayoutGrid>(serializer),
+                    Pattern.GRID => obj.ToObject<GridLayoutGrid>(serializer),
+                    _ => throw new NotSupportedException()
+                };
             }
             #endregion
         }
@@ -136,21 +115,14 @@ namespace Figma
             #region Methods
             protected override ExportSettings ToObject(JObject obj, JsonSerializer serializer)
             {
-                switch (GetValue(obj, "format"))
+                return GetValue(obj, "format") switch
                 {
-                    case Format.JPG:
-                    case Format.PNG:
-                        return obj.ToObject<ExportSettingsImage>(serializer);
-
-                    case Format.SVG:
-                        return obj.ToObject<ExportSettingsSVG>(serializer);
-
-                    case Format.PDF:
-                        return obj.ToObject<ExportSettingsPDF>(serializer);
-
-                    default:
-                        throw new NotSupportedException();
-                }
+                    Format.JPG => obj.ToObject<ExportSettingsImage>(serializer),
+                    Format.PNG => obj.ToObject<ExportSettingsImage>(serializer),
+                    Format.SVG => obj.ToObject<ExportSettingsSVG>(serializer),
+                    Format.PDF => obj.ToObject<ExportSettingsPDF>(serializer),
+                    _ => throw new NotSupportedException()
+                };
             }
             #endregion
         }
@@ -158,34 +130,23 @@ namespace Figma
         public class TransitionConverter : JsonConverter
         {
             #region Methods
-            public override bool CanConvert(Type objectType)
-            {
-                return objectType == typeof(Transition);
-            }
+            public override bool CanConvert(Type objectType) => objectType == typeof(Transition);
             public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
             {
                 JObject obj = JObject.Load(reader);
-                switch ((TransitionType)Enum.Parse(typeof(TransitionType), obj["type"].Value<string>()))
+                return (TransitionType)Enum.Parse(typeof(TransitionType), obj["type"]!.Value<string>()) switch
                 {
-                    case TransitionType.DISSOLVE:
-                    case TransitionType.SMART_ANIMATE:
-                        return obj.ToObject<SimpleTransition>(serializer);
-
-                    case TransitionType.MOVE_IN:
-                    case TransitionType.MOVE_OUT:
-                    case TransitionType.PUSH:
-                    case TransitionType.SLIDE_IN:
-                    case TransitionType.SLIDE_OUT:
-                        return obj.ToObject<DirectionalTransition>(serializer);
-
-                    default:
-                        throw new NotSupportedException();
-                }
+                    TransitionType.DISSOLVE => obj.ToObject<SimpleTransition>(serializer),
+                    TransitionType.SMART_ANIMATE => obj.ToObject<SimpleTransition>(serializer),
+                    TransitionType.MOVE_IN => obj.ToObject<DirectionalTransition>(serializer),
+                    TransitionType.MOVE_OUT => obj.ToObject<DirectionalTransition>(serializer),
+                    TransitionType.PUSH => obj.ToObject<DirectionalTransition>(serializer),
+                    TransitionType.SLIDE_IN => obj.ToObject<DirectionalTransition>(serializer),
+                    TransitionType.SLIDE_OUT => obj.ToObject<DirectionalTransition>(serializer),
+                    _ => throw new NotSupportedException()
+                };
             }
-            public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
-            {
-                throw new NotImplementedException();
-            }
+            public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer) => throw new NotImplementedException();
             #endregion
         }
 
@@ -194,17 +155,12 @@ namespace Figma
             #region Methods
             protected override BaseNode ToObject(JObject obj, JsonSerializer serializer)
             {
-                switch (GetValue(obj))
+                return GetValue(obj) switch
                 {
-                    case NodeType.DOCUMENT:
-                        return obj.ToObject<DocumentNode>(serializer);
-
-                    case NodeType.CANVAS:
-                        return obj.ToObject<CanvasNode>(serializer);
-
-                    default:
-                        throw new ArgumentOutOfRangeException();
-                }
+                    NodeType.DOCUMENT => obj.ToObject<DocumentNode>(serializer),
+                    NodeType.CANVAS => obj.ToObject<CanvasNode>(serializer),
+                    _ => throw new ArgumentOutOfRangeException()
+                };
             }
             #endregion
         }
@@ -214,53 +170,24 @@ namespace Figma
             #region Methods
             protected override SceneNode ToObject(JObject obj, JsonSerializer serializer)
             {
-                switch (GetValue(obj))
+                return GetValue(obj) switch
                 {
-                    case NodeType.SLICE:
-                        return obj.ToObject<SliceNode>(serializer);
-
-                    case NodeType.FRAME:
-                        return obj.ToObject<FrameNode>(serializer);
-
-                    case NodeType.GROUP:
-                        return obj.ToObject<GroupNode>(serializer);
-
-                    case NodeType.COMPONENT_SET:
-                        return obj.ToObject<ComponentSetNode>(serializer);
-
-                    case NodeType.COMPONENT:
-                        return obj.ToObject<ComponentNode>(serializer);
-
-                    case NodeType.INSTANCE:
-                        return obj.ToObject<InstanceNode>(serializer);
-
-                    case NodeType.BOOLEAN_OPERATION:
-                        return obj.ToObject<BooleanOperationNode>(serializer);
-
-                    case NodeType.VECTOR:
-                        return obj.ToObject<VectorNode>(serializer);
-
-                    case NodeType.STAR:
-                        return obj.ToObject<StarNode>(serializer);
-
-                    case NodeType.LINE:
-                        return obj.ToObject<LineNode>(serializer);
-
-                    case NodeType.ELLIPSE:
-                        return obj.ToObject<EllipseNode>(serializer);
-
-                    case NodeType.REGULAR_POLYGON:
-                        return obj.ToObject<RegularPolygonNode>(serializer);
-
-                    case NodeType.RECTANGLE:
-                        return obj.ToObject<RectangleNode>(serializer);
-
-                    case NodeType.TEXT:
-                        return obj.ToObject<TextNode>(serializer);
-
-                    default:
-                        throw new ArgumentOutOfRangeException();
-                }
+                    NodeType.SLICE => obj.ToObject<SliceNode>(serializer),
+                    NodeType.FRAME => obj.ToObject<FrameNode>(serializer),
+                    NodeType.GROUP => obj.ToObject<GroupNode>(serializer),
+                    NodeType.COMPONENT_SET => obj.ToObject<ComponentSetNode>(serializer),
+                    NodeType.COMPONENT => obj.ToObject<ComponentNode>(serializer),
+                    NodeType.INSTANCE => obj.ToObject<InstanceNode>(serializer),
+                    NodeType.BOOLEAN_OPERATION => obj.ToObject<BooleanOperationNode>(serializer),
+                    NodeType.VECTOR => obj.ToObject<VectorNode>(serializer),
+                    NodeType.STAR => obj.ToObject<StarNode>(serializer),
+                    NodeType.LINE => obj.ToObject<LineNode>(serializer),
+                    NodeType.ELLIPSE => obj.ToObject<EllipseNode>(serializer),
+                    NodeType.REGULAR_POLYGON => obj.ToObject<RegularPolygonNode>(serializer),
+                    NodeType.RECTANGLE => obj.ToObject<RectangleNode>(serializer),
+                    NodeType.TEXT => obj.ToObject<TextNode>(serializer),
+                    _ => throw new ArgumentOutOfRangeException()
+                };
             }
             #endregion
         }

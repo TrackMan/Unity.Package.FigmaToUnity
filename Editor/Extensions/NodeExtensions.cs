@@ -5,13 +5,18 @@ using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
-using Trackman;
 using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 using Debug = UnityEngine.Debug;
+using Trackman;
+
+// ReSharper disable VariableHidesOuterVariable
+// ReSharper disable SuggestBaseTypeForParameter
+// ReSharper disable MemberCanBePrivate.Global
 
 namespace System.Runtime.CompilerServices { class IsExternalInit { } }
+
 namespace Figma
 {
     using Attributes;
@@ -20,7 +25,8 @@ namespace Figma
 
     public static class NodeMetadata
     {
-        public record RootMetadata(UIDocument document, Figma figma, Type type, UxmlAttribute uxml, UxmlDownloadImages downloadImages);
+        public record RootMetadata(UIDocument document, Figma figma, UxmlAttribute uxml, UxmlDownloadImages downloadImages);
+        // ReSharper disable once NotAccessedPositionalProperty.Global
         public record QueryMetadata(FieldInfo fieldInfo, QueryAttribute queryRoot, QueryAttribute query);
         public record BaseNodeMetadata(RootMetadata root, QueryMetadata query);
 
@@ -36,9 +42,9 @@ namespace Figma
         #endregion
 
         #region Methods
-        public static void Initialize(UIDocument document, Figma figma, MonoBehaviour[] targets, DocumentNode root, bool throwException = true)
+        public static void Initialize(UIDocument document, Figma figma, IEnumerable<MonoBehaviour> targets, DocumentNode root, bool throwException = true)
         {
-            foreach (IRootElement target in targets) Initialize(document, figma, root, target, throwException);
+            foreach (IRootElement target in targets.OfType<IRootElement>()) Initialize(document, figma, root, target, throwException);
         }
         public static void Initialize(UIDocument document, Figma figma, DocumentNode root, IRootElement target, bool throwException = true)
         {
@@ -47,15 +53,17 @@ namespace Figma
             BaseNode targetRoot = root.Find(uxml.Root);
             BaseNode[] targetPreserve = uxml.Preserve.Select(x => root.Find(x)).ToArray();
 
-            rootMetadata.Add(targetRoot, new RootMetadata(document, figma, targetType, uxml, uxml.ImageFiltering));
-            foreach (BaseNode value in targetPreserve) if (!rootMetadata.ContainsKey(value)) rootMetadata.Add(value, new RootMetadata(document, figma, targetType, uxml, UxmlDownloadImages.Everything));
+            rootMetadata.Add(targetRoot, new RootMetadata(document, figma, uxml, uxml.ImageFiltering));
+            foreach (BaseNode value in targetPreserve)
+                if (!rootMetadata.ContainsKey(value))
+                    rootMetadata.Add(value, new RootMetadata(document, figma, uxml, UxmlDownloadImages.Everything));
 
             Initialize(targetType, targetRoot, throwException);
         }
         public static void Clear(UIDocument document)
         {
-            foreach (BaseNode node in queryMetadata.Keys.Where(x => GetMetadata(x).root?.document == document).ToList()) queryMetadata.Remove(node);
-            foreach (BaseNode node in rootMetadata.Where(x => x.Value.document == document).Select(x => x.Key).ToList()) rootMetadata.Remove(node);
+            foreach (BaseNode node in queryMetadata.Keys.Where(x => GetMetadata(x).root?.document == document).ToArray()) queryMetadata.Remove(node);
+            foreach (BaseNode node in rootMetadata.Where(x => x.Value.document == document).Select(x => x.Key).ToArray()) rootMetadata.Remove(node);
         }
 
         public static IEnumerable<T> Search<T>(this BaseNode value, string path) where T : BaseNode
@@ -77,78 +85,64 @@ namespace Figma
 
                 return -1;
             }
-            static void Search(BaseNode root, BaseNode value, string path, int startIndex = 0, string className = default)
+            static void SearchIn(BaseNode value, string path, int startIndex = 0)
             {
                 static bool IsVisible(BaseNodeMixin mixin)
                 {
                     if (mixin is SceneNodeMixin scene && scene.visible.HasValueAndFalse()) return false;
-                    if (mixin.parent is not null) return IsVisible(mixin.parent);
-                    else return true;
+                    return mixin.parent is null || IsVisible(mixin.parent);
                 }
                 static IEnumerable<BaseNode> GetChildren(BaseNode value)
                 {
-                    if (value is DocumentNode documentNode) foreach (BaseNode child in documentNode.children) yield return child;
-                    else if (value is ChildrenMixin childrenMixin) foreach (BaseNode child in childrenMixin.children) yield return child;
-                    else yield break;
+                    List<BaseNode> children = new();
+                    if (value is DocumentNode documentNode) children.AddRange(documentNode.children);
+                    else if (value is ChildrenMixin childrenMixin) children.AddRange(childrenMixin.children);
+                    else return children;
+                    return children;
                 }
                 IEnumerable<BaseNode> children = GetChildren(value);
 
-                static bool EqualsTo(BaseNode value, string path, int startIndex)
-                {
-                    return path.EqualsTo(value.name, startIndex);
-                }
+                static bool EqualsTo(BaseNode value, string path, int startIndex) => path.EqualsTo(value.name, startIndex);
 
-                foreach (BaseNode child in children)
-                {
-                    if (!IsVisible(child)) continue;
-                    if (child.name.NotNullOrEmpty() && EqualsTo(child, path, startIndex)) search.Add(child);
-                }
+                foreach (BaseNode child in children.Where(IsVisible))
+                    if (child.name.NotNullOrEmpty() && EqualsTo(child, path, startIndex))
+                        search.Add(child);
 
-                foreach (BaseNode child in children)
-                {
-                    if (!IsVisible(child)) continue;
+                foreach (BaseNode child in children.Where(IsVisible))
                     if (child.name.NotNullOrEmpty() && StartsWith(path, child, startIndex))
-                        Search(root, child, path, startIndex + child.name.Length + 1, className);
-                }
+                        SearchIn(child, path, startIndex + child.name.Length + 1);
             }
             static void SearchByFullPath(BaseNode value, string path, int startIndex = 0)
             {
                 static bool IsVisible(BaseNodeMixin mixin)
                 {
                     if (mixin is SceneNodeMixin scene && scene.visible.HasValueAndFalse()) return false;
-                    if (mixin.parent is not null) return IsVisible(mixin.parent);
-                    else return true;
+                    return mixin.parent is null || IsVisible(mixin.parent);
                 }
                 static IEnumerable<BaseNode> GetChildren(BaseNode value)
                 {
-                    if (value is DocumentNode documentNode) foreach (BaseNode child in documentNode.children) yield return child;
-                    else if (value is ChildrenMixin childrenMixin) foreach (BaseNode child in childrenMixin.children) yield return child;
-                    else yield break;
+                    List<BaseNode> children = new();
+                    if (value is DocumentNode documentNode) children.AddRange(documentNode.children);
+                    else if (value is ChildrenMixin childrenMixin) children.AddRange(childrenMixin.children);
+                    else return children;
+                    return children;
                 }
                 IEnumerable<BaseNode> children = GetChildren(value);
 
-                static bool EqualsToFullPath(BaseNode root, BaseNode value, string path, int startIndex)
-                {
-                    return LastIndexOf(root, value, value, path, startIndex) == path.Length;
-                }
+                static bool EqualsToFullPath(BaseNode root, BaseNode value, string path, int startIndex) => LastIndexOf(root, value, value, path, startIndex) == path.Length;
                 static bool StartsWithFullPath(BaseNode root, BaseNode value, string path, int startIndex)
                 {
                     int endIndex = LastIndexOf(root, value, value, path, startIndex);
                     return endIndex >= 0 && path.Length > endIndex && path[endIndex].IsSeparator();
                 }
 
-                foreach (BaseNode child in children)
-                {
-                    if (!IsVisible(child)) continue;
-                    if (child.name.NotNullOrEmpty() && EqualsToFullPath(value, child, path, startIndex)) search.Add(child);
-                }
+                foreach (BaseNode child in children.Where(IsVisible))
+                    if (child.name.NotNullOrEmpty() && EqualsToFullPath(value, child, path, startIndex))
+                        search.Add(child);
 
-                foreach (BaseNode child in children)
-                {
-                    if (!IsVisible(child)) continue;
+                foreach (BaseNode child in children.Where(IsVisible))
                     if (child.name.NotNullOrEmpty() && StartsWithFullPath(value, child, path, startIndex))
                         SearchByFullPath(child, path, startIndex + child.name.Length + 1);
-                }
             }
 
             search.Clear();
@@ -158,60 +152,50 @@ namespace Figma
             {
                 UxmlAttribute uxml = rootMetadata[root].uxml;
                 if (path.BeginsWith(uxml.DocumentRoot) || uxml.DocumentPreserve.Any(x => path.BeginsWith(x))) SearchByFullPath(root.parent.parent, path, UxmlAttribute.prefix.Length + 1);
-                else Search(value, value, path, 0);
+                else SearchIn(value, path);
             }
             else
             {
-                SearchByFullPath(value, path, 0);
+                SearchByFullPath(value, path);
             }
 
-            foreach (T result in search) yield return result;
+            foreach (T result in search.OfType<T>()) yield return result;
         }
         public static T Find<T>(this BaseNode value, string path, bool throwException = true, bool silent = false) where T : BaseNode
         {
-            string GetFullPath(BaseNode node)
-            {
-                if (node.parent is not null) return $"{GetFullPath(node.parent)}/{node.name}";
-                return node.name;
-            }
+            string GetFullPath(BaseNode node) => node.parent is not null ? $"{GetFullPath(node.parent)}/{node.name}" : node.name;
 
             T result = value.Search<T>(path).FirstOrDefault();
             if (result is not null)
-            {
                 return result;
-            }
-            else if (throwException)
-            {
+
+            if (throwException)
                 throw new Exception($"Cannot find {typeof(T).Name} at [<color=yellow>{GetFullPath(value)}/{path}</color>]");
-            }
-            else
-            {
-                if (!silent) Debug.LogWarning($"Cannot find {typeof(T).Name} at [<color=yellow>{GetFullPath(value)}/{path}</color>]");
-                return default;
-            }
+
+            if (!silent) Debug.LogWarning($"Cannot find {typeof(T).Name} at [<color=yellow>{GetFullPath(value)}/{path}</color>]");
+            return default;
         }
         public static BaseNode Find(this BaseNode value, string path, bool throwException = true, bool silent = true) => Find<BaseNode>(value, path, throwException, silent);
 
         public static BaseNode Clone(this BaseNode value, BaseNode parent = default)
         {
             BaseNode clone = (BaseNode)Activator.CreateInstance(value.GetType());
-            if (clone is BaseNodeMixin && value is BaseNodeMixin) Copy(clone, value);
-            if (clone is SceneNodeMixin && value is SceneNodeMixin) Copy((SceneNodeMixin)clone, (SceneNodeMixin)value);
-            if (clone is ChildrenMixin && value is ChildrenMixin) Copy((ChildrenMixin)clone, (ChildrenMixin)value);
-            if (clone is ConstraintMixin && value is ConstraintMixin) Copy((ConstraintMixin)clone, (ConstraintMixin)value);
-            if (clone is LayoutMixin && value is LayoutMixin) Copy((LayoutMixin)clone, (LayoutMixin)value);
-            if (clone is BlendMixin && value is BlendMixin) Copy((BlendMixin)clone, (BlendMixin)value);
-            if (clone is ContainerMixin && value is ContainerMixin) Copy((ContainerMixin)clone, (ContainerMixin)value);
-            if (clone is GeometryMixin && value is GeometryMixin) Copy((GeometryMixin)clone, (GeometryMixin)value);
-            if (clone is CornerMixin && value is CornerMixin) Copy((CornerMixin)clone, (CornerMixin)value);
-            if (clone is RectangleCornerMixin && value is RectangleCornerMixin) Copy((RectangleCornerMixin)clone, (RectangleCornerMixin)value);
-            if (clone is ExportMixin && value is ExportMixin) Copy((ExportMixin)clone, (ExportMixin)value);
-            if (clone is ReactionMixin && value is ReactionMixin) Copy((ReactionMixin)clone, (ReactionMixin)value);
-            if (clone is TransitionMixin && value is TransitionMixin) Copy((TransitionMixin)clone, (TransitionMixin)value);
-            if (clone is DefaultShapeMixin && value is DefaultShapeMixin) Copy((DefaultShapeMixin)clone, (DefaultShapeMixin)value);
-            if (clone is DefaultFrameMixin && value is DefaultFrameMixin) Copy((DefaultFrameMixin)clone, (DefaultFrameMixin)value);
-
             if (parent is not null) clone.parent = parent;
+            Copy(clone, value);
+            if (clone is SceneNodeMixin mixin && value is SceneNodeMixin nodeMixin) Copy(mixin, nodeMixin);
+            if (clone is ChildrenMixin childrenMixin && value is ChildrenMixin mixin1) Copy(childrenMixin, mixin1);
+            if (clone is ConstraintMixin constraintMixin && value is ConstraintMixin value1) Copy(constraintMixin, value1);
+            if (clone is LayoutMixin layoutMixin && value is LayoutMixin layoutMixin1) Copy(layoutMixin, layoutMixin1);
+            if (clone is BlendMixin blendMixin && value is BlendMixin blendMixin1) Copy(blendMixin, blendMixin1);
+            if (clone is ContainerMixin containerMixin && value is ContainerMixin containerMixin1) Copy(containerMixin, containerMixin1);
+            if (clone is GeometryMixin geometryMixin && value is GeometryMixin geometryMixin1) Copy(geometryMixin, geometryMixin1);
+            if (clone is CornerMixin cornerMixin && value is CornerMixin cornerMixin1) Copy(cornerMixin, cornerMixin1);
+            if (clone is RectangleCornerMixin rectangleCornerMixin && value is RectangleCornerMixin rectangleCornerMixin1) Copy(rectangleCornerMixin, rectangleCornerMixin1);
+            if (clone is ExportMixin exportMixin && value is ExportMixin exportMixin1) Copy(exportMixin, exportMixin1);
+            if (clone is ReactionMixin reactionMixin && value is ReactionMixin reactionMixin1) Copy(reactionMixin, reactionMixin1);
+            if (clone is TransitionMixin transitionMixin && value is TransitionMixin transitionMixin1) Copy(transitionMixin, transitionMixin1);
+            if (clone is DefaultShapeMixin shapeMixin && value is DefaultShapeMixin defaultShapeMixin) Copy(shapeMixin, defaultShapeMixin);
+            if (clone is DefaultFrameMixin frameMixin && value is DefaultFrameMixin defaultFrameMixin) Copy(frameMixin, defaultFrameMixin);
 
             return clone;
         }
@@ -220,18 +204,14 @@ namespace Figma
             BaseNode clone = prefab.Clone();
 
             if (value.parent is ChildrenMixin childrenMixin && clone is SceneNode cloneSceneNode)
-                childrenMixin.children[Array.IndexOf(childrenMixin.children, prefab)] = cloneSceneNode;
+                childrenMixin.children[Array.IndexOf(childrenMixin.children, (SceneNode)prefab)] = cloneSceneNode;
 
             value.parent = default;
 
             return clone;
         }
 
-        public static bool EnabledInHierarchy(this BaseNode node)
-        {
-            if (rootMetadata.Any(x => x.Value.figma.Filter) && GetMetadata(node).root is null) return false;
-            return true;
-        }
+        public static bool EnabledInHierarchy(this BaseNode node) => !rootMetadata.Any(x => x.Value.figma.Filter) || GetMetadata(node).root is not null;
         public static bool ShouldDownload(this BaseNode node, UxmlDownloadImages flag)
         {
             BaseNodeMetadata metadata = GetMetadata(node);
@@ -243,12 +223,14 @@ namespace Figma
                     if (metadata.query is not null)
                     {
                         if (metadata.query.query.ImageFiltering == ElementDownloadImage.Download) return true;
-                        else if (metadata.query.query.ImageFiltering == ElementDownloadImage.Ignore) return false;
-                        else return shouldDownload;
+                        if (metadata.query.query.ImageFiltering == ElementDownloadImage.Ignore) return false;
+                        return shouldDownload;
                     }
-                    else return shouldDownload;
+
+                    return shouldDownload;
                 }
-                else return shouldDownload;
+
+                return shouldDownload;
             }
 
             return true;
@@ -260,18 +242,11 @@ namespace Figma
             {
                 if (metadata.query.query.Template == "Hash")
                 {
-                    string GetFullPath(BaseNode node)
-                    {
-                        if (node.parent is not null) return $"{GetFullPath(node.parent)}/{node.name}";
-                        return node.name;
-                    }
-
+                    string GetFullPath(BaseNode x) => x.parent is not null ? $"{GetFullPath(x.parent)}/{x.name}" : x.name;
                     return (true, $"{metadata.query.fieldInfo.FieldType.Name}-{Hash128.Compute(GetFullPath(node))}");
                 }
-                else
-                {
-                    return (false, metadata.query.query.Template);
-                }
+
+                return (false, metadata.query.query.Template);
             }
 
             return (false, default);
@@ -386,7 +361,7 @@ namespace Figma
             }
             else if (node is ChildrenMixin children)
             {
-                foreach (BaseNode child in children.children)
+                foreach (SceneNode child in children.children)
                 {
                     child.parent = node;
                     SetParentRecursively(child);
@@ -412,12 +387,12 @@ namespace Figma
         }
         public static void Copy(this ConstraintMixin destination, ConstraintMixin source)
         {
-            if (source.constraints is not null)
+            if (source.constraints is null) return;
+            destination.constraints = new Constraints
             {
-                destination.constraints = new Constraints();
-                destination.constraints.horizontal = source.constraints.horizontal;
-                destination.constraints.vertical = source.constraints.vertical;
-            }
+                horizontal = source.constraints.horizontal,
+                vertical = source.constraints.vertical
+            };
         }
         public static void Copy(this LayoutMixin destination, LayoutMixin source)
         {
@@ -497,21 +472,25 @@ namespace Figma
             {
                 if (value[i] is ShadowEffect shadowEffect)
                 {
-                    ShadowEffect effect = new ShadowEffect();
-                    effect.type = shadowEffect.type;
-                    effect.color = shadowEffect.color;
-                    effect.offset = shadowEffect.offset;
-                    effect.radius = shadowEffect.radius;
-                    effect.visible = shadowEffect.visible;
-                    effect.blendMode = shadowEffect.blendMode;
+                    ShadowEffect effect = new()
+                    {
+                        type = shadowEffect.type,
+                        color = shadowEffect.color,
+                        offset = shadowEffect.offset,
+                        radius = shadowEffect.radius,
+                        visible = shadowEffect.visible,
+                        blendMode = shadowEffect.blendMode
+                    };
                     clone[i] = effect;
                 }
                 if (value[i] is BlurEffect blurEffect)
                 {
-                    BlurEffect effect = new BlurEffect();
-                    effect.type = blurEffect.type;
-                    effect.radius = blurEffect.radius;
-                    effect.visible = blurEffect.visible;
+                    BlurEffect effect = new()
+                    {
+                        type = blurEffect.type,
+                        radius = blurEffect.radius,
+                        visible = blurEffect.visible
+                    };
                     clone[i] = effect;
                 }
             }
@@ -524,35 +503,41 @@ namespace Figma
             {
                 if (value[i] is SolidPaint solidPaint)
                 {
-                    SolidPaint paint = new SolidPaint();
-                    paint.type = solidPaint.type;
-                    paint.color = solidPaint.color;
-                    paint.visible = solidPaint.visible;
-                    paint.opacity = solidPaint.opacity;
-                    paint.blendMode = solidPaint.blendMode;
+                    SolidPaint paint = new()
+                    {
+                        type = solidPaint.type,
+                        color = solidPaint.color,
+                        visible = solidPaint.visible,
+                        opacity = solidPaint.opacity,
+                        blendMode = solidPaint.blendMode
+                    };
                     clone[i] = paint;
                 }
                 if (value[i] is GradientPaint gradientPaint)
                 {
-                    GradientPaint paint = new GradientPaint();
-                    paint.type = gradientPaint.type;
-                    paint.gradientStops = gradientPaint.gradientStops;
-                    paint.visible = gradientPaint.visible;
-                    paint.opacity = gradientPaint.opacity;
-                    paint.blendMode = gradientPaint.blendMode;
-                    paint.gradientHandlePositions = gradientPaint.gradientHandlePositions;
+                    GradientPaint paint = new()
+                    {
+                        type = gradientPaint.type,
+                        gradientStops = gradientPaint.gradientStops,
+                        visible = gradientPaint.visible,
+                        opacity = gradientPaint.opacity,
+                        blendMode = gradientPaint.blendMode,
+                        gradientHandlePositions = gradientPaint.gradientHandlePositions
+                    };
                     clone[i] = paint;
                 }
                 if (value[i] is ImagePaint imagePaint)
                 {
-                    ImagePaint paint = new ImagePaint();
-                    paint.type = imagePaint.type;
-                    paint.scaleMode = imagePaint.scaleMode;
-                    paint.imageTransform = imagePaint.imageTransform;
-                    paint.visible = imagePaint.visible;
-                    paint.opacity = imagePaint.opacity;
-                    paint.blendMode = imagePaint.blendMode;
-                    paint.imageRef = imagePaint.imageRef;
+                    ImagePaint paint = new()
+                    {
+                        type = imagePaint.type,
+                        scaleMode = imagePaint.scaleMode,
+                        imageTransform = imagePaint.imageTransform,
+                        visible = imagePaint.visible,
+                        opacity = imagePaint.opacity,
+                        blendMode = imagePaint.blendMode,
+                        imageRef = imagePaint.imageRef
+                    };
                     clone[i] = paint;
                 }
             }
@@ -565,33 +550,39 @@ namespace Figma
             {
                 if (value[i] is ExportSettingsImage exportSettingsImage)
                 {
-                    ExportSettingsImage exportSettings = new ExportSettingsImage();
-                    exportSettings.format = exportSettingsImage.format;
-                    exportSettings.contentsOnly = exportSettingsImage.contentsOnly;
-                    exportSettings.suffix = exportSettingsImage.suffix;
-                    exportSettings.constraint = new ExportSettingsConstraints() { type = exportSettingsImage.constraint.type, value = exportSettingsImage.constraint.value };
+                    ExportSettingsImage exportSettings = new()
+                    {
+                        format = exportSettingsImage.format,
+                        contentsOnly = exportSettingsImage.contentsOnly,
+                        suffix = exportSettingsImage.suffix,
+                        constraint = new ExportSettingsConstraints { type = exportSettingsImage.constraint.type, value = exportSettingsImage.constraint.value }
+                    };
                     clone[i] = exportSettings;
                 }
                 if (value[i] is ExportSettingsSVG exportSettingsSVG)
                 {
-                    ExportSettingsSVG exportSettings = new ExportSettingsSVG();
-                    exportSettings.format = exportSettingsSVG.format;
-                    exportSettings.contentsOnly = exportSettingsSVG.contentsOnly;
-                    exportSettings.suffix = exportSettingsSVG.suffix;
-                    exportSettings.svgOutlineText = exportSettingsSVG.svgOutlineText;
-                    exportSettings.svgIdAttribute = exportSettingsSVG.svgIdAttribute;
-                    exportSettings.svgSimplifyStroke = exportSettingsSVG.svgSimplifyStroke;
-                    exportSettings.constraint = new ExportSettingsConstraints() { type = exportSettingsSVG.constraint.type, value = exportSettingsSVG.constraint.value };
+                    ExportSettingsSVG exportSettings = new()
+                    {
+                        format = exportSettingsSVG.format,
+                        contentsOnly = exportSettingsSVG.contentsOnly,
+                        suffix = exportSettingsSVG.suffix,
+                        svgOutlineText = exportSettingsSVG.svgOutlineText,
+                        svgIdAttribute = exportSettingsSVG.svgIdAttribute,
+                        svgSimplifyStroke = exportSettingsSVG.svgSimplifyStroke,
+                        constraint = new ExportSettingsConstraints { type = exportSettingsSVG.constraint.type, value = exportSettingsSVG.constraint.value }
+                    };
 
                     clone[i] = exportSettings;
                 }
                 if (value[i] is ExportSettingsPDF exportSettingsPDF)
                 {
-                    ExportSettingsPDF exportSettings = new ExportSettingsPDF();
-                    exportSettings.format = exportSettingsPDF.format;
-                    exportSettings.contentsOnly = exportSettingsPDF.contentsOnly;
-                    exportSettings.suffix = exportSettingsPDF.suffix;
-                    exportSettings.constraint = new ExportSettingsConstraints() { type = exportSettingsPDF.constraint.type, value = exportSettingsPDF.constraint.value };
+                    ExportSettingsPDF exportSettings = new()
+                    {
+                        format = exportSettingsPDF.format,
+                        contentsOnly = exportSettingsPDF.contentsOnly,
+                        suffix = exportSettingsPDF.suffix,
+                        constraint = new ExportSettingsConstraints { type = exportSettingsPDF.constraint.type, value = exportSettingsPDF.constraint.value }
+                    };
                     clone[i] = exportSettings;
                 }
             }
@@ -602,10 +593,10 @@ namespace Figma
             Reaction[] clone = new Reaction[value.Length];
             for (int i = 0; i < value.Length; ++i)
             {
-                Reaction reaction = new Reaction();
+                Reaction reaction = new();
                 Reaction valueReaction = value[i];
 
-                reaction.action = new global.Action()
+                reaction.action = new Action
                 {
                     type = valueReaction.action.type,
                     url = valueReaction.action.url,
@@ -617,7 +608,7 @@ namespace Figma
 
                 if (valueReaction.action.transition is SimpleTransition simpleTransition)
                 {
-                    valueReaction.action.transition = new SimpleTransition()
+                    valueReaction.action.transition = new SimpleTransition
                     {
                         type = simpleTransition.type,
                         easing = simpleTransition.easing,
@@ -626,7 +617,7 @@ namespace Figma
                 }
                 if (valueReaction.action.transition is DirectionalTransition directionalTransition)
                 {
-                    valueReaction.action.transition = new DirectionalTransition()
+                    valueReaction.action.transition = new DirectionalTransition
                     {
                         type = directionalTransition.type,
                         direction = directionalTransition.direction,
@@ -636,7 +627,7 @@ namespace Figma
                     };
                 }
 
-                reaction.trigger = new Trigger()
+                reaction.trigger = new Trigger
                 {
                     type = valueReaction.trigger.type,
                     delay = valueReaction.trigger.delay
@@ -653,28 +644,32 @@ namespace Figma
             {
                 if (grids[i] is RowsColsLayoutGrid rowsColsLayoutGrid)
                 {
-                    RowsColsLayoutGrid grid = new RowsColsLayoutGrid();
-                    grid.pattern = rowsColsLayoutGrid.pattern;
-                    grid.alignment = rowsColsLayoutGrid.alignment;
-                    grid.gutterSize = rowsColsLayoutGrid.gutterSize;
-                    grid.count = rowsColsLayoutGrid.count;
-                    grid.sectionSize = rowsColsLayoutGrid.sectionSize;
-                    grid.offset = rowsColsLayoutGrid.offset;
-                    grid.visible = rowsColsLayoutGrid.visible;
-                    grid.color = rowsColsLayoutGrid.color;
+                    RowsColsLayoutGrid grid = new()
+                    {
+                        pattern = rowsColsLayoutGrid.pattern,
+                        alignment = rowsColsLayoutGrid.alignment,
+                        gutterSize = rowsColsLayoutGrid.gutterSize,
+                        count = rowsColsLayoutGrid.count,
+                        sectionSize = rowsColsLayoutGrid.sectionSize,
+                        offset = rowsColsLayoutGrid.offset,
+                        visible = rowsColsLayoutGrid.visible,
+                        color = rowsColsLayoutGrid.color
+                    };
                     clone[i] = grid;
                 }
                 if (grids[i] is GridLayoutGrid gridLayoutGrid)
                 {
-                    GridLayoutGrid grid = new GridLayoutGrid();
-                    grid.pattern = gridLayoutGrid.pattern;
-                    grid.sectionSize = gridLayoutGrid.sectionSize;
-                    grid.visible = gridLayoutGrid.visible;
-                    grid.color = gridLayoutGrid.color;
-                    grid.alignment = gridLayoutGrid.alignment;
-                    grid.gutterSize = gridLayoutGrid.gutterSize;
-                    grid.count = gridLayoutGrid.count;
-                    grid.offset = gridLayoutGrid.offset;
+                    GridLayoutGrid grid = new()
+                    {
+                        pattern = gridLayoutGrid.pattern,
+                        sectionSize = gridLayoutGrid.sectionSize,
+                        visible = gridLayoutGrid.visible,
+                        color = gridLayoutGrid.color,
+                        alignment = gridLayoutGrid.alignment,
+                        gutterSize = gridLayoutGrid.gutterSize,
+                        count = gridLayoutGrid.count,
+                        offset = gridLayoutGrid.offset
+                    };
                     clone[i] = grid;
                 }
             }
@@ -683,32 +678,33 @@ namespace Figma
 
         public static string GetHash(this GradientPaint gradient)
         {
-            using (SHA1CryptoServiceProvider sha1 = new SHA1CryptoServiceProvider())
-            using (MemoryStream stream = new MemoryStream())
-            using (BinaryWriter writer = new BinaryWriter(stream))
+            using SHA1CryptoServiceProvider sha1 = new();
+            using MemoryStream stream = new();
+            using BinaryWriter writer = new(stream);
+
+            writer.Write((int)gradient.type);
+            foreach (ColorStop stop in gradient.gradientStops)
             {
-                writer.Write((int)gradient.type);
-                foreach (ColorStop stop in gradient.gradientStops)
-                {
-                    writer.Write(stop.position);
-                    writer.Write(stop.color.r);
-                    writer.Write(stop.color.g);
-                    writer.Write(stop.color.b);
-                    writer.Write(stop.color.a);
-                }
-                foreach (Vector position in gradient.gradientHandlePositions)
-                {
-                    writer.Write(position.x);
-                    writer.Write(position.y);
-                }
-
-                byte[] bytes = stream.ToArray();
-                byte[] hashBytes = sha1.ComputeHash(bytes);
-
-                StringBuilder hashBuilder = new StringBuilder();
-                for (int i = 0; i < hashBytes.Length; i++) hashBuilder.Append(hashBytes[i].ToString("x2"));
-                return hashBuilder.ToString();
+                writer.Write(stop.position);
+                writer.Write(stop.color.r);
+                writer.Write(stop.color.g);
+                writer.Write(stop.color.b);
+                writer.Write(stop.color.a);
             }
+            foreach (Vector position in gradient.gradientHandlePositions)
+            {
+                writer.Write(position.x);
+                writer.Write(position.y);
+            }
+
+            byte[] bytes = stream.ToArray();
+            byte[] hashBytes = sha1.ComputeHash(bytes);
+
+            StringBuilder hashBuilder = new();
+            foreach (byte @byte in hashBytes)
+                hashBuilder.Append(@byte.ToString("x2"));
+
+            return hashBuilder.ToString();
         }
         #endregion
 
@@ -716,8 +712,7 @@ namespace Figma
         static BaseNode FindRoot(BaseNode value)
         {
             if (rootMetadata.ContainsKey(value)) return value;
-            else if (value.parent is not null) return FindRoot(value.parent);
-            else return default;
+            return value.parent is not null ? FindRoot(value.parent) : default;
         }
         static BaseNodeMetadata GetMetadata(BaseNode value)
         {
@@ -727,7 +722,7 @@ namespace Figma
 
                 if (value is DocumentNode documentNode)
                 {
-                    foreach (BaseNode child in documentNode.children)
+                    foreach (CanvasNode child in documentNode.children)
                     {
                         BaseNode node = FindRootInChildren(child);
                         if (node is not null) return node;
@@ -736,7 +731,7 @@ namespace Figma
 
                 if (value is ChildrenMixin children)
                 {
-                    foreach (BaseNode child in children.children)
+                    foreach (SceneNode child in children.children)
                     {
                         BaseNode node = FindRootInChildren(child);
                         if (node is not null) return node;
@@ -747,26 +742,22 @@ namespace Figma
             }
 
             BaseNode root = FindRoot(value) ?? FindRootInChildren(value);
-            if (root is not null) return new BaseNodeMetadata(rootMetadata[root], queryMetadata.ContainsKey(value) ? queryMetadata[value] : default);
-
-            return new BaseNodeMetadata(default, default);
+            return root is not null ? new BaseNodeMetadata(rootMetadata[root], queryMetadata.TryGetValue(value, out QueryMetadata metadata) ? metadata : default) : new BaseNodeMetadata(default, default);
         }
 
         static void Initialize(Type targetType, BaseNode targetRoot, bool throwException = true)
         {
-            BaseNode ResolveElement(Type targetType, QueryAttribute queryRoot, QueryAttribute query, bool throwException = true)
+            BaseNode InitializeElement(QueryAttribute queryRoot, QueryAttribute query, bool throwException)
             {
-                BaseNode Find(BaseNode root, QueryAttribute queryRoot, QueryAttribute query, bool throwException = true)
+                BaseNode ResolveElement(BaseNode node, bool throwException)
                 {
-                    if (query is not null)
-                    {
-                        if (queryRoot is not null && queryRoot != query) return root.Find(queryRoot.Path, throwException).Find(query.Path, throwException);
-                        return root.Find(query.Path, throwException);
-                    }
-                    else throw new ArgumentNullException();
+                    if (query is null) throw new ArgumentNullException();
+                    // ReSharper disable once PossibleUnintendedReferenceComparison
+                    if (queryRoot is not null && queryRoot != query) return node.Find(queryRoot.Path, throwException).Find(query.Path, throwException);
+                    return node.Find(query.Path, throwException);
                 }
 
-                BaseNode value = Find(targetRoot, queryRoot, query, throwException: throwException && query.ReplaceElementPath.NullOrEmpty() && query.RebuildElementEvent.NullOrEmpty());
+                BaseNode value = ResolveElement(targetRoot, throwException: throwException && query.ReplaceElementPath.NullOrEmpty() && query.RebuildElementEvent.NullOrEmpty());
 
                 if (query.ReplaceNodePath.NotNullOrEmpty())
                 {
@@ -775,7 +766,7 @@ namespace Figma
                 if (query.ReplaceNodeEvent.NotNullOrEmpty())
                 {
                     MethodInfo methodInfo = targetType.GetMethod(query.ReplaceNodeEvent, MethodsFlags);
-                    value = (BaseNode)methodInfo.Invoke(default, new object[] { value });
+                    if (methodInfo != null) value = (BaseNode)methodInfo.Invoke(default, new object[] { value });
                 }
 
                 return value;
@@ -788,7 +779,7 @@ namespace Figma
                 if (query is null) continue;
                 if (query.StartRoot) queryRoot = query;
 
-                BaseNode node = ResolveElement(targetType, queryRoot, query, !query.Nullable);
+                BaseNode node = InitializeElement(queryRoot, query, throwException && !query.Nullable);
                 if (node is not null && !queryMetadata.ContainsKey(node)) queryMetadata.Add(node, new QueryMetadata(field, queryRoot, query));
 
                 if (query.EndRoot) queryRoot = default;
