@@ -942,6 +942,7 @@ namespace Figma
                             CounterAxisAlignItems.MIN => Align.FlexStart,
                             CounterAxisAlignItems.CENTER => Align.Center,
                             CounterAxisAlignItems.MAX => Align.FlexEnd,
+                            CounterAxisAlignItems.BASELINE => Align.Stretch,
                             _ => throw new NotSupportedException()
                         };
                     }
