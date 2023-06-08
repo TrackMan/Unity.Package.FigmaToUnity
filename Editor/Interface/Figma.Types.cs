@@ -608,6 +608,8 @@ namespace Figma
             public EasingType? transitionEasing { get; set; }
 
             public ComponentPropertyReferences componentPropertyReferences { get; set; }
+
+            public LayoutPositioning? layoutPositioning { get; set; }
             #endregion
         }
 
@@ -618,7 +620,6 @@ namespace Figma
             public CounterAxisSizingMode? counterAxisSizingMode { get; set; }
             public PrimaryAxisAlignItems? primaryAxisAlignItems { get; set; }
             public CounterAxisAlignItems? counterAxisAlignItems { get; set; }
-            public LayoutPositioning? layoutPositioning { get; set; }
             public number? paddingLeft { get; set; }
             public number? paddingTop { get; set; }
             public number? paddingRight { get; set; }
