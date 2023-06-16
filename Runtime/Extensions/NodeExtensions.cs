@@ -585,6 +585,20 @@ namespace Figma
                 if (index >= lines) children.ElementAt(index - lines).style.marginRight = counterMargin;
             }
         }
+        public static float Width(this VisualElement element)
+        {
+            foreach (string className in element.GetClasses())
+                if (cachedDimensions.ContainsKey(className)) return cachedDimensions[className].width;
+
+            return 0;
+        }
+        public static float Height(this VisualElement element)
+        {
+            foreach (string className in element.GetClasses())
+                if (cachedDimensions.ContainsKey(className)) return cachedDimensions[className].height;
+
+            return 0;
+        }
         #endregion
 
         #region Support Methods
