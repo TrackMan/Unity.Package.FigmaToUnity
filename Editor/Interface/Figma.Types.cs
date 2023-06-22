@@ -410,6 +410,7 @@ namespace Figma
             LayoutGrid[] layoutGrids { get; set; }
             boolean? clipsContent { get; set; }
             OverflowDirection? overflowDirection { get; set; }
+            LayoutWrap? layoutWrap { get; set; }
         }
 
         ////////////////////////////////////////////////////////////////////////////////
@@ -629,6 +630,7 @@ namespace Figma
             public boolean? clipsContent { get; set; }
             public OverflowDirection? overflowDirection { get; set; }
             public boolean itemReverseZIndex { get; set; }
+            public LayoutWrap? layoutWrap { get; set; }
 
             #region Mixin
             public Paint[] background { get; set; }
