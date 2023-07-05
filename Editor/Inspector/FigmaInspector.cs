@@ -81,7 +81,7 @@ namespace Figma.Inspectors
 
             OnPersonalAccessTokenGUI();
             OnAssetGUI();
-            OnFigmaGUI();
+            if (serializedObject.context is null) OnFigmaGUI();
 
             serializedObject.ApplyModifiedProperties();
         }
