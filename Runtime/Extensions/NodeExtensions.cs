@@ -799,6 +799,7 @@ namespace Figma
             }
         }
 
+        [Obsolete("This code will be removed soon")]
         static void CacheDimensions(UIDocument document)
         {
             static object GetValue(object target, string name) => target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).GetValue(target);
