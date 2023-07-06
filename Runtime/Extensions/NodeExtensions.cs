@@ -26,8 +26,6 @@ namespace Figma
         static Dictionary<VisualElement, Metadata> rootMetadata = new();
         static List<VisualElement> search = new(256);
         static Dictionary<VisualElement, string> cloneMap = new(256);
-
-        static Dictionary<string, (float width, float height)> cachedDimensions = new();
         #endregion
 
         #region Properties
@@ -46,8 +44,6 @@ namespace Figma
         {
             foreach (IRootElement target in targets.Where(x => x is not null))
                 Initialize(document, target);
-
-            CacheDimensions(document);
         }
         public static void Initialize(UIDocument document, IRootElement target)
         {
@@ -510,23 +506,8 @@ namespace Figma
         {
             static int GetLines(VisualElement value, VisualElement parent, float spacing, bool horizontalDirection)
             {
-                string className = value.GetClasses().Last();
-                float valueSize;
-                if (cachedDimensions.ContainsKey(className))
-                    valueSize = horizontalDirection
-                        ? cachedDimensions[className].width
-                        : cachedDimensions[className].height;
-                else
-                    valueSize = horizontalDirection ? value.resolvedStyle.width : value.resolvedStyle.height;
-
-                string parentClassName = parent.GetClasses().Last();
-                float parentSize;
-                if (cachedDimensions.ContainsKey(parentClassName))
-                    parentSize = horizontalDirection
-                        ? cachedDimensions[parentClassName].width
-                        : cachedDimensions[parentClassName].height;
-                else
-                    parentSize = horizontalDirection ? parent.resolvedStyle.width : parent.resolvedStyle.height;
+                float valueSize = horizontalDirection ? value.resolvedStyle.width : value.resolvedStyle.height;
+                float parentSize = horizontalDirection ? parent.resolvedStyle.width : parent.resolvedStyle.height;
 
                 return (valueSize.Invalid() || valueSize == 0) ? parent.childCount : (int)(parentSize / ((2 * valueSize + (spacing.Invalid() ? 0 : spacing)) / 2));
             }
@@ -584,20 +565,6 @@ namespace Figma
                 if (index > 0) children.ElementAt(index - 1).style.marginBottom = primaryMargin;
                 if (index >= lines) children.ElementAt(index - lines).style.marginRight = counterMargin;
             }
-        }
-        public static float Width(this VisualElement element)
-        {
-            foreach (string className in element.GetClasses())
-                if (cachedDimensions.ContainsKey(className)) return cachedDimensions[className].width;
-
-            return 0;
-        }
-        public static float Height(this VisualElement element)
-        {
-            foreach (string className in element.GetClasses())
-                if (cachedDimensions.ContainsKey(className)) return cachedDimensions[className].height;
-
-            return 0;
         }
         #endregion
 
@@ -795,55 +762,6 @@ namespace Figma
                 {
                     Initialize(subElement, field.FieldType, element, throwException, silent);
                     subElement.OnInitialize();
-                }
-            }
-        }
-
-        [Obsolete("This code will be removed soon")]
-        static void CacheDimensions(UIDocument document)
-        {
-            static object GetValue(object target, string name) => target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).GetValue(target);
-
-            StyleSheet uss = document.visualTreeAsset.stylesheets.First();
-
-            object[] complexSelectors = (object[])GetValue(uss, "m_ComplexSelectors");
-            object[] rules = (object[])GetValue(uss, "m_Rules");
-            object[] dimensions = ((IEnumerable)GetValue(uss, "dimensions")).Cast<object>().ToArray();
-
-            float width = 0, height = 0;
-            for (int i = 0; i < complexSelectors.Length; ++i)
-            {
-                object[] properties = (object[])GetValue(rules[i], "m_Properties");
-                foreach (object property in properties)
-                {
-                    string propertyName = GetValue(property, "m_Name").ToString();
-                    if (propertyName is not "width" and not "height") continue;
-
-                    object propertyValue = ((IEnumerable)GetValue(property, "m_Values")).Cast<object>().First();
-                    string valueType = GetValue(propertyValue, "m_ValueType").ToString();
-                    if (valueType is not "Dimension") continue;
-
-                    int valueIndex = (int)GetValue(propertyValue, "valueIndex");
-
-                    string unit = GetValue(dimensions[(int)valueIndex], "unit").ToString();
-                    if (unit is not "Pixel") continue;
-
-                    float value = (float)GetValue(dimensions[valueIndex], "value");
-
-                    width = propertyName is "width" ? value : width;
-                    height = propertyName is "height"? value : height;
-                }
-
-                if (width != 0 || height != 0)
-                {
-                    object selector = ((object[])GetValue(complexSelectors[i], "m_Selectors")).First();
-                    object part = ((IEnumerable)GetValue(selector, "m_Parts")).Cast<object>().First();
-                    string className = GetValue(part, "m_Value").ToString();
-
-                    cachedDimensions.Add(className, new(width, height));
-
-                    width = 0;
-                    height = 0;
                 }
             }
         }
