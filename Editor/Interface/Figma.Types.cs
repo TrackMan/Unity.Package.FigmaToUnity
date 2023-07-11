@@ -596,6 +596,7 @@ namespace Figma
             public StrokeJoin? strokeJoin { get; set; }
             public object[] strokeGeometry { get; set; }
             public number? strokeMiterAngle { get; set; }
+            public number? cornerSmoothing { get; set; }
 
             public Reaction[] reactions { get; set; }
 
