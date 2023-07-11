@@ -464,8 +464,6 @@ namespace Figma
             public number? cornerRadius { get; set; }
 
             public number[] rectangleCornerRadii { get; set; }
-
-            public LayoutPositioning layoutPositioning;
             #endregion
         }
 
@@ -541,7 +539,6 @@ namespace Figma
             public number? layoutVersion;
             public string[] lineTypes;
             public int[] lineIndentations;
-            public LayoutPositioning layoutPositioning;
         }
 
         public class ComponentSetNode : DefaultFrameNode
