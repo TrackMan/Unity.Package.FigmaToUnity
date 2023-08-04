@@ -568,6 +568,8 @@ namespace Figma
             public number[] strokeDashes;
             public number? rotation;
             public Rect absoluteRenderBounds;
+            public string layoutSizingHorizontal;
+            public string layoutSizingVertical;
 
             #region Mixin
             public Constraints constraints { get; set; }
