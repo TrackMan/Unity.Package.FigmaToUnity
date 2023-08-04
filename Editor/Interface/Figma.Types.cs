@@ -631,6 +631,7 @@ namespace Figma
             public OverflowDirection? overflowDirection { get; set; }
             public boolean itemReverseZIndex { get; set; }
             public LayoutWrap? layoutWrap { get; set; }
+            public boolean strokesIncludedInLayout { get; set; }
 
             #region Mixin
             public Paint[] background { get; set; }
