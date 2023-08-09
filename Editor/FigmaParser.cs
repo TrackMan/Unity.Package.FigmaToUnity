@@ -686,7 +686,7 @@ namespace Figma
                 }
                 else if (type == Style.StyleType.TEXT && node is TextNode text)
                 {
-                    AddTextStyle(text.style.fontSize, text.style.fontPostScriptName, text.style.textAlignHorizontal, text.style.textAlignVertical);
+                    AddTextStyle(text.style.fontSize, text.style.fontFamily, text.style.fontPostScriptName, text.style.textAlignHorizontal, text.style.textAlignVertical);
                 }
                 else if (type == Style.StyleType.EFFECT && node is BlendMixin blend)
                 {
@@ -880,7 +880,7 @@ namespace Figma
                 AddDefaultShapeNode(node);
 
                 FixWhiteSpace();
-                AddTextStyle(node.style.fontSize, node.style.fontPostScriptName, node.style.textAlignHorizontal, node.style.textAlignVertical);
+                AddTextStyle(node.style.fontSize, node.style.fontFamily, node.style.fontPostScriptName, node.style.textAlignHorizontal, node.style.textAlignVertical);
             }
             void AddComponentSetNode(ComponentSetNode node)
             {
@@ -1467,7 +1467,7 @@ namespace Figma
                     }
                 }
             }
-            void AddTextStyle(number? fontSize, string fontPostScriptName, TextAlignHorizontal? textAlignHorizontal, TextAlignVertical? textAlignVertical)
+            void AddTextStyle(number? fontSize, string fontFamily, string fontPostScriptName, TextAlignHorizontal? textAlignHorizontal, TextAlignVertical? textAlignVertical)
             {
                 void AddUnityFont()
                 {
@@ -1514,6 +1514,10 @@ namespace Figma
                 }
 
                 if (fontSize.HasValue) this.fontSize = fontSize;
+                if (fontPostScriptName.NullOrEmpty() && fontFamily == "Inter")
+                {
+                    Debug.LogWarning($"FontPostScriptName is null for {fontFamily}. Fallback to {fontPostScriptName = "Inter-Regular"}");
+                }
                 if (fontPostScriptName.NotNullOrEmpty()) AddUnityFont();
                 if (textAlignVertical.HasValue && textAlignHorizontal.HasValue) AddTextAlign();
             }
