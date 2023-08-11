@@ -559,8 +559,8 @@ namespace Figma.Inspectors
                                         writer.WriteAttributeString("id", "gradient");
                                         for (int i = 0; i < Mathf.Max(gradient.gradientHandlePositions.Length, 2); ++i)
                                         {
-                                            writer.WriteAttributeString($"x{i + 1}", $"{gradient.gradientHandlePositions[i].x.ToString("F2", defaultCulture)}");
-                                            writer.WriteAttributeString($"y{i + 1}", $"{gradient.gradientHandlePositions[i].y.ToString("F2", defaultCulture)}");
+                                            writer.WriteAttributeString($"x{i + 1}", gradient.gradientHandlePositions[i].x.ToString("F2", defaultCulture));
+                                            writer.WriteAttributeString($"y{i + 1}", gradient.gradientHandlePositions[i].y.ToString("F2", defaultCulture));
                                         }
                                         break;
 
@@ -584,7 +584,7 @@ namespace Figma.Inspectors
                                 foreach (ColorStop stop in gradient.gradientStops)
                                 {
                                     writer.WriteStartElement("stop");
-                                    writer.WriteAttributeString("offset", $"{stop.position.ToString("F2", defaultCulture)}");
+                                    writer.WriteAttributeString("offset", stop.position.ToString("F2", defaultCulture));
                                     writer.WriteAttributeString("style", $"stop-color:rgb({(byte)(stop.color.r * 255)},{(byte)(stop.color.g * 255)},{(byte)(stop.color.b * 255)});stop-opacity:{stop.color.a.ToString("F2", defaultCulture)}");
                                     await writer.WriteEndElementAsync();
                                 }
@@ -598,6 +598,12 @@ namespace Figma.Inspectors
                             writer.WriteAttributeString("width", "100");
                             writer.WriteAttributeString("height", "100");
                             writer.WriteAttributeString("fill", "url(#gradient)");
+
+                            if (gradient.opacity.HasValue)
+                            {
+                                writer.WriteAttributeString("fill-opacity", gradient.opacity.Value.ToString("F2", defaultCulture));
+                            }
+
                             await writer.WriteEndElementAsync();
                         }
 
