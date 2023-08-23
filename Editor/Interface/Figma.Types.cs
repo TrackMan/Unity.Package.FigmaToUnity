@@ -360,7 +360,8 @@ namespace Figma
             StrokeCap? strokeCap { get; set; }
             StrokeJoin? strokeJoin { get; set; }
             object[] strokeGeometry { get; set; }
-        }
+            IndividualStrokeWeights individualStrokeWeights { get; set; }
+    }
 
         public interface CornerMixin
         {
