@@ -999,14 +999,15 @@ namespace Figma
                 }
                 void AddBorderWidth()
                 {
+                    bool state = IsStateNode(mixin.As<BaseNodeMixin>());
                     if (mixin.individualStrokeWeights is not null)
                     {
-                        if (mixin.individualStrokeWeights.left > 0) borderLeftWidth = mixin.individualStrokeWeights.left;
-                        if (mixin.individualStrokeWeights.right > 0) borderRightWidth = mixin.individualStrokeWeights.right;
-                        if (mixin.individualStrokeWeights.top > 0) borderTopWidth = mixin.individualStrokeWeights.top;
-                        if (mixin.individualStrokeWeights.bottom > 0) borderBottomWidth = mixin.individualStrokeWeights.bottom;
+                        if (mixin.individualStrokeWeights.left > 0 || state) borderLeftWidth = mixin.individualStrokeWeights.left;
+                        if (mixin.individualStrokeWeights.right > 0 || state) borderRightWidth = mixin.individualStrokeWeights.right;
+                        if (mixin.individualStrokeWeights.top > 0 || state) borderTopWidth = mixin.individualStrokeWeights.top;
+                        if (mixin.individualStrokeWeights.bottom > 0 || state) borderBottomWidth = mixin.individualStrokeWeights.bottom;
                     }
-                    else if (mixin.strokeWeight > 0) borderWidth = mixin.strokeWeight;
+                    else if (mixin.strokeWeight > 0 || state) borderWidth = mixin.strokeWeight;
                 }
                 void AddBorderRadius(RectangleCornerMixin rectangleCornerMixin, CornerMixin cornerMixin)
                 {
