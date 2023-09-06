@@ -531,6 +531,9 @@ namespace Figma
                 public Dictionary<string, string> hyperlink;
                 public string inheritFillStyleId;
                 public string inheritTextStyleId;
+                public string leadingTrim;
+                public string textTruncation;
+                public int maxLines;
             }
 
             public string characters;
