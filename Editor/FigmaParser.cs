@@ -686,7 +686,7 @@ namespace Figma
                 }
                 else if (type == Style.StyleType.TEXT && node is TextNode text)
                 {
-                    AddTextStyle(text.style.fontSize, text.style.fontFamily, text.style.fontPostScriptName, text.style.textAlignHorizontal, text.style.textAlignVertical);
+                    AddTextStyle(text.style.fontSize, text.style.fontFamily, text.style.fontPostScriptName, text.style.textAlignHorizontal, text.style.textAlignVertical, text.style.italic is not null && text.style.italic.Value);
                 }
                 else if (type == Style.StyleType.EFFECT && node is BlendMixin blend)
                 {
@@ -880,7 +880,7 @@ namespace Figma
                 AddDefaultShapeNode(node);
 
                 FixWhiteSpace();
-                AddTextStyle(node.style.fontSize, node.style.fontFamily, node.style.fontPostScriptName, node.style.textAlignHorizontal, node.style.textAlignVertical);
+                AddTextStyle(node.style.fontSize, node.style.fontFamily, node.style.fontPostScriptName, node.style.textAlignHorizontal, node.style.textAlignVertical, node.style.italic is not null && node.style.italic.Value);
             }
             void AddComponentSetNode(ComponentSetNode node)
             {
@@ -1475,18 +1475,19 @@ namespace Figma
                     }
                 }
             }
-            void AddTextStyle(number? fontSize, string fontFamily, string fontPostScriptName, TextAlignHorizontal? textAlignHorizontal, TextAlignVertical? textAlignVertical)
+            void AddTextStyle(number? fontSize, string fontFamily, string fontPostScriptName, TextAlignHorizontal? textAlignHorizontal, TextAlignVertical? textAlignVertical, bool italic)
             {
                 void AddUnityFont()
                 {
-                    (bool valid, string url) = getAssetPath(fontPostScriptName, "ttf");
+                    string postfix = italic && !fontPostScriptName.Contains("Italic") ? "Italic" : string.Empty;
+                    (bool valid, string url) = getAssetPath($"{fontPostScriptName}{postfix}", "ttf");
                     if (valid)
                     {
                         unityFont = $"url('{url}')";
                     }
                     else
                     {
-                        (valid, url) = getAssetPath(fontPostScriptName, "otf");
+                        (valid, url) = getAssetPath($"{fontPostScriptName}{postfix}", "otf");
                         if (valid)
                         {
                             unityFont = $"url('{url}')";
