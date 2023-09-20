@@ -106,7 +106,7 @@ namespace Figma.Inspectors
         }
         void OnAssetGUI()
         {
-            void Update(string assetPath, bool downloadImages)
+            async void Update(string assetPath, bool downloadImages)
             {
                 string folder;
                 string relativeFolder;
@@ -142,7 +142,7 @@ namespace Figma.Inspectors
                             yield return fontsDir.stringValue;
                     }
 
-                    UpdateTitle(document, (Figma)target, title.stringValue, folder, relativeFolder, Event.current.modifiers == EventModifiers.Control, downloadImages, FontsDirs());
+                    await UpdateTitleAsync(document, (Figma)target, title.stringValue, folder, relativeFolder, Event.current.modifiers == EventModifiers.Control, downloadImages, FontsDirs());
                 }
             }
 
@@ -202,7 +202,31 @@ namespace Figma.Inspectors
         #endregion
 
         #region Support Methods
-        static async void UpdateTitle(UIDocument document, Figma figma, string title, string folder, string relativeFolder, bool systemCopyBuffer, bool downloadImages, IEnumerable<string> fontDirs)
+        static async Task UpdateDocumentAsync(UIDocument document, Figma figma, string title, bool downloadImages, bool systemCopyBuffer, IEnumerable<string> fontDirs)
+        {
+            string folder;
+            string relativeFolder;
+            string assetPath = AssetDatabase.GetAssetPath(document.visualTreeAsset);
+
+            if (assetPath.NullOrEmpty())
+                throw new NotSupportedException();
+
+            if (assetPath.StartsWith("Packages"))
+            {
+                PackageInfo packageInfo = PackageInfo.FindForAssetPath(assetPath);
+                folder = $"{packageInfo.resolvedPath}{Path.GetDirectoryName(assetPath.Replace(packageInfo.assetPath, ""))}";
+                relativeFolder = Path.GetDirectoryName(assetPath);
+            }
+            else
+            {
+                folder = Path.GetDirectoryName(assetPath);
+                relativeFolder = Path.GetRelativePath(Directory.GetCurrentDirectory(), folder);
+            }
+
+            if (folder.NotNullOrEmpty())
+                await UpdateTitleAsync(document, figma, title, folder, relativeFolder, systemCopyBuffer, downloadImages, fontDirs);
+        }
+        static async Task UpdateTitleAsync(UIDocument document, Figma figma, string title, string folder, string relativeFolder, bool systemCopyBuffer, bool downloadImages, IEnumerable<string> fontDirs)
         {
             if (!Directory.Exists(Path.Combine(folder, "Images"))) Directory.CreateDirectory(Path.Combine(folder, "Images"));
             if (!Directory.Exists(Path.Combine(folder, "Elements"))) Directory.CreateDirectory(Path.Combine(folder, "Elements"));
@@ -213,7 +237,7 @@ namespace Figma.Inspectors
             int progress = Progress.Start(processName, default, Progress.Options.Managed);
             Progress.RegisterCancelCallback(progress, () =>
             {
-                if (cancellationToken is not null) cancellationToken.Cancel();
+                cancellationToken.Cancel();
                 return true;
             });
 
