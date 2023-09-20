@@ -55,6 +55,7 @@ namespace Figma
             internal const string viewportClass = "unity-viewport";
             internal const string overrideClass = "unity-base-override";
             static readonly CultureInfo defaultCulture = CultureInfo.GetCultureInfo("en-US");
+            readonly string[] fontWeights = { "Thin", "ExtraLight", "Light", "Regular", "Medium", "SemiBold", "Bold", "ExtraBold", "Black" };
 
             #region Containers
             enum Unit
@@ -686,7 +687,7 @@ namespace Figma
                 }
                 else if (type == Style.StyleType.TEXT && node is TextNode text)
                 {
-                    AddTextStyle(text.style.fontSize, text.style.fontFamily, text.style.fontPostScriptName, text.style.textAlignHorizontal, text.style.textAlignVertical, text.style.italic is not null && text.style.italic.Value);
+                    AddTextStyle(text.style);
                 }
                 else if (type == Style.StyleType.EFFECT && node is BlendMixin blend)
                 {
@@ -757,8 +758,10 @@ namespace Figma
                 inherited.Add(component);
                 inherited.AddRange(styles);
 
-                List<string> preserve = (from keyValue in component.attributes from style in styles
-                                         where style.attributes.ContainsKey(keyValue.Key) && style.attributes[keyValue.Key] != keyValue.Value select keyValue.Key).ToList();
+                List<string> preserve = (from keyValue in component.attributes
+                                         from style in styles
+                                         where style.attributes.ContainsKey(keyValue.Key) && style.attributes[keyValue.Key] != keyValue.Value
+                                         select keyValue.Key).ToList();
 
                 foreach (KeyValuePair<string, string> keyValue in component.attributes)
                 {
@@ -880,7 +883,7 @@ namespace Figma
                 AddDefaultShapeNode(node);
 
                 FixWhiteSpace();
-                AddTextStyle(node.style.fontSize, node.style.fontFamily, node.style.fontPostScriptName, node.style.textAlignHorizontal, node.style.textAlignVertical, node.style.italic is not null && node.style.italic.Value);
+                AddTextStyle(node.style);
             }
             void AddComponentSetNode(ComponentSetNode node)
             {
@@ -1475,36 +1478,51 @@ namespace Figma
                     }
                 }
             }
-            void AddTextStyle(number? fontSize, string fontFamily, string fontPostScriptName, TextAlignHorizontal? textAlignHorizontal, TextAlignVertical? textAlignVertical, bool italic)
+            void AddTextStyle(TextNode.Style style)
             {
-                void AddUnityFont()
+                bool TryGetFontWithExtension(string font, out string resource, out string url)
                 {
-                    string postfix = italic && !fontPostScriptName.Contains("Italic") ? "Italic" : string.Empty;
-                    (bool valid, string url) = getAssetPath($"{fontPostScriptName}{postfix}", "ttf");
+                    (bool valid, string path) = getAssetPath(font, "ttf");
                     if (valid)
                     {
-                        unityFont = $"url('{url}')";
+                        resource = $"url('{path}')";
+                        url = path;
+                        return true;
                     }
-                    else
+                    (valid, url) = getAssetPath(font, "otf");
+                    if (valid)
                     {
-                        (valid, url) = getAssetPath($"{fontPostScriptName}{postfix}", "otf");
-                        if (valid)
-                        {
-                            unityFont = $"url('{url}')";
-                        }
-                        else
-                        {
-                            unityFont = "resource('Inter-Regular')";
-                            unityFontMissing = $"url('{url}')";
-                        }
+                        resource = $"url('{path}')";
+                        url = path;
+                        return true;
                     }
+                    resource = "resource('Inter-Regular')";
+                    url = path;
+                    return false;
+                }
 
-                    (valid, url) = getAssetPath(fontPostScriptName, "asset");
+                void AddUnityFont()
+                {
+                    string weightPostfix = style.fontWeight.HasValue ? fontWeights[(int)(style.fontWeight / 100) - 1] :
+                        style.fontPostScriptName.Contains('-') ? style.fontPostScriptName.Split('-')[1].Replace("Index", "") : "";
+                    string italicPostfix = style.italic.HasValue && style.italic.Value || style.fontPostScriptName.Contains("Italic") ? "Italic" : string.Empty;
+
+                    string resource;
+                    string url;
+                    bool valid;
+                    if (!TryGetFontWithExtension($"{style.fontFamily}-{weightPostfix}{italicPostfix}", out resource, out url))
+                    {
+                        unityFontMissing = $"url('{url}')";
+                    }
+                    unityFont = resource;
+
+
+                    (valid, url) = getAssetPath($"{style.fontFamily}-{weightPostfix}{italicPostfix}", "asset");
                     if (valid) unityFontDefinition = $"url('{url}')";
                 }
                 void AddTextAlign()
                 {
-                    string horizontal = textAlignHorizontal switch
+                    string horizontal = style.textAlignHorizontal switch
                     {
                         TextAlignHorizontal.LEFT => "left",
                         TextAlignHorizontal.RIGHT => "right",
@@ -1512,7 +1530,7 @@ namespace Figma
                         TextAlignHorizontal.JUSTIFIED => "center",
                         _ => throw new NotSupportedException()
                     };
-                    string vertical = textAlignVertical switch
+                    string vertical = style.textAlignVertical switch
                     {
                         TextAlignVertical.TOP => "upper",
                         TextAlignVertical.BOTTOM => "lower",
@@ -1522,13 +1540,13 @@ namespace Figma
                     unityTextAlign = $"{vertical}-{horizontal}";
                 }
 
-                if (fontSize.HasValue) this.fontSize = fontSize;
-                if (fontPostScriptName.NullOrEmpty() && fontFamily == "Inter")
+                if (style.fontSize.HasValue) this.fontSize = style.fontSize;
+                if (style.fontPostScriptName.NullOrEmpty() && style.fontFamily == "Inter")
                 {
-                    Debug.LogWarning($"FontPostScriptName is null for {fontFamily}. Fallback to {fontPostScriptName = "Inter-Regular"}");
+                    Debug.LogWarning($"FontPostScriptName is null for {style.fontFamily}. Fallback to {style.fontPostScriptName = "Inter-Regular"}");
                 }
-                if (fontPostScriptName.NotNullOrEmpty()) AddUnityFont();
-                if (textAlignVertical.HasValue && textAlignHorizontal.HasValue) AddTextAlign();
+                if (style.fontPostScriptName.NotNullOrEmpty()) AddUnityFont();
+                if (style.textAlignVertical.HasValue && style.textAlignHorizontal.HasValue) AddTextAlign();
             }
             void AddTextNodeEffects(IEnumerable<Effect> effects)
             {
