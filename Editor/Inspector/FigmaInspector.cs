@@ -391,7 +391,7 @@ namespace Figma.Inspectors
             }
             else
             {
-                json = Encoding.UTF8.GetString(await $"{api}/files/{title}?geometry=paths".HttpGetAsync(headers, cancellationToken: token));
+                json = Encoding.UTF8.GetString(await $"{api}/files/{title}".HttpGetAsync(headers, cancellationToken: token));
             }
 
             if (systemCopyBuffer) GUIUtility.systemCopyBuffer = json;
