@@ -1512,7 +1512,7 @@ namespace Figma
                     bool valid;
                     if (!TryGetFontWithExtension($"{style.fontFamily}-{weightPostfix}{italicPostfix}", out resource, out url) && !TryGetFontWithExtension(style.fontPostScriptName, out resource, out url))
                         unityFontMissing = $"url('{url}')";
-                    
+
                     unityFont = resource;
                     (valid, url) = getAssetPath($"{style.fontFamily}-{weightPostfix}{italicPostfix}", "asset");
                     if (valid) unityFontDefinition = $"url('{url}')";
@@ -1538,10 +1538,7 @@ namespace Figma
                 }
 
                 if (style.fontSize.HasValue) this.fontSize = style.fontSize;
-                if (style.fontPostScriptName.NullOrEmpty() && style.fontFamily == "Inter")
-                {
-                    Debug.LogWarning($"FontPostScriptName is null for {style.fontFamily}. Fallback to {style.fontPostScriptName = "Inter-Regular"}");
-                }
+                //if (style.fontPostScriptName.NullOrEmpty() && style.fontFamily == "Inter") Debug.LogWarning($"FontPostScriptName is null for {style.fontFamily}. Fallback to {style.fontPostScriptName = "Inter-Regular"}");
                 if (style.fontPostScriptName.NotNullOrEmpty()) AddUnityFont();
                 if (style.textAlignVertical.HasValue && style.textAlignHorizontal.HasValue) AddTextAlign();
             }
