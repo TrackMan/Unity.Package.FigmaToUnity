@@ -10,7 +10,6 @@ using System.Threading.Tasks;
 using System.Reflection;
 using System.Globalization;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Unity.VectorGraphics.Editor;
 using UnityEditor;
@@ -21,25 +20,24 @@ using UnityEngine.UIElements;
 using Trackman;
 using Object = UnityEngine.Object;
 using Debug = UnityEngine.Debug;
+using PackageInfo = UnityEditor.PackageManager.PackageInfo;
 
 // ReSharper disable MemberCanBeMadeStatic.Local
 
 namespace Figma.Inspectors
 {
-    using Attributes;
     using global;
-    using PackageInfo = UnityEditor.PackageManager.PackageInfo;
+    using Attributes;
 
     [CustomEditor(typeof(Figma), true)]
     [SuppressMessage("Roslynator", "RCS1213:Remove unused member declaration.")]
     public class FigmaInspector : Editor
     {
-        const string uiDocumentsOnlyIcon = "d_Refresh@2x";
-        const string uiDocumentWithImagesIcon = "d_RawImage Icon";
+        const string api = "https://api.figma.com/v1";
+        const string documentsOnlyIcon = "d_Refresh@2x";
+        const string documentWithImagesIcon = "d_RawImage Icon";
         const string folderIcon = "d_Project";
         const int maxConcurrentRequests = 5;
-        const string api = "https://api.figma.com/v1";
-        static readonly string[] propertiesToCut = { "componentProperties" };
 
         #region Fields
         SerializedProperty title;
@@ -48,11 +46,11 @@ namespace Figma.Inspectors
         SerializedProperty fontsDirs;
 
         UIDocument document;
-        List<PackageInfo> packages = new();
+        readonly List<PackageInfo> packages = new();
         #endregion
 
         #region Properties
-        static string PAT
+        static string PersonalAccessToken
         {
             get => EditorPrefs.GetString("Figma/Editor/PAT", "");
             set => EditorPrefs.SetString("Figma/Editor/PAT", value);
@@ -91,33 +89,31 @@ namespace Figma.Inspectors
 
         void OnPersonalAccessTokenGUI()
         {
-            if (PAT.NotNullOrEmpty())
+            if (PersonalAccessToken.NotNullOrEmpty())
             {
                 GUILayout.BeginHorizontal();
                 GUI.color = Color.green;
                 EditorGUILayout.LabelField("Personal Access Token OK");
                 GUI.color = Color.white;
                 GUI.backgroundColor = Color.red;
-                if (GUILayout.Button(new GUIContent("X", "Remove old PAT and enter new PAT"), GUILayout.Width(25), GUILayout.Height(25))) PAT = "";
+                if (GUILayout.Button(new GUIContent("X", "Remove old PAT and enter new PAT"), GUILayout.Width(25), GUILayout.Height(25))) PersonalAccessToken = "";
                 GUI.backgroundColor = Color.white;
                 GUILayout.EndHorizontal();
             }
             else
             {
-                PAT = EditorGUILayout.TextField("Personal Access Token", PAT);
+                PersonalAccessToken = EditorGUILayout.TextField("Personal Access Token", PersonalAccessToken);
             }
         }
         void OnAssetGUI()
         {
-            IEnumerable<string> FontsDirs()
-            {
-                foreach (SerializedProperty fontsDir in fontsDirs)
-                    yield return fontsDir.stringValue;
-            }
             async void Update(string assetPath, bool downloadImages)
             {
-                string folder;
-                string relativeFolder;
+                IEnumerable<string> GetFontsDirs()
+                {
+                    foreach (SerializedProperty fontsDir in fontsDirs)
+                        yield return fontsDir.stringValue;
+                }
 
                 if (assetPath.NullOrEmpty())
                 {
@@ -130,21 +126,10 @@ namespace Figma.Inspectors
                     }
                 }
 
-                if (assetPath.StartsWith("Packages"))
-                {
-                    PackageInfo packageInfo = PackageInfo.FindForAssetPath(assetPath);
-                    folder = $"{packageInfo.resolvedPath}{Path.GetDirectoryName(assetPath.Replace(packageInfo.assetPath, ""))}";
-                    relativeFolder = Path.GetDirectoryName(assetPath);
-                }
-                else
-                {
-                    folder = Path.GetDirectoryName(assetPath);
-                    relativeFolder = Path.GetRelativePath(Directory.GetCurrentDirectory(), folder);
-                }
+                (string folder, string relativeFolder) = GetFolderAndRelativeFolder(assetPath);
+                if (folder.NullOrEmpty() || relativeFolder.NullOrEmpty()) return;
 
-                if (!folder.NotNullOrEmpty()) return;
-
-                await UpdateTitleAsync(document, (Figma)target, title.stringValue, folder, relativeFolder, Event.current.modifiers == EventModifiers.Control, downloadImages, FontsDirs().ToArray());
+                await UpdateTitleWithProgressAsync(document, (Figma)target, title.stringValue, folder, relativeFolder, Event.current.modifiers == EventModifiers.Control, downloadImages, GetFontsDirs().ToArray());
             }
 
             EditorGUILayout.BeginVertical(GUI.skin.box);
@@ -160,8 +145,8 @@ namespace Figma.Inspectors
             bool forceUpdate = default;
             bool downloadImages = false;
 
-            if (GUILayout.Button(new GUIContent("Update UI", EditorGUIUtility.IconContent(uiDocumentsOnlyIcon).image), GUILayout.Height(20)) ||
-                (downloadImages = GUILayout.Button(new GUIContent("Update UI & Images", EditorGUIUtility.IconContent(uiDocumentWithImagesIcon).image), GUILayout.Width(184), GUILayout.Height(20))) ||
+            if (GUILayout.Button(new GUIContent("Update UI", EditorGUIUtility.IconContent(documentsOnlyIcon).image), GUILayout.Height(20)) ||
+                (downloadImages = GUILayout.Button(new GUIContent("Update UI & Images", EditorGUIUtility.IconContent(documentWithImagesIcon).image), GUILayout.Width(184), GUILayout.Height(20))) ||
                 (forceUpdate = GUILayout.Button(new GUIContent(EditorGUIUtility.FindTexture(folderIcon)), GUILayout.Width(36))))
                 Update(forceUpdate ? default : AssetDatabase.GetAssetPath(visualTreeAsset),
                        forceUpdate ? EditorUtility.DisplayDialog("Figma Updater", "Do you want to update images as well?", "Yes", "No") : downloadImages);
@@ -203,15 +188,10 @@ namespace Figma.Inspectors
         #endregion
 
         #region Support Methods
-        static async Task UpdateDocumentAsync(UIDocument document, Figma figma, string title, bool downloadImages, bool systemCopyBuffer, IReadOnlyCollection<string> fontDirs)
+        static (string folder, string relativeFolder) GetFolderAndRelativeFolder(string assetPath)
         {
             string folder;
             string relativeFolder;
-            string assetPath = AssetDatabase.GetAssetPath(document.visualTreeAsset);
-
-            if (assetPath.NullOrEmpty())
-                throw new NotSupportedException();
-
             if (assetPath.StartsWith("Packages"))
             {
                 PackageInfo packageInfo = PackageInfo.FindForAssetPath(assetPath);
@@ -223,11 +203,19 @@ namespace Figma.Inspectors
                 folder = Path.GetDirectoryName(assetPath);
                 relativeFolder = Path.GetRelativePath(Directory.GetCurrentDirectory(), folder);
             }
-
-            if (folder.NotNullOrEmpty())
-                await UpdateTitleAsync(document, figma, title, folder, relativeFolder, systemCopyBuffer, downloadImages, fontDirs);
+            return (folder, relativeFolder);
         }
-        static async Task UpdateTitleAsync(UIDocument document, Figma figma, string title, string folder, string relativeFolder, bool systemCopyBuffer, bool downloadImages, IReadOnlyCollection<string> fontDirs)
+        static async Task UpdateDocumentAsync(UIDocument document, Figma figma, string title, bool downloadImages, bool systemCopyBuffer, IReadOnlyCollection<string> fontDirs)
+        {
+            string assetPath = AssetDatabase.GetAssetPath(document.visualTreeAsset);
+            if (assetPath.NullOrEmpty()) throw new NotSupportedException();
+
+            (string folder, string relativeFolder) = GetFolderAndRelativeFolder(assetPath);
+            if (folder.NullOrEmpty() || relativeFolder.NullOrEmpty()) return;
+
+            if (folder.NotNullOrEmpty()) await UpdateTitleWithProgressAsync(document, figma, title, folder, relativeFolder, systemCopyBuffer, downloadImages, fontDirs);
+        }
+        static async Task UpdateTitleWithProgressAsync(UIDocument document, Figma figma, string title, string folder, string relativeFolder, bool systemCopyBuffer, bool downloadImages, IReadOnlyCollection<string> fontDirs)
         {
             if (!Directory.Exists(Path.Combine(folder, "Images"))) Directory.CreateDirectory(Path.Combine(folder, "Images"));
             if (!Directory.Exists(Path.Combine(folder, "Elements"))) Directory.CreateDirectory(Path.Combine(folder, "Elements"));
@@ -500,7 +488,7 @@ namespace Figma.Inspectors
                 AssetDatabase.ImportAsset(Path.Combine(relativeFolder, "Images"), ImportAssetOptions.ImportRecursive | ImportAssetOptions.ForceSynchronousImport);
 
                 Progress.SetDescription(progress, "Importing png...");
-                foreach (TextureImporter importer in importPng.Select(relativePath => (TextureImporter)AssetImporter.GetAtPath(relativePath)))
+                foreach (TextureImporter importer in importPng.Select(x => (TextureImporter)AssetImporter.GetAtPath(x)))
                 {
                     importer.npotScale = TextureImporterNPOTScale.None;
                     importer.mipmapEnabled = false;
@@ -612,7 +600,7 @@ namespace Figma.Inspectors
             #endregion
 
             Progress.Report(progress, 1, 5, "Downloading nodes");
-            Dictionary<string, string> headers = new() { { "X-FIGMA-TOKEN", PAT } };
+            Dictionary<string, string> headers = new() { { "X-FIGMA-TOKEN", PersonalAccessToken } };
             string json = Encoding.UTF8.GetString(await $"{api}/files/{title}".HttpGetAsync(headers, cancellationToken: token));
             if (systemCopyBuffer) GUIUtility.systemCopyBuffer = json;
 
