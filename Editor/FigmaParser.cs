@@ -1489,7 +1489,7 @@ namespace Figma
                         url = path;
                         return true;
                     }
-                    (valid, url) = getAssetPath(font, "otf");
+                    (valid, path) = getAssetPath(font, "otf");
                     if (valid)
                     {
                         resource = $"url('{path}')";
@@ -1510,13 +1510,10 @@ namespace Figma
                     string resource;
                     string url;
                     bool valid;
-                    if (!TryGetFontWithExtension($"{style.fontFamily}-{weightPostfix}{italicPostfix}", out resource, out url))
-                    {
+                    if (!TryGetFontWithExtension($"{style.fontFamily}-{weightPostfix}{italicPostfix}", out resource, out url) && !TryGetFontWithExtension(style.fontPostScriptName, out resource, out url))
                         unityFontMissing = $"url('{url}')";
-                    }
+                    
                     unityFont = resource;
-
-
                     (valid, url) = getAssetPath($"{style.fontFamily}-{weightPostfix}{italicPostfix}", "asset");
                     if (valid) unityFontDefinition = $"url('{url}')";
                 }
