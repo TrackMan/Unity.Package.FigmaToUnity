@@ -261,44 +261,6 @@ namespace Figma.Inspectors
         }
         static async Task UpdateTitleAsync(UIDocument document, Figma figma, int progress, string title, string folder, string relativeFolder, bool systemCopyBuffer, bool downloadImages, IEnumerable<string> fontDirs, CancellationToken token)
         {
-            string CutJson(string json, string propertyToCut)
-            {
-                while (json.IndexOf(propertyToCut, StringComparison.Ordinal) > 0)
-                {
-                    bool touched = false;
-                    int startIndex = json.IndexOf(propertyToCut, StringComparison.Ordinal);
-                    int counter = 0;
-
-                    for (int i = startIndex; i > 0; --i)
-                    {
-                        if (json[i] == ',')
-                        {
-                            startIndex = i;
-                            break;
-                        }
-                    }
-                    for (int i = startIndex; i < json.Length; ++i)
-                    {
-                        if (json[i] == '{')
-                        {
-                            touched = true;
-                            ++counter;
-                        }
-                        else if (json[i] == '}')
-                        {
-                            --counter;
-                        }
-
-                        if (touched && counter == 0)
-                        {
-                            json = json.Remove(startIndex, i - startIndex + 1);
-                            break;
-                        }
-                    }
-                }
-
-                return json;
-            }
             string GetFontPath(string name, string extension)
             {
                 string localFontsPath = $"Fonts/{name}.{extension}";
@@ -396,8 +358,6 @@ namespace Figma.Inspectors
 
             if (systemCopyBuffer) GUIUtility.systemCopyBuffer = json;
             if (!File.Exists(figmaTmpJson)) await File.WriteAllTextAsync(figmaTmpJson, json, token);
-
-            foreach (string propertyToCut in propertiesToCut) json = CutJson(json, propertyToCut);
             #endregion
 
             Files files = JsonUtility.FromJson<Files>(json);

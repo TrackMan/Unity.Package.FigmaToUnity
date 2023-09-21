@@ -557,6 +557,7 @@ namespace Figma
         public class InstanceNode : DefaultFrameNode
         {
             public string componentId;
+            public object componentProperties;
             public bool isExposedInstance;
             public string[] exposedInstances;
             public object[] overrides;
