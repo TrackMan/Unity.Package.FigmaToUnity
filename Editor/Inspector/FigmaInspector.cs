@@ -19,6 +19,7 @@ using UnityEditor.PackageManager.Requests;
 using UnityEngine;
 using UnityEngine.UIElements;
 using Trackman;
+using Object = UnityEngine.Object;
 using Debug = UnityEngine.Debug;
 
 // ReSharper disable MemberCanBeMadeStatic.Local
@@ -263,15 +264,12 @@ namespace Figma.Inspectors
         {
             async Task AddMissingComponentsAsync(FigmaParser parser, Dictionary<string, string> headers, DocumentNode documentNode)
             {
-                if (parser.MissingComponents.Count > 0)
+                Nodes nodes = JsonUtility.FromJson<Nodes>(await $"{api}/files/{title}/nodes?ids={string.Join(",", parser.MissingComponents.Distinct())}".HttpGetAsync(headers, cancellationToken: token));
+                foreach (Nodes.Document value in nodes.nodes.Values.Where(value => value is not null))
                 {
-                    Nodes nodes = JsonUtility.FromJson<Nodes>(await $"{api}/files/{title}/nodes?ids={string.Join(",", parser.MissingComponents.Distinct())}".HttpGetAsync(headers, cancellationToken: token));
-                    foreach (Nodes.Document value in nodes.nodes.Values.Where(value => value is not null))
-                    {
-                        value.document.parent = documentNode;
-                        value.document.SetParentRecursively();
-                        parser.AddMissingComponent(value.document, value.styles);
-                    }
+                    value.document.parent = documentNode;
+                    value.document.SetParentRecursively();
+                    parser.AddMissingComponent(value.document, value.styles);
                 }
             }
             void InitializeMetadata(DocumentNode documentNode)
@@ -458,11 +456,13 @@ namespace Figma.Inspectors
                 if (parser.PngNodes.Any(x => x.ShouldDownload(UxmlDownloadImages.RenderAsPng)))
                 {
                     Progress.SetDescription(progress, "Downloading png images");
+
                     int i = 0;
                     IEnumerable<IGrouping<int, string>> items = parser.PngNodes.Where(x => x.ShouldDownload(UxmlDownloadImages.RenderAsPng)).Select(y => y.id).GroupBy(_ => i++ / 100);
                     Task<byte[]>[] tasks = items.Select((group) => $"{api}/images/{title}?ids={string.Join(",", group)}&format=png".HttpGetAsync(defaultRequestHeaders, cancellationToken: token)).ToArray();
                     await Task.WhenAll(tasks);
                     IEnumerable<KeyValuePair<string, string>> images = tasks.SelectMany(t => JsonUtility.FromJson<Images>(t.Result).images);
+
                     svgToPngSyncTask = images.ForEachParallelAsync(maxConcurrentRequests, DownloadMethodFor("png", AddPngImport), token);
                 }
                 if (parser.SvgNodes.Any(x => x.ShouldDownload(UxmlDownloadImages.RenderAsSvg)))
@@ -593,9 +593,9 @@ namespace Figma.Inspectors
                         if (valid)
                         {
                             SVGImporter importer = (SVGImporter)AssetImporter.GetAtPath(Path.Combine(relativeFolder, path));
-                            UnityEngine.Object vectorImage = AssetDatabase.LoadMainAssetAtPath(Path.Combine(relativeFolder, path));
+                            Object vectorImage = AssetDatabase.LoadMainAssetAtPath(Path.Combine(relativeFolder, path));
 
-                            if (vectorImage.GetType().GetField("size", BindingFlags.NonPublic | BindingFlags.Instance) is { } fieldInfo)
+                            if (vectorImage && vectorImage.GetType().GetField("size", BindingFlags.NonPublic | BindingFlags.Instance) is { } fieldInfo)
                             {
                                 Vector2 size = (Vector2)fieldInfo.GetValue(vectorImage);
                                 return (true, Mathf.CeilToInt(size.x), Mathf.CeilToInt(size.y));
@@ -625,7 +625,7 @@ namespace Figma.Inspectors
             FigmaParser parser = new(files.document, files.styles, GetAssetPath, GetAssetSize);
 
             Progress.Report(progress, 3, 5, "Downloading missing nodes");
-            await AddMissingComponentsAsync(parser, headers, files.document);
+            if (parser.MissingComponents.Count > 0) await AddMissingComponentsAsync(parser, headers, files.document);
 
             Progress.Report(progress, 4, 5, "Downloading images");
             Func<bool> cleanupImages = default;
