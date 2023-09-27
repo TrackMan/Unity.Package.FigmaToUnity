@@ -1,11 +1,8 @@
 > [!WARNING]
-> **Experimental Release**: This plugin is currently in an experimental phase and is provided "as is" without warranty of any kind. It was originally developed for internal use and may contain issues or limitations. Use it at your own risk. Feedback and contributions are welcome but please keep in
-> mind the experimental nature of this tool.
+> **Experimental Release**: This plugin is currently in an experimental phase and is provided "as is" without warranty of any kind. It was originally developed for internal use and may contain issues or limitations. Use it at your own risk. Feedback and contributions are welcome but please keep in mind the experimental nature of this tool.
 
 # Overview
-
-FigmaToUnity is a specialized Unity tool that streamlines the UI development process by enabling the direct import of Figma page documents into Unity. The tool automatically converts Figma designs into UI Toolkit assets, allowing for quick and accurate integration of UI interfaces into your Unity
-games.
+FigmaToUnity is a specialized Unity tool that streamlines the UI development process by enabling the direct import of Figma page documents into Unity. The tool automatically converts Figma designs into UI Toolkit assets, allowing for quick and accurate integration of UI interfaces into your Unity games.
 
 # Features
 
@@ -17,14 +14,12 @@ games.
 | **[Limitations](#limitations)** | Refer to the section below.                                                                                                                         |
 
 # Installing
-
 1. Open Window > Package Manager
 2. Click the + button in the top-left corner
 3. Choose Add package from git URL...
 4. Enter https://github.com/TrackMan/Unity.Package.FigmaForUnity.git
 
 # Dependencies
-
 To integrate these dependencies, you must either manually include them in your project's manifest file or ensure they are automatically resolved through Unity's Package Manager registry.
 
 - [Newtonsoft.Json 13.0.1](https://docs.unity3d.com/Packages/com.unity.vectorgraphics@2.0/manual/index.html)
@@ -33,20 +28,18 @@ To integrate these dependencies, you must either manually include them in your p
 - [Common Utils 3.7.0](https://github.com/TrackMan/Unity.Package.CommonUtils)
 
 # Quick Start
-
 - Finish [Installing](#installing)
-- Open ~Samples folder
-- Open Test.unity
-- Go to Figma GameObject
-- In the Title, enter the title of your Figma document (ie dfeQabSU71CHXVqweameSF) from Figma website ([some templates](https://www.figma.com/community/files))
-- Go to Test.cs and edit the UXML attribute to points to your Page/Elemen path
-- Click Update UI & Images
-- Save the VisualAssetTree somewhere
-- Start playmode and enjoy!
+- Open `~Samples` folder
+- Open `Test.unity`
+- Go to `Figma` GameObject
+- In the `Title`, enter the title of your Figma document (ie dfeQabSU71CHXVqweameSF) from Figma website ([some templates](https://www.figma.com/community/files))
+- Go to `Test.cs` and edit the UXML attribute to points to your Page/Element path
+- Click `Update UI & Images`
+- Save the `VisualAssetTree` somewhere
+- Start `playmode` and enjoy!
 
 # Usage
-
-Working with this plugin is done through using Figma component inspector FigmaInspector. <br>
+Working with this plugin is done through using Figma component inspector FigmaInspector. 
 In addition, components derived from the Element class should be created and added to the same GameObject hierarchy.
 These components serve a dual purpose:
 
@@ -54,7 +47,6 @@ These components serve a dual purpose:
 2. During runtime, they provide the functionality to manipulate UXML and USS data structures.
 
 ## Figma Inspector
-
 ![image](https://user-images.githubusercontent.com/22183046/270277550-bd127c6a-1e0f-4494-8b2b-cc9e87ed0448.png)
 
 | Property                           | Description                                                                                                                                                                                            |
@@ -182,7 +174,6 @@ This interface acts as a marker, indicating that an element within the IRootElem
 | **Circle Representation**    | For optimal visual rendering, circles should be implemented using rectangles rather than ellipses.                                      |
 
 # Not implemented
-
 - Documentation (work in progress)
 - Flex-gap (Unity not supported)
 - Blur (Unity not supported)
