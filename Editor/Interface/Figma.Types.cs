@@ -624,8 +624,12 @@ namespace Figma
             public LayoutMode? layoutMode { get; set; }
             public PrimaryAxisSizingMode? primaryAxisSizingMode { get; set; }
             public CounterAxisSizingMode? counterAxisSizingMode { get; set; }
+            public object primaryAxisSpacing { get; set; }
+            public object counterAxisSpacing { get; set; }
             public PrimaryAxisAlignItems? primaryAxisAlignItems { get; set; }
             public CounterAxisAlignItems? counterAxisAlignItems { get; set; }
+            public object primaryAxisAlignContent { get; set; }
+            public object counterAxisAlignContent { get; set; }
             public number? paddingLeft { get; set; }
             public number? paddingTop { get; set; }
             public number? paddingRight { get; set; }

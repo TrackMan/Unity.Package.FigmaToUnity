@@ -91,6 +91,6 @@ namespace Figma
 
         public enum ComponentPropertyType { BOOLEAN, TEXT, INSTANCE_SWAP, VARIANT }
 
-        public enum LayoutWrap { NO_WRAP }
+        public enum LayoutWrap { NO_WRAP, WRAP }
     }
 }

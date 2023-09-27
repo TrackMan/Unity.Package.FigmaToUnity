@@ -121,7 +121,7 @@ namespace Figma.Inspectors
                     if (!Path.GetFullPath(assetPath).StartsWith(Path.GetFullPath(Application.dataPath)))
                     {
                         string path = assetPath;
-                        PackageInfo packageInfo = packages.Find(x => Path.GetFullPath(path).StartsWith($"{Path.GetFullPath(x.resolvedPath)}\\"));
+                        PackageInfo packageInfo = packages.Find(x => Path.GetFullPath(path).StartsWith($"{Path.GetFullPath(x.resolvedPath)}"));
                         assetPath = $"{packageInfo.assetPath}/{Path.GetFullPath(assetPath).Replace(Path.GetFullPath(packageInfo.resolvedPath), "")}";
                     }
                 }
@@ -148,8 +148,11 @@ namespace Figma.Inspectors
             if (GUILayout.Button(new GUIContent("Update UI", EditorGUIUtility.IconContent(documentsOnlyIcon).image), GUILayout.Height(20)) ||
                 (downloadImages = GUILayout.Button(new GUIContent("Update UI & Images", EditorGUIUtility.IconContent(documentWithImagesIcon).image), GUILayout.Width(184), GUILayout.Height(20))) ||
                 (forceUpdate = GUILayout.Button(new GUIContent(EditorGUIUtility.FindTexture(folderIcon)), GUILayout.Width(36))))
+            {
                 Update(forceUpdate ? default : AssetDatabase.GetAssetPath(visualTreeAsset),
-                       forceUpdate ? EditorUtility.DisplayDialog("Figma Updater", "Do you want to update images as well?", "Yes", "No") : downloadImages);
+                    forceUpdate ? EditorUtility.DisplayDialog("Figma Updater", "Do you want to update images as well?", "Yes", "No") : downloadImages);
+                GUIUtility.ExitGUI();
+            }
 
             EditorGUILayout.EndHorizontal();
             EditorGUILayout.EndVertical();
@@ -496,6 +499,7 @@ namespace Figma.Inspectors
                 }
 
                 Progress.SetDescription(progress, "Importing svg...");
+                #warning These paths are not absolute or relative
                 foreach (SVGImporter importer in importSvg.Select(value => (SVGImporter)AssetImporter.GetAtPath(value.path)))
                 {
 #if VECTOR_GRAPHICS_RASTER
