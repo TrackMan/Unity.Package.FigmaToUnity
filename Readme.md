@@ -14,9 +14,9 @@ FigmaToUnity is a specialized Unity tool that streamlines the UI development pro
 | **[Limitations](#limitations)** | Refer to the section below.                                                                                                                         |
 
 # Installing
-1. Open Window > Package Manager
-2. Click the + button in the top-left corner
-3. Choose Add package from git URL...
+1. Open `Window > Package Manager`
+2. Click the `+` button in the top-left corner
+3. Choose `Add package from git URL...`
 4. Enter https://github.com/TrackMan/Unity.Package.FigmaForUnity.git
 
 # Dependencies
@@ -91,67 +91,67 @@ public class SampleFrame : Element
 ## UxmlAttribute
 This attribute specifies the Element (a frame, and it's children) that we want to import from Figma document.
 
-| Attribute          | Description                                                                                                                            |
-|--------------------|----------------------------------------------------------------------------------------------------------------------------------------|
-| Root               | Defines the root path within the Figma document where this frame originates, inclusive of the canvas path.                             |
-| ImageFiltering     | Specifies the strategy for downloading images from the Figma document.                                                                 |
-| TypeIdentification | Indicates the method for identifying the types of elements, whether based on their name or their classification under Element classes. |
-| Preserve           | Lists any additional paths that should be maintained as-is in the imported document.                                                   |
+| Attribute              | Description                                                                                                                            |
+|------------------------|----------------------------------------------------------------------------------------------------------------------------------------|
+| **Root**               | Defines the root path within the Figma document where this frame originates, inclusive of the canvas path.                             |
+| **ImageFiltering**     | Specifies the strategy for downloading images from the Figma document.                                                                 |
+| **TypeIdentification** | Indicates the method for identifying the types of elements, whether based on their name or their classification under Element classes. |
+| **Preserve**           | Lists any additional paths that should be maintained as-is in the imported document.                                                   |
 
 ## QueryAttribute
 This attribute specifies the sub element (inside of the Element) parameters (like path to element, or what should happen when you click button).
 
-| Event Name                  | Description                                                              |
-|-----------------------------|--------------------------------------------------------------------------|
-| Path                        | The path used in the UI query.                                           |
-| ClassName                   | The class name of the element.                                           |
-| ImageFiltering              | Enum specifying how images are downloaded or filtered.                   |
-| ReplaceNodePath             | Path to the node that will be replaced.                                  |
-| ReplaceNodeEvent            | Event that triggers the node replacement.                                |
-| ReplaceElementPath          | Path to the element that will be replaced.                               |
-| RebuildElementEvent         | Event that triggers the element to be rebuilt.                           |
-| StartRoot                   | Specifies that element path will be new root for the following elements. |
-| EndRoot                     | Specifies the end of StartRoot.                                          |
-| Nullable                    | Specifies if the element can be null.                                    |
-| Clicked                     | Name of the method to be invoked when the element is clicked.            |
-| Template                    | Template to be used for the element (creates a separate uxml file).      |
-| UseTrickleDown              | Specifies if events should trickle down through the element hierarchy.   |
-| ChangeEvent                 | Event triggered when an element's state changes.                         |
-| MouseCaptureOutEvent        | Event triggered when mouse capture is lost.                              |
-| ValidateCommandEvent        | Event triggered to validate a command.                                   |
-| ExecuteCommandEvent         | Event triggered to execute a command.                                    |
-| DragExitedEvent             | Event triggered when a drag operation exits the element.                 |
-| DragUpdatedEvent            | Event triggered when a drag operation is updated.                        |
-| DragPerformEvent            | Event triggered when a drag operation is performed.                      |
-| DragEnterEvent              | Event triggered when a drag operation enters the element.                |
-| DragLeaveEvent              | Event triggered when a drag operation leaves the element.                |
-| FocusOutEvent               | Event triggered when the element loses focus.                            |
-| BlurEvent                   | Event triggered when the element is blurred.                             |
-| FocusInEvent                | Event triggered when the element gains focus.                            |
-| FocusEvent                  | Event triggered when the element is focused or loses focus.              |
-| InputEvent                  | Event triggered when the element receives input.                         |
-| KeyDownEvent                | Event triggered when a key is pressed down.                              |
-| KeyUpEvent                  | Event triggered when a key is released.                                  |
-| GeometryChangedEvent        | Event triggered when the element's geometry changes.                     |
-| PointerDownEvent            | Event triggered when a pointer is pressed down.                          |
-| PointerUpEvent              | Event triggered when a pointer is released.                              |
-| PointerMoveEvent            | Event triggered when a pointer is moved.                                 |
-| MouseDownEvent              | Event triggered when a mouse button is pressed.                          |
-| MouseUpEvent                | Event triggered when a mouse button is released.                         |
-| MouseMoveEvent              | Event triggered when the mouse is moved.                                 |
-| ContextClickEvent           | Event triggered on a context click (right-click).                        |
-| WheelEvent                  | Event triggered when the mouse wheel is moved.                           |
-| MouseEnterEvent             | Event triggered when the mouse enters the element.                       |
-| MouseLeaveEvent             | Event triggered when the mouse leaves the element.                       |
-| MouseEnterWindowEvent       | Event triggered when the mouse enters the window containing the element. |
-| MouseLeaveWindowEvent       | Event triggered when the mouse leaves the window containing the element. |
-| MouseOverEvent              | Event triggered when the mouse is over the element.                      |
-| MouseOutEvent               | Event triggered when the mouse is out of the element.                    |
-| ContextualMenuPopulateEvent | Event triggered to populate the contextual menu.                         |
-| AttachToPanelEvent          | Event triggered when the element is attached to a panel.                 |
-| DetachFromPanelEvent        | Event triggered when the element is detached from a panel.               |
-| TooltipEvent                | Event triggered to display a tooltip.                                    |
-| IMGUIEvent                  | Event triggered for IMGUI rendering.                                     |
+| Event Name                      | Description                                                              |
+|---------------------------------|--------------------------------------------------------------------------|
+| **Path**                        | The path used in the UI query.                                           |
+| **ClassName**                   | The class name of the element.                                           |
+| **ImageFiltering**              | Enum specifying how images are downloaded or filtered.                   |
+| **ReplaceNodePath**             | Path to the node that will be replaced.                                  |
+| **ReplaceNodeEvent**            | Event that triggers the node replacement.                                |
+| **ReplaceElementPath**          | Path to the element that will be replaced.                               |
+| **RebuildElementEvent**         | Event that triggers the element to be rebuilt.                           |
+| **StartRoot**                   | Specifies that element path will be new root for the following elements. |
+| **EndRoot**                     | Specifies the end of StartRoot.                                          |
+| **Nullable**                    | Specifies if the element can be null.                                    |
+| **Clicked**                     | Name of the method to be invoked when the element is clicked.            |
+| **Template**                    | Template to be used for the element (creates a separate uxml file).      |
+| **UseTrickleDown**              | Specifies if events should trickle down through the element hierarchy.   |
+| **ChangeEvent**                 | Event triggered when an element's state changes.                         |
+| **MouseCaptureOutEvent**        | Event triggered when mouse capture is lost.                              |
+| **ValidateCommandEvent**        | Event triggered to validate a command.                                   |
+| **ExecuteCommandEvent**         | Event triggered to execute a command.                                    |
+| **DragExitedEvent**             | Event triggered when a drag operation exits the element.                 |
+| **DragUpdatedEvent**            | Event triggered when a drag operation is updated.                        |
+| **DragPerformEvent**            | Event triggered when a drag operation is performed.                      |
+| **DragEnterEvent**              | Event triggered when a drag operation enters the element.                |
+| **DragLeaveEvent**              | Event triggered when a drag operation leaves the element.                |
+| **FocusOutEvent**               | Event triggered when the element loses focus.                            |
+| **BlurEvent**                   | Event triggered when the element is blurred.                             |
+| **FocusInEvent**                | Event triggered when the element gains focus.                            |
+| **FocusEvent**                  | Event triggered when the element is focused or loses focus.              |
+| **InputEvent**                  | Event triggered when the element receives input.                         |
+| **KeyDownEvent**                | Event triggered when a key is pressed down.                              |
+| **KeyUpEvent**                  | Event triggered when a key is released.                                  |
+| **GeometryChangedEvent**        | Event triggered when the element's geometry changes.                     |
+| **PointerDownEvent**            | Event triggered when a pointer is pressed down.                          |
+| **PointerUpEvent**              | Event triggered when a pointer is released.                              |
+| **PointerMoveEvent**            | Event triggered when a pointer is moved.                                 |
+| **MouseDownEvent**              | Event triggered when a mouse button is pressed.                          |
+| **MouseUpEvent**                | Event triggered when a mouse button is released.                         |
+| **MouseMoveEvent**              | Event triggered when the mouse is moved.                                 |
+| **ContextClickEvent**           | Event triggered on a context click (right-click).                        |
+| **WheelEvent**                  | Event triggered when the mouse wheel is moved.                           |
+| **MouseEnterEvent**             | Event triggered when the mouse enters the element.                       |
+| **MouseLeaveEvent**             | Event triggered when the mouse leaves the element.                       |
+| **MouseEnterWindowEvent**       | Event triggered when the mouse enters the window containing the element. |
+| **MouseLeaveWindowEvent**       | Event triggered when the mouse leaves the window containing the element. |
+| **MouseOverEvent**              | Event triggered when the mouse is over the element.                      |
+| **MouseOutEvent**               | Event triggered when the mouse is out of the element.                    |
+| **ContextualMenuPopulateEvent** | Event triggered to populate the contextual menu.                         |
+| **AttachToPanelEvent**          | Event triggered when the element is attached to a panel.                 |
+| **DetachFromPanelEvent**        | Event triggered when the element is detached from a panel.               |
+| **TooltipEvent**                | Event triggered to display a tooltip.                                    |
+| **IMGUIEvent**                  | Event triggered for IMGUI rendering.                                     |
 
 ## ISubElement
 This interface serves as an identifier, signifying that within the IRootElement hierarchy, an element exists which can function as a component based on the VisualElement class.
