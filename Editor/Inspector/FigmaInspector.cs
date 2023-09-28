@@ -476,19 +476,20 @@ namespace Figma.Inspectors
 
                 try
                 {
-                    AssetDatabase.StartAssetEditing();
+                    AssetDatabase.DisallowAutoRefresh();
                     await Task.WhenAll(fillsSyncTask, svgToPngSyncTask, svgSyncTask);
-
                     await WriteGradientsAsync(importGradient, requiredImages);
                 }
                 finally
                 {
-                    SaveRemaps(remaps);
+                    AssetDatabase.AllowAutoRefresh();
                     Progress.SetStepLabel(progress, "");
-                    AssetDatabase.StopAssetEditing();
+                    SaveRemaps(remaps);
                 }
 
-                AssetDatabase.ImportAsset(Path.Combine(relativeFolder, "Images"), ImportAssetOptions.ImportRecursive | ImportAssetOptions.ForceSynchronousImport);
+                await Awaiters.While(() => EditorApplication.isUpdating);
+                AssetDatabase.ImportAsset(Path.Combine(relativeFolder, "Images"), ImportAssetOptions.ImportRecursive);
+                await Awaiters.While(() => EditorApplication.isUpdating);
 
                 Progress.SetDescription(progress, "Importing png...");
                 foreach (TextureImporter importer in importPng.Select(x => (TextureImporter)AssetImporter.GetAtPath(x)))
@@ -499,7 +500,6 @@ namespace Figma.Inspectors
                 }
 
                 Progress.SetDescription(progress, "Importing svg...");
-                #warning These paths are not absolute or relative
                 foreach (SVGImporter importer in importSvg.Select(value => (SVGImporter)AssetImporter.GetAtPath(value.path)))
                 {
 #if VECTOR_GRAPHICS_RASTER
@@ -521,7 +521,10 @@ namespace Figma.Inspectors
                     EditorUtility.SetDirty(importer);
                 }
 
-                AssetDatabase.ImportAsset(Path.Combine(relativeFolder, "Images"), ImportAssetOptions.ImportRecursive | ImportAssetOptions.ForceSynchronousImport);
+                await Awaiters.While(() => EditorApplication.isUpdating);
+                AssetDatabase.ImportAsset(Path.Combine(relativeFolder, "Images"), ImportAssetOptions.ImportRecursive);
+                await Awaiters.While(() => EditorApplication.isUpdating);
+
                 return CleanupAfter;
             }
 
