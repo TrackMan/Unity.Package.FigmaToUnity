@@ -1960,6 +1960,13 @@ namespace Figma
             components.Add(component);
             componentsStyles.Add(componentStyles);
         }
+        public void AddMissingComponent(Nodes.Document document)
+        {
+            document.document.parent = this.document;
+            document.document.SetParentRecursively();
+            components.Add(document.document);
+            componentsStyles.Add(document.styles);
+        }
         public void Run()
         {
             AddStylesRecursively(document, documentStyles, false);
