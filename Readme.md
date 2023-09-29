@@ -159,22 +159,21 @@ This interface serves as an identifier, signifying that within the IRootElement 
 ## IRootElement
 This interface acts as a marker, indicating that an element within the IRootElement hierarchy is capable of functioning as a component derived from the VisualElement class.
 
-## Searching, cloning elements (TODO)
-## Using VisualElement (styles, replacement, copy, etc) (TOBEREVIEWED)
-When working with VisualElements, there are various ways to manipulate them. Here are some common operations:
+## Visual Element Style (TOBEREVIEWED)
+The imported USS file contains all the classes used by Visual Elements. USS is inspired by CSS and has a similar syntax. To manipulate properties in your code, you should use the techniques described below.
 ### Changing Element Appearance
 To change the appearance of a VisualElement, you should manipulate its style properties. For example, to set the top margin of an element to 3:
 ```csharp
 element.style.marginTop = 3;
 ```
-You can find the list of all supported properties in the official Unity documentation.
 ### Reading Element Style Data
 If you need to read style data from a VisualElement, you should use its resolved style properties. For example, to retrieve the value of the top margin:
 ```csharp
 float margin = element.resolvedStyle.marginTop;
 ```
-### Visual Element Extensions
-There are various visual element extensions that allow you to find/clone/replace/etc elements:
+> You can find the list of all supported properties in the official Unity documentation.
+## Visual Element Extensions (TOBEREVIEWED)
+When working with VisualElements, there are various visual element extensions that allow you to find/clone/replace/etc elements:
 ```csharp
 VisualElement rectangle = element.Find<VisualElement>("Rectangle");
 ```
