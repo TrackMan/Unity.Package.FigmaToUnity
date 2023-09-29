@@ -644,6 +644,7 @@ namespace Figma.Inspectors
 
             Progress.Finish(progress);
             Debug.Log($"Figma Update {figma.name} OK");
+            NodeMetadata.Clear(document);
         }
         #endregion
     }
