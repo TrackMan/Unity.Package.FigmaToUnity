@@ -5,7 +5,6 @@
   "version": "1.2.2",
   "unity": "2021.3",
   "dependencies": {
-    "org.nuget.newtonsoft.json": "13.0.1",
     "com.unity.vectorgraphics": "2.0.0-preview.21",
     "com.trackman.asyncawaitutil": "1.0.6",
     "com.trackman.commonutils": "3.7.0"
