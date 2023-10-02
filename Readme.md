@@ -172,6 +172,7 @@ If you need to read style data from a VisualElement, you should use its resolved
 float margin = element.resolvedStyle.marginTop;
 ```
 > You can find the list of all supported properties in the official Unity documentation.
+
 ## Visual Element Extensions (TOBEREVIEWED)
 When working with VisualElements, there are various visual element extensions that allow you to find/clone/replace/etc elements:
 ```csharp
