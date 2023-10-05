@@ -26,6 +26,7 @@ namespace Figma
         static Dictionary<VisualElement, Metadata> rootMetadata = new();
         static List<VisualElement> search = new(256);
         static Dictionary<VisualElement, string> cloneMap = new(256);
+        static List<VisualElement> hide = new();
         #endregion
 
         #region Properties
@@ -84,7 +85,9 @@ namespace Figma
             if (target is ISubElement targetSubElement) targetSubElement.OnRebuild();
             foreach (VisualElement child in target.Children()) Rebuild(child);
 
-            OnRebuildElement(target);
+            OnRebuildElement?.Invoke(target);
+
+            if (hide.Contains(target)) target.Hide();
         }
 
         public static IEnumerable<T> Search<T>(this VisualElement value, string path, string className = default) where T : VisualElement
@@ -763,6 +766,8 @@ namespace Figma
                     Initialize(subElement, field.FieldType, element, throwException, silent);
                     subElement.OnInitialize();
                 }
+
+                if (query.Hide) hide.Add(element);
             }
         }
         #endregion

@@ -51,6 +51,8 @@ namespace Figma.Attributes
         public bool StartRoot { get; set; }
         public bool EndRoot { get; set; }
         public bool Nullable { get; set; }
+        public bool Hide { get; set; }
+        public bool Localize { get; set; } = true;
         public string Clicked { get; set; }
         public string Template { get; set; }
         public TrickleDown UseTrickleDown { get; set; }
