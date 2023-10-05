@@ -1538,7 +1538,7 @@ namespace Figma
                 }
 
                 if (style.fontSize.HasValue) this.fontSize = style.fontSize;
-                //if (style.fontPostScriptName.NullOrEmpty() && style.fontFamily == "Inter") Debug.LogWarning($"FontPostScriptName is null for {style.fontFamily}. Fallback to {style.fontPostScriptName = "Inter-Regular"}");
+                if (style.fontPostScriptName.NullOrEmpty() && style.fontFamily == "Inter") style.fontPostScriptName = "Inter-Regular";
                 if (style.fontPostScriptName.NotNullOrEmpty()) AddUnityFont();
                 if (style.textAlignVertical.HasValue && style.textAlignHorizontal.HasValue) AddTextAlign();
             }
