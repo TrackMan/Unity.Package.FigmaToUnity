@@ -2,10 +2,13 @@
 using System;
 using System.Collections.Generic;
 
+// ReSharper disable InconsistentNaming
+// ReSharper disable BuiltInTypeReferenceStyle
+// ReSharper disable UnusedMember.Global
 // ReSharper disable CollectionNeverUpdated.Global
 // ReSharper disable UnassignedField.Global
-// ReSharper disable BuiltInTypeReferenceStyle
 // ReSharper disable FieldCanBeMadeReadOnly.Global
+#pragma warning disable S101, S4004
 
 namespace Figma
 {
@@ -499,9 +502,7 @@ namespace Figma
         {
             #region Mixin
             public number? cornerRadius { get; set; }
-
             public number[] rectangleCornerRadii { get; set; }
-
             public Dictionary<int, Paint> fillOverrideTable { get; set; }
             #endregion
         }
@@ -699,7 +700,21 @@ namespace Figma
             public string remote;
         }
 
-        public class Files
+        public class Failure
+        {
+            public int status;
+            public string err;
+        }
+
+        public class Me : Failure
+        {
+            public string id;
+            public string email;
+            public string handle;
+            public string img_url;
+        }
+
+        public class Files : Failure
         {
             public class Images
             {
@@ -728,13 +743,12 @@ namespace Figma
             public object linkAccess;
         }
 
-        public class Images
+        public class Images : Failure
         {
-            public string err;
             public Dictionary<string, string> images;
         }
 
-        public class Nodes
+        public class Nodes : Failure
         {
             public class Document
             {

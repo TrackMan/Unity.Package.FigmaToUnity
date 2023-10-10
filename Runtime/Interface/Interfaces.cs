@@ -5,8 +5,8 @@ namespace Figma
     public interface ISubElement
     {
         #region Methods
-        void OnInitialize() { }
-        void OnRebuild() { }
+        void OnInitialize() { /* Method intentionally left empty. */ }
+        void OnRebuild() { /* Method intentionally left empty. */ }
         #endregion
     }
 
@@ -18,8 +18,8 @@ namespace Figma
         #endregion
 
         #region Methods
-        void OnInitialize(VisualElement root, VisualElement[] rootsPreserved) { }
-        void OnRebuild() { }
+        void OnInitialize(VisualElement root, VisualElement[] rootsPreserved) { /* Method intentionally left empty. */ }
+        void OnRebuild() { /* Method intentionally left empty. */ }
         #endregion
     }
 }

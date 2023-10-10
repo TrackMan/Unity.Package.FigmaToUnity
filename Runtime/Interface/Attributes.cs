@@ -44,8 +44,6 @@ namespace Figma.Attributes
         public string Path { get; }
         public string ClassName { get; }
         public ElementDownloadImage ImageFiltering { get; set; }
-        public string ReplaceNodePath { get; set; }
-        public string ReplaceNodeEvent { get; set; }
         public string ReplaceElementPath { get; set; }
         public string RebuildElementEvent { get; set; }
         public bool StartRoot { get; set; }

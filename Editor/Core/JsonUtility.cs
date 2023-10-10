@@ -34,7 +34,7 @@ namespace Figma
             #endregion
         }
 
-        public abstract class ArrayConverter<T, U> : JsonConverter
+        public abstract class ArrayConverter<T, TEnum> : JsonConverter
         {
             #region Methods
             public override bool CanConvert(Type objectType) => objectType == typeof(T[]);
@@ -52,7 +52,7 @@ namespace Figma
                 foreach (T node in array) serializer.Serialize(writer, node);
                 writer.WriteEndArray();
             }
-            protected U GetValue(JObject obj, string name = "type") => (U)Enum.Parse(typeof(U), obj[name].Value<string>());
+            protected TEnum GetValue(JObject obj, string name = "type") => (TEnum)Enum.Parse(typeof(TEnum), obj[name].Value<string>());
             protected abstract T ToObject(JObject obj, JsonSerializer serializer);
             #endregion
         }

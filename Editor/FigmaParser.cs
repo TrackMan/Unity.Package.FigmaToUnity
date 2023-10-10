@@ -1,42 +1,41 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Xml;
-using Trackman;
 using UnityEngine;
+using Trackman;
 
-// ReSharper disable UnusedParameter.Local
-// ReSharper disable BuiltInTypeReferenceStyle
 // ReSharper disable UnusedMember.Local
-// ReSharper disable MemberCanBeMadeStatic.Local
-// ReSharper disable SuggestBaseTypeForParameter
-// ReSharper disable MemberCanBePrivate.Local
+// ReSharper disable UnusedParameter.Local
+
+#pragma warning disable S1144 // Unused private types or members should be removed
 
 namespace Figma
 {
     using global;
     using number = Double;
 
-    [SuppressMessage("ReSharper", "StaticMemberInGenericType")]
-    [SuppressMessage("Performance", "CA1822:Mark members as static")]
-    public class FigmaParser
+    class FigmaParser
     {
+        internal const string images = "Images";
+        internal const string elements = "Elements";
+        internal static readonly CultureInfo culture = CultureInfo.GetCultureInfo("en-US");
+
         class StyleSlot : Style
         {
             #region Fields
-            public bool text;
-            public string slot;
+            public bool Text { get; }
+            public string Slot { get; }
             #endregion
 
             #region Constructors
             public StyleSlot(bool text, string slot, Style style)
             {
-                this.text = text;
-                this.slot = slot;
+                Text = text;
+                Slot = slot;
                 styleType = style.styleType;
                 key = style.key;
                 name = style.name;
@@ -45,16 +44,14 @@ namespace Figma
             #endregion
 
             #region Methods
-            public override string ToString() => $"text={text} slot={slot} styleType={styleType} key={key} name={name} description={description}";
+            public override string ToString() => $"text={Text} slot={Slot} styleType={styleType} key={key} name={name} description={description}";
             #endregion
         }
 
-        [SuppressMessage("Roslynator", "RCS1213:Remove unused member declaration.")]
         class UssStyle
         {
             internal const string viewportClass = "unity-viewport";
             internal const string overrideClass = "unity-base-override";
-            static readonly CultureInfo defaultCulture = CultureInfo.GetCultureInfo("en-US");
             readonly string[] fontWeights = { "Thin", "ExtraLight", "Light", "Regular", "Medium", "SemiBold", "Bold", "ExtraBold", "Black" };
 
             #region Containers
@@ -163,11 +160,11 @@ namespace Figma
             /// <summary>
             /// Represents a distance value.
             /// </summary>
-            struct LengthProperty
+            readonly struct LengthProperty
             {
                 #region Fields
-                number value;
-                Unit unit;
+                readonly number value;
+                readonly Unit unit;
                 #endregion
 
                 #region Constructors
@@ -190,23 +187,23 @@ namespace Figma
                 public static implicit operator LengthProperty(string value)
                 {
                     if (Enum.TryParse(value, true, out Unit unit)) return new LengthProperty(unit);
-                    if (value.Contains("px")) return new LengthProperty(number.Parse(value.ToLower().Replace("px", ""), defaultCulture), Unit.Pixel);
-                    if (value.Contains("deg")) return new LengthProperty(number.Parse(value.ToLower().Replace("deg", ""), defaultCulture), Unit.Degrees);
-                    if (value.Contains('%')) return new LengthProperty(number.Parse(value.Replace("%", ""), defaultCulture), Unit.Percent);
-                    throw new NotSupportedException();
+                    if (value.Contains("px")) return new LengthProperty(number.Parse(value.ToLower().Replace("px", ""), culture), Unit.Pixel);
+                    if (value.Contains("deg")) return new LengthProperty(number.Parse(value.ToLower().Replace("deg", ""), culture), Unit.Degrees);
+                    if (value.Contains('%')) return new LengthProperty(number.Parse(value.Replace("%", ""), culture), Unit.Percent);
+                    return default;
                 }
                 public static implicit operator string(LengthProperty value)
                 {
                     return value.unit switch
                     {
                         Unit.Pixel => $"{(int)Math.Round(value.value)}px",
-                        Unit.Degrees => $"{value.value.ToString("F2", defaultCulture).Replace(".00", "")}deg",
-                        Unit.Percent => $"{value.value.ToString("F2", defaultCulture).Replace(".00", "")}%",
+                        Unit.Degrees => $"{value.value.ToString("F2", culture).Replace(".00", "")}deg",
+                        Unit.Percent => $"{value.value.ToString("F2", culture).Replace(".00", "")}%",
                         Unit.Auto => "auto",
                         Unit.None => "none",
                         Unit.Initial => "initial",
                         Unit.Default => "0px",
-                        _ => throw new ArgumentException()
+                        _ => throw new ArgumentException(value)
                     };
                 }
 
@@ -230,18 +227,18 @@ namespace Figma
             struct NumberProperty
             {
                 #region Fields
-                number value;
+                readonly number value;
                 #endregion
 
                 #region Constructors
-                internal NumberProperty(number value) => this.value = value;
+                NumberProperty(number value) => this.value = value;
                 #endregion
 
                 #region Operators
                 public static implicit operator NumberProperty(number? value) => new(value!.Value);
                 public static implicit operator NumberProperty(number value) => new(value);
-                public static implicit operator NumberProperty(string value) => new(number.Parse(value, defaultCulture));
-                public static implicit operator string(NumberProperty value) => value.value.ToString("F2", defaultCulture).Replace(".00", "");
+                public static implicit operator NumberProperty(string value) => new(number.Parse(value, culture));
+                public static implicit operator string(NumberProperty value) => value.value.ToString("F2", culture).Replace(".00", "");
 
                 public static NumberProperty operator +(NumberProperty a) => a;
                 public static NumberProperty operator -(NumberProperty a) => new(-a.value);
@@ -256,18 +253,18 @@ namespace Figma
             struct IntegerProperty
             {
                 #region Fields
-                int value;
+                readonly int value;
                 #endregion
 
                 #region Constructors
-                internal IntegerProperty(int value) => this.value = value;
+                IntegerProperty(int value) => this.value = value;
                 #endregion
 
                 #region Operators
                 public static implicit operator IntegerProperty(int? value) => new(value!.Value);
                 public static implicit operator IntegerProperty(int value) => new(value);
                 public static implicit operator IntegerProperty(string value) => new(int.Parse(value));
-                public static implicit operator string(IntegerProperty value) => value.value.ToString(defaultCulture);
+                public static implicit operator string(IntegerProperty value) => value.value.ToString(culture);
 
                 public static IntegerProperty operator +(IntegerProperty a) => a;
                 public static IntegerProperty operator -(IntegerProperty a) => new(-a.value);
@@ -279,24 +276,24 @@ namespace Figma
             /// <summary>
             /// Represents a color. You can define a color with a #hexadecimal code, the rgb() or rgba() function, or a color keyword (for example, blue or transparent).
             /// </summary>
-            struct ColorProperty
+            readonly struct ColorProperty
             {
                 #region Fields
-                string rgba;
-                string rgb;
-                string hex;
-                string name;
+                readonly string rgba;
+                readonly string rgb;
+                readonly string hex;
+                readonly string name;
                 #endregion
 
                 #region Constructors
                 internal ColorProperty(RGBA color, number? opacity = 1, float alphaMult = 1.0f)
                 {
-                    rgba = $"rgba({(byte)(color.r * 255.0f)},{(byte)(color.g * 255.0f)},{(byte)(color.b * 255.0f)},{(color.a * (opacity ?? alphaMult)).ToString("F2", defaultCulture).Replace(".00", "")})";
+                    rgba = $"rgba({(byte)(color.r * 255.0f)},{(byte)(color.g * 255.0f)},{(byte)(color.b * 255.0f)},{(color.a * (opacity ?? alphaMult)).ToString("F2", culture).Replace(".00", "")})";
                     rgb = default;
                     hex = default;
                     name = default;
                 }
-                internal ColorProperty(string value)
+                ColorProperty(string value)
                 {
                     rgba = default;
                     rgb = default;
@@ -305,7 +302,7 @@ namespace Figma
 
                     if (value.StartsWith("rgba")) rgba = value;
                     else if (value.StartsWith("rgb")) rgb = value;
-                    else if (value.StartsWith("#")) hex = value;
+                    else if (value.StartsWith('#')) hex = value;
                     else name = value;
                 }
                 #endregion
@@ -332,19 +329,19 @@ namespace Figma
             struct AssetProperty
             {
                 #region Fields
-                string url;
-                string resource;
-                Unit unit;
+                readonly string url;
+                readonly string resource;
+                readonly Unit unit;
                 #endregion
 
                 #region Constructors
-                internal AssetProperty(Unit unit)
+                AssetProperty(Unit unit)
                 {
                     url = default;
                     resource = default;
                     this.unit = unit;
                 }
-                internal AssetProperty(string value)
+                AssetProperty(string value)
                 {
                     url = default;
                     resource = default;
@@ -367,29 +364,33 @@ namespace Figma
                     {
                         Unit.None => "none",
                         Unit.Initial => "initial",
-                        _ => throw new ArgumentException()
+                        _ => throw new ArgumentException(value)
                     };
                 }
                 #endregion
             }
 
+#pragma warning disable CS0660, CS0661
             struct EnumProperty<T> where T : struct, Enum
+#pragma warning restore CS0660, CS0661
             {
+                // ReSharper disable StaticMemberInGenericType
                 static readonly Regex enumParserRegexString = new("(?<name>([a-z]+\\-?))", RegexOptions.Compiled);
                 static readonly Regex enumParserRegexValue = new("(?<name>([A-Z][a-z]+)?)", RegexOptions.Compiled);
+                // ReSharper restore StaticMemberInGenericType
 
                 #region Fields
                 T value;
-                Unit unit;
+                readonly Unit unit;
                 #endregion
 
                 #region Constructors
-                internal EnumProperty(T value)
+                EnumProperty(T value)
                 {
                     this.value = value;
                     unit = Unit.None;
                 }
-                internal EnumProperty(Unit unit)
+                EnumProperty(Unit unit)
                 {
                     value = default;
                     this.unit = unit;
@@ -399,14 +400,12 @@ namespace Figma
                 #region Operators
                 public static implicit operator EnumProperty<T>(Unit unit) => new(unit);
                 public static implicit operator EnumProperty<T>(T value) => new(value);
-                public static implicit operator EnumProperty<T>(string value) => Enum.TryParse(enumParserRegexString.Replace(value, "${name}").Replace("-", ""), true, out T result) ? new EnumProperty<T>(result) : throw new ArgumentException();
+                public static implicit operator EnumProperty<T>(string value) => Enum.TryParse(enumParserRegexString.Replace(value, "${name}").Replace("-", ""), true, out T result) ? new EnumProperty<T>(result) : default;
                 public static implicit operator string(EnumProperty<T> value) => value.unit == Unit.None ? enumParserRegexValue.Replace(value.value.ToString(), "${name}-").ToLower().TrimEnd('-') : "initial";
 
                 public static bool operator ==(EnumProperty<T> a, T b) => a.value.Equals(b);
                 public static bool operator !=(EnumProperty<T> a, T b) => !a.value.Equals(b);
 
-                public override bool Equals(object obj) => throw new NotSupportedException();
-                public override int GetHashCode() => HashCode.Combine(value, unit);
                 public override string ToString() => this;
                 #endregion
             }
@@ -416,10 +415,10 @@ namespace Figma
                 static readonly Regex regex = new(@"(?<offsetHorizontal>\d+[px]*)\s+(?<offsetVertical>\d+[px]*)\s+(?<blurRadius>\d+[px]*)\s+(?<color>(rgba\([\d,\.\s]+\))|#\w{2,8}|[^#][\w-]+)");
 
                 #region Fields
-                LengthProperty offsetHorizontal;
-                LengthProperty offsetVertical;
-                LengthProperty blurRadius;
-                ColorProperty color;
+                readonly LengthProperty offsetHorizontal;
+                readonly LengthProperty offsetVertical;
+                readonly LengthProperty blurRadius;
+                readonly ColorProperty color;
                 #endregion
 
                 #region Constructors
@@ -430,7 +429,7 @@ namespace Figma
                     this.blurRadius = blurRadius;
                     this.color = color;
                 }
-                internal ShadowProperty(string value)
+                ShadowProperty(string value)
                 {
                     Match match = regex.Match(value);
                     offsetHorizontal = match.Groups["offsetHorizontal"].Value;
@@ -446,11 +445,11 @@ namespace Figma
                 #endregion
             }
 
-            struct Length4Property
+            readonly struct Length4Property
             {
                 #region Fields
-                Unit unit;
-                LengthProperty[] properties;
+                readonly Unit unit;
+                readonly LengthProperty[] properties;
                 #endregion
 
                 #region Properties
@@ -509,27 +508,27 @@ namespace Figma
             struct FlexProperty
             {
                 #region Operators
-                public static implicit operator FlexProperty(string value) => throw new NotImplementedException();
-                public static implicit operator string(FlexProperty value) => throw new NotImplementedException();
+                public static implicit operator FlexProperty(string value) => default;
+                public static implicit operator string(FlexProperty value) => default;
                 #endregion
             }
 
             struct CursorProperty
             {
                 #region Operators
-                public static implicit operator CursorProperty(string value) => throw new NotImplementedException();
-                public static implicit operator string(CursorProperty value) => throw new NotImplementedException();
+                public static implicit operator CursorProperty(string value) => default;
+                public static implicit operator string(CursorProperty value) => default;
                 #endregion
             }
             #endregion
 
             #region Fields
-            Func<string, string, (bool valid, string path)> getAssetPath;
-            Func<string, string, (bool valid, int width, int height)> getAssetSize;
+            readonly Func<string, string, (bool valid, string path)> getAssetPath;
+            readonly Func<string, string, (bool valid, int width, int height)> getAssetSize;
 
-            List<UssStyle> inherited = new();
-            Dictionary<string, string> defaults = new();
-            Dictionary<string, string> attributes = new();
+            readonly List<UssStyle> inherited = new();
+            readonly Dictionary<string, string> defaults = new();
+            readonly Dictionary<string, string> attributes = new();
             #endregion
 
             #region Properties
@@ -693,14 +692,6 @@ namespace Figma
                 {
                     AddNodeEffects(blend.effects);
                 }
-                else if (type == Style.StyleType.GRID && node is DefaultFrameMixin grid)
-                {
-                    AddGridStyle(grid.layoutGrids);
-                }
-                else
-                {
-                    throw new ArgumentOutOfRangeException();
-                }
             }
             public UssStyle(string name, Func<string, string, (bool valid, string path)> getAssetPath, Func<string, string, (bool valid, int width, int height)> getAssetSize, BaseNode node)
             {
@@ -708,8 +699,6 @@ namespace Figma
                 this.getAssetPath = getAssetPath;
                 this.getAssetSize = getAssetSize;
 
-                if (node is DocumentNode document) AddDocumentNode(document);
-                if (node is CanvasNode canvas) AddCanvasNode(canvas);
                 if (node is FrameNode frame) AddFrameNode(frame);
                 if (node is GroupNode group) AddGroupNode(group);
                 if (node is SliceNode slice) AddSliceNode(slice);
@@ -742,7 +731,7 @@ namespace Figma
                         attributes.Add(keyValue.Key, @default);
                 }
             }
-            public void Inherit(IEnumerable<UssStyle> styles)
+            public void Inherit(IReadOnlyCollection<UssStyle> styles)
             {
                 inherited.AddRange(styles);
 
@@ -753,7 +742,7 @@ namespace Figma
                         attributes.Remove(keyValue.Key);
                 }
             }
-            public void Inherit(UssStyle component, IEnumerable<UssStyle> styles)
+            public void Inherit(UssStyle component, IReadOnlyCollection<UssStyle> styles)
             {
                 inherited.Add(component);
                 inherited.AddRange(styles);
@@ -803,32 +792,17 @@ namespace Figma
 
                 AddFrame(node);
                 AddDefaultShapeNode(node);
-                AddChildren(node);
 
                 if (node.clipsContent.HasValueAndTrue()) overflow = Visibility.Hidden;
-
-                AddGridStyle(node.layoutGrids);
             }
             void AddDefaultShapeNode(DefaultShapeNode node)
             {
                 AddBoxModel(node, node, node, node);
-                AddScene(node, node);
                 AddLayout(node, node);
                 AddBlend(node);
                 AddGeometry(node, node, node);
-                AddExport(node);
-                AddReaction(node);
-                AddTransition(node);
             }
 
-            void AddDocumentNode(DocumentNode _)
-            {
-            }
-            void AddCanvasNode(CanvasNode node)
-            {
-                AddChildren(node);
-                AddExport(node);
-            }
             void AddFrameNode(FrameNode node)
             {
                 AddDefaultFrameNode(node);
@@ -840,9 +814,7 @@ namespace Figma
             void AddSliceNode(SliceNode node)
             {
                 AddBoxModel(node, node, default, node);
-                AddScene(node, node);
                 AddLayout(node, node);
-                AddExport(node);
             }
             void AddRectangleNode(RectangleNode node)
             {
@@ -927,6 +899,7 @@ namespace Figma
                             if (mixin.layoutAlign != LayoutAlign.STRETCH && mixin.primaryAxisSizingMode.IsValue(PrimaryAxisSizingMode.FIXED)) flexWrap = FlexWrap.Wrap;
                             break;
                     }
+
                     if (mixin.primaryAxisAlignItems.HasValue)
                     {
                         justifyContent = mixin.primaryAxisAlignItems.Value switch
@@ -938,6 +911,7 @@ namespace Figma
                             _ => throw new NotSupportedException()
                         };
                     }
+
                     if (mixin.counterAxisAlignItems.HasValue)
                     {
                         alignItems = mixin.counterAxisAlignItems.Value switch
@@ -949,13 +923,14 @@ namespace Figma
                             _ => throw new NotSupportedException()
                         };
                     }
+
                     if (mixin.itemSpacing.HasPositive()) itemSpacing = mixin.itemSpacing;
                 }
 
                 AddPadding();
                 if (mixin.layoutMode.HasValue) AddAutoLayout();
             }
-            void AddScene(SceneNodeMixin _, BaseNodeMixin @base)
+            void AddScene(BaseNodeMixin @base)
             {
                 void HandleVisibility()
                 {
@@ -1088,18 +1063,6 @@ namespace Figma
                 if (rectangleCornerMixin.rectangleCornerRadii is not null) borderRadius = rectangleCornerMixin.rectangleCornerRadii;
                 else if (cornerMixin.cornerRadius.HasPositive()) borderRadius = cornerMixin.cornerRadius;
             }
-            void AddExport(ExportMixin _)
-            {
-            }
-            void AddReaction(ReactionMixin _)
-            {
-            }
-            void AddTransition(TransitionMixin _)
-            {
-            }
-            void AddChildren(ChildrenMixin _)
-            {
-            }
 
             void AddBoxModel(LayoutMixin layout, ConstraintMixin constraint, GeometryMixin geometry, BaseNodeMixin @base)
             {
@@ -1122,28 +1085,29 @@ namespace Figma
                     {
                         if (((DefaultFrameMixin)frame.parent).layoutMode == LayoutMode.HORIZONTAL)
                         {
-                            width = layout.layoutGrow.HasPositive() ? new LengthProperty(100, Unit.Percent) : (frame.primaryAxisSizingMode.IsValue(PrimaryAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.width : Unit.Auto);
-                            height = frame.layoutAlign == LayoutAlign.STRETCH ? new LengthProperty(100, Unit.Percent) : (frame.counterAxisSizingMode.IsValue(CounterAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.height : Unit.Auto);
+                            width = layout.layoutGrow.HasPositive() ? new LengthProperty(100, Unit.Percent) : frame.primaryAxisSizingMode.IsValue(PrimaryAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.width : Unit.Auto;
+                            height = frame.layoutAlign == LayoutAlign.STRETCH ? new LengthProperty(100, Unit.Percent) : frame.counterAxisSizingMode.IsValue(CounterAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.height : Unit.Auto;
                         }
                         else
                         {
-                            width = frame.layoutAlign == LayoutAlign.STRETCH ? new LengthProperty(100, Unit.Percent) : (frame.primaryAxisSizingMode.IsValue(PrimaryAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.width : Unit.Auto);
-                            height = layout.layoutGrow.HasPositive() ? new LengthProperty(100, Unit.Percent) : (frame.counterAxisSizingMode.IsValue(CounterAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.height : Unit.Auto);
+                            width = frame.layoutAlign == LayoutAlign.STRETCH ? new LengthProperty(100, Unit.Percent) : frame.primaryAxisSizingMode.IsValue(PrimaryAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.width : Unit.Auto;
+                            height = layout.layoutGrow.HasPositive() ? new LengthProperty(100, Unit.Percent) : frame.counterAxisSizingMode.IsValue(CounterAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.height : Unit.Auto;
                         }
                     }
                     else if (frame.layoutMode == LayoutMode.VERTICAL)
                     {
                         if (((DefaultFrameMixin)frame.parent).layoutMode == LayoutMode.VERTICAL)
                         {
-                            width = frame.layoutAlign == LayoutAlign.STRETCH ? new LengthProperty(100, Unit.Percent) : (frame.counterAxisSizingMode.IsValue(CounterAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.width : Unit.Auto);
-                            height = layout.layoutGrow.HasPositive() ? new LengthProperty(100, Unit.Percent) : (frame.primaryAxisSizingMode.IsValue(PrimaryAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.height : Unit.Auto);
+                            width = frame.layoutAlign == LayoutAlign.STRETCH ? new LengthProperty(100, Unit.Percent) : frame.counterAxisSizingMode.IsValue(CounterAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.width : Unit.Auto;
+                            height = layout.layoutGrow.HasPositive() ? new LengthProperty(100, Unit.Percent) : frame.primaryAxisSizingMode.IsValue(PrimaryAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.height : Unit.Auto;
                         }
                         else
                         {
-                            width = layout.layoutGrow.HasPositive() ? new LengthProperty(100, Unit.Percent) : (frame.counterAxisSizingMode.IsValue(CounterAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.width : Unit.Auto);
-                            height = frame.layoutAlign == LayoutAlign.STRETCH ? new LengthProperty(100, Unit.Percent) : (frame.primaryAxisSizingMode.IsValue(PrimaryAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.height : Unit.Auto);
+                            width = layout.layoutGrow.HasPositive() ? new LengthProperty(100, Unit.Percent) : frame.counterAxisSizingMode.IsValue(CounterAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.width : Unit.Auto;
+                            height = frame.layoutAlign == LayoutAlign.STRETCH ? new LengthProperty(100, Unit.Percent) : frame.primaryAxisSizingMode.IsValue(PrimaryAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.height : Unit.Auto;
                         }
                     }
+
                     if (layout.layoutGrow.HasPositive()) flexGrow = layout.layoutGrow;
                 }
                 void AddSizeByParentAutoLayoutFromLayout(DefaultFrameMixin parent)
@@ -1159,6 +1123,7 @@ namespace Figma
                         width = layout.layoutAlign == LayoutAlign.STRETCH ? new LengthProperty(100, Unit.Percent) : layout.absoluteBoundingBox.width;
                         height = layout.layoutGrow.HasPositive() ? new LengthProperty(100, Unit.Percent) : layout.absoluteBoundingBox.height;
                     }
+
                     if (layout.layoutGrow.HasPositive()) flexGrow = layout.layoutGrow;
                 }
                 void AddSizeFromConstraint(DefaultFrameMixin parent, LengthProperty widthProperty, LengthProperty heightProperty)
@@ -1180,6 +1145,7 @@ namespace Figma
                         Debug.LogWarning($"Vertical=Center is used in mostly horizontal layout at [<color=yellow>{GetFullPath(@base)}</color>], changing Horizontal=Center.");
                         horizontal = ConstraintHorizontal.CENTER;
                     }
+
                     if (hasMixedCenterChildren && isMostlyVertical && vertical != ConstraintVertical.CENTER && horizontal == ConstraintHorizontal.CENTER)
                     {
                         Debug.LogWarning($"Horizontal=Center is used in mostly vertical layout at [<color=yellow>{GetFullPath(@base)}</color>], changing Vertical=Center.");
@@ -1250,6 +1216,7 @@ namespace Figma
                                         height = new LengthProperty(rect.height / parentRect.height * 100, Unit.Percent);
                                         break;
                                 }
+
                                 break;
 
                             case ConstraintHorizontal.SCALE:
@@ -1263,8 +1230,10 @@ namespace Figma
                                     left = "0%";
                                     right = "0%";
                                 }
+
                                 break;
                         }
+
                         switch (vertical)
                         {
                             case ConstraintVertical.TOP:
@@ -1311,6 +1280,7 @@ namespace Figma
                                         width = new LengthProperty(rect.width / parentRect.width * 100, Unit.Percent);
                                         break;
                                 }
+
                                 break;
 
                             case ConstraintVertical.SCALE:
@@ -1324,6 +1294,7 @@ namespace Figma
                                     top = "0%";
                                     bottom = "0%";
                                 }
+
                                 break;
                         }
                     }
@@ -1382,32 +1353,32 @@ namespace Figma
                 if (IsSvgNode(@base)) AdjustSvgSize();
 
                 DefaultFrameMixin parent = @base.parent as DefaultFrameMixin;
-                if (IsRootNode(@base))
+                if (!IsRootNode(@base))
                 {
-                }
-                else if (parent!.layoutMode.HasValue)
-                {
-                    if (@base is DefaultFrameMixin { layoutMode: not null } frame)
+                    if (parent!.layoutMode.HasValue)
                     {
-                        AddSizeByParentAutoLayoutFromAutoLayout(frame);
-                    }
-                    else
-                    {
-                        AddSizeByParentAutoLayoutFromLayout(parent);
-                    }
+                        if (@base is DefaultFrameMixin { layoutMode: not null } frame)
+                        {
+                            AddSizeByParentAutoLayoutFromAutoLayout(frame);
+                        }
+                        else
+                        {
+                            AddSizeByParentAutoLayoutFromLayout(parent);
+                        }
 
-                    number? itemSpacing = parent.itemSpacing;
-                    if (itemSpacing.HasPositive()) AddItemSpacing(parent, itemSpacing!.Value);
-                }
-                else
-                {
-                    if (@base is DefaultFrameMixin { layoutMode: not null } frame)
-                    {
-                        AddSizeFromConstraint(parent, (frame.layoutMode == LayoutMode.HORIZONTAL ? frame.primaryAxisSizingMode.IsValue(PrimaryAxisSizingMode.FIXED) : frame.counterAxisSizingMode.IsValue(CounterAxisSizingMode.FIXED)) ? layout.absoluteBoundingBox.width : Unit.Auto, (frame.layoutMode == LayoutMode.VERTICAL ? frame.primaryAxisSizingMode.IsValue(PrimaryAxisSizingMode.FIXED) : frame.counterAxisSizingMode.IsValue(CounterAxisSizingMode.FIXED)) ? layout.absoluteBoundingBox.height : Unit.Auto);
+                        number? itemSpacing = parent.itemSpacing;
+                        if (itemSpacing.HasPositive()) AddItemSpacing(parent, itemSpacing!.Value);
                     }
                     else
                     {
-                        AddSizeFromConstraint(parent, layout.absoluteBoundingBox.width, layout.absoluteBoundingBox.height);
+                        if (@base is DefaultFrameMixin { layoutMode: not null } frame)
+                        {
+                            AddSizeFromConstraint(parent, (frame.layoutMode == LayoutMode.HORIZONTAL ? frame.primaryAxisSizingMode.IsValue(PrimaryAxisSizingMode.FIXED) : frame.counterAxisSizingMode.IsValue(CounterAxisSizingMode.FIXED)) ? layout.absoluteBoundingBox.width : Unit.Auto, (frame.layoutMode == LayoutMode.VERTICAL ? frame.primaryAxisSizingMode.IsValue(PrimaryAxisSizingMode.FIXED) : frame.counterAxisSizingMode.IsValue(CounterAxisSizingMode.FIXED)) ? layout.absoluteBoundingBox.height : Unit.Auto);
+                        }
+                        else
+                        {
+                            AddSizeFromConstraint(parent, layout.absoluteBoundingBox.width, layout.absoluteBoundingBox.height);
+                        }
                     }
                 }
 
@@ -1423,11 +1394,13 @@ namespace Figma
                     {
                         backgroundColor = new ColorProperty(solid.color, solid.opacity);
                     }
+
                     if (fill is GradientPaint gradient && gradient.visible.IsEmptyOrTrue())
                     {
                         (bool valid, string url) = getAssetPath(gradient.GetHash(), "svg");
                         if (valid) backgroundImage = $"url('{url}')";
                     }
+
                     if (fill is ImagePaint image && image.visible.IsEmptyOrTrue())
                     {
                         (bool valid, string url) = getAssetPath(image.imageRef, "png");
@@ -1449,55 +1422,37 @@ namespace Figma
             void AddTextFillStyle(IEnumerable<Paint> fills)
             {
                 foreach (Paint fill in fills)
-                {
                     if (fill is SolidPaint solid && solid.visible.IsEmptyOrTrue())
-                    {
                         color = new ColorProperty(solid.color, solid.opacity);
-                    }
-                    if (fill is GradientPaint gradient && gradient.visible.IsEmptyOrTrue())
-                    {
-                    }
-                    if (fill is ImagePaint image && image.visible.IsEmptyOrTrue())
-                    {
-                    }
-                }
             }
             void AddStrokeFillStyle(IEnumerable<Paint> strokes)
             {
                 foreach (Paint stroke in strokes)
-                {
                     if (stroke is SolidPaint solid && solid.visible.IsEmptyOrTrue())
-                    {
                         borderColor = new ColorProperty(solid.color, solid.opacity);
-                    }
-                    if (stroke is GradientPaint gradient && gradient.visible.IsEmptyOrTrue())
-                    {
-                    }
-                    if (stroke is ImagePaint image && image.visible.IsEmptyOrTrue())
-                    {
-                    }
-                }
             }
             void AddTextStyle(TextNode.Style style)
             {
                 bool TryGetFontWithExtension(string font, out string resource, out string url)
                 {
-                    (bool valid, string path) = getAssetPath(font, "ttf");
-                    if (valid)
+                    (bool ttf, string ttfPath) = getAssetPath(font, "ttf");
+                    if (ttf)
                     {
-                        resource = $"url('{path}')";
-                        url = path;
+                        resource = $"url('{ttfPath}')";
+                        url = ttfPath;
                         return true;
                     }
-                    (valid, path) = getAssetPath(font, "otf");
-                    if (valid)
+
+                    (bool otf, string otfPath) = getAssetPath(font, "otf");
+                    if (otf)
                     {
-                        resource = $"url('{path}')";
-                        url = path;
+                        resource = $"url('{otfPath}')";
+                        url = otfPath;
                         return true;
                     }
+
                     resource = "resource('Inter-Regular')";
-                    url = path;
+                    url = ttfPath;
                     return false;
                 }
 
@@ -1507,10 +1462,8 @@ namespace Figma
                         style.fontPostScriptName.Contains('-') ? style.fontPostScriptName.Split('-')[1].Replace("Index", "") : "";
                     string italicPostfix = style.italic.HasValue && style.italic.Value || style.fontPostScriptName.Contains("Italic") ? "Italic" : string.Empty;
 
-                    string resource;
-                    string url;
                     bool valid;
-                    if (!TryGetFontWithExtension($"{style.fontFamily}-{weightPostfix}{italicPostfix}", out resource, out url) && !TryGetFontWithExtension(style.fontPostScriptName, out resource, out url))
+                    if (!TryGetFontWithExtension($"{style.fontFamily}-{weightPostfix}{italicPostfix}", out string resource, out string url) && !TryGetFontWithExtension(style.fontPostScriptName, out resource, out url))
                         unityFontMissing = $"url('{url}')";
 
                     unityFont = resource;
@@ -1562,9 +1515,6 @@ namespace Figma
                     }
                 }
             }
-            void AddGridStyle(LayoutGrid[] _)
-            {
-            }
             #endregion
 
             #region Support Methods
@@ -1599,6 +1549,7 @@ namespace Figma
                         properties[i] = new LengthProperty(Unit.Pixel);
                     }
                 }
+
                 return new Length4Property(properties);
             }
             void Set(string name, string value)
@@ -1626,13 +1577,42 @@ namespace Figma
                     Set(name, value);
                 }
             }
+
+            static bool HasMixedCenterChildren(DefaultFrameMixin mixin)
+            {
+                (int horizontalCenterCount, int verticalCenterCount) = CenterChildrenCount(mixin);
+                return horizontalCenterCount > 0 && verticalCenterCount > 0;
+            }
+            static bool HasAnyCenterChildren(DefaultFrameMixin mixin)
+            {
+                (int horizontalCenterCount, int verticalCenterCount) = CenterChildrenCount(mixin);
+                return horizontalCenterCount > 0 || verticalCenterCount > 0;
+            }
+            static bool HasManyCenterChildren(DefaultFrameMixin mixin)
+            {
+                (int horizontalCenterCount, int verticalCenterCount) = CenterChildrenCount(mixin);
+                return horizontalCenterCount > 1 || verticalCenterCount > 1;
+            }
+            static bool IsMostlyHorizontal(DefaultFrameMixin mixin)
+            {
+                (int horizontalCenterCount, int verticalCenterCount) = CenterChildrenCount(mixin);
+                return horizontalCenterCount > verticalCenterCount;
+            }
+            static (int, int) CenterChildrenCount(DefaultFrameMixin mixin)
+            {
+                if (mixin.layoutMode.HasValue) return (0, 0);
+
+                int horizontalCenterCount = mixin.children.Cast<ConstraintMixin>().Count(x => x.constraints.horizontal == ConstraintHorizontal.CENTER);
+                int verticalCenterCount = mixin.children.Cast<ConstraintMixin>().Count(x => x.constraints.vertical == ConstraintVertical.CENTER);
+                return (horizontalCenterCount, verticalCenterCount);
+            }
             #endregion
         }
 
         class UssWriter
         {
             #region Fields
-            StreamWriter uss;
+            readonly StreamWriter uss;
             int count;
             #endregion
 
@@ -1652,16 +1632,15 @@ namespace Figma
             #region Methods
             void Write(UssStyle style)
             {
-                if (style.HasAttributes)
+                if (!style.HasAttributes) return;
+                if (count > 0)
                 {
-                    if (count > 0)
-                    {
-                        uss.WriteLine();
-                        uss.WriteLine();
-                    }
-                    style.Write(uss);
-                    count++;
+                    uss.WriteLine();
+                    uss.WriteLine();
                 }
+
+                style.Write(uss);
+                count++;
             }
             #endregion
         }
@@ -1672,19 +1651,26 @@ namespace Figma
             static readonly XmlWriterSettings xmlWriterSettings = new() { OmitXmlDeclaration = true, Indent = true, IndentChars = "    ", NewLineOnAttributes = true };
 
             #region Fields
-            Func<BaseNode, string> getClassList;
-            string documentFolder;
-            string documentName;
-            XmlWriter documentXml;
+            readonly Func<BaseNode, string> getClassList;
+            readonly Func<BaseNode, bool> enabledInHierarchy;
+            readonly Func<BaseNode, (bool hash, string value)> getTemplate;
+            readonly Func<BaseNode, (ElementType type, string typeFullName)> getElementType;
+
+            readonly string documentFolder;
+            readonly string documentName;
+            readonly XmlWriter documentXml;
             #endregion
 
             #region Constructors
-            public UxmlWriter(DocumentNode document, Func<BaseNode, string> getClassList, string folder, string name)
+            public UxmlWriter(DocumentNode document, string folder, string name, Func<BaseNode, string> getClassList, Func<BaseNode, bool> enabledInHierarchy, Func<BaseNode, (bool hash, string value)> getTemplate, Func<BaseNode, (ElementType type, string typeFullName)> getElementType)
             {
                 this.getClassList = getClassList;
+                this.enabledInHierarchy = enabledInHierarchy;
+                this.getTemplate = getTemplate;
+                this.getElementType = getElementType;
+
                 documentFolder = folder;
                 documentName = name;
-
                 using (documentXml = CreateXml(documentFolder, documentName)) WriteRecursively(document, documentXml);
             }
             #endregion
@@ -1695,7 +1681,6 @@ namespace Figma
                 void WriteDocumentNode(DocumentNode documentNode, XmlWriter writer)
                 {
                     writer.WriteStartElement(prefix, "UXML", "UnityEngine.UIElements");
-
                     WriteStart(documentNode, writer);
 
                     writer.WriteStartElement("Style");
@@ -1705,7 +1690,6 @@ namespace Figma
                     foreach (CanvasNode canvasNode in documentNode.children) WriteRecursively(canvasNode, writer);
 
                     WriteEnd(writer);
-
                     writer.WriteEndElement();
                 }
                 void WriteCanvasNode(CanvasNode canvasNode, XmlWriter writer)
@@ -1722,7 +1706,6 @@ namespace Figma
                 void WriteTextNode(TextNode textNode, XmlWriter writer)
                 {
                     WriteStart(node, writer);
-
                     switch (textNode.style.textCase)
                     {
                         case TextCase.UPPER:
@@ -1743,23 +1726,21 @@ namespace Figma
                 void WriteDefaultFrameNode(DefaultFrameNode defaultFrameNode, XmlWriter writer)
                 {
                     string tooltip = default;
-                    if (defaultFrameNode.GetTemplate() is (var hash, { } template) && template.NotNullOrEmpty())
+                    if (getTemplate(defaultFrameNode) is (var hash, { } template) && template.NotNullOrEmpty())
                     {
                         if (hash) tooltip = template;
-                        using (XmlWriter elementUxml = CreateXml(Path.Combine(documentFolder, "Elements"), template))
+                        using (XmlWriter elementUxml = CreateXml(Path.Combine(documentFolder, elements), template))
                         {
                             elementUxml.WriteStartElement(prefix, "UXML", "UnityEngine.UIElements");
-
                             WriteStart(defaultFrameNode, elementUxml);
                             foreach (SceneNode child in defaultFrameNode.children) WriteRecursively(child, elementUxml);
                             WriteEnd(elementUxml);
-
                             elementUxml.WriteEndElement();
                         }
 
                         writer.WriteStartElement(prefix, "Template", "UnityEngine.UIElements");
                         writer.WriteAttributeString("name", template);
-                        writer.WriteAttributeString("src", writer == documentXml ? $"Elements\\{template}.uxml" : $"{template}.uxml");
+                        writer.WriteAttributeString("src", writer == documentXml ? $"{elements}\\{template}.uxml" : $"{template}.uxml");
                         writer.WriteEndElement();
                     }
 
@@ -1771,16 +1752,14 @@ namespace Figma
                 void WriteDefaultShapeNode(DefaultShapeNode defaultShapeNode, XmlWriter writer)
                 {
                     string tooltip = default;
-                    if (defaultShapeNode.GetTemplate() is (var hash, { } template) && template.NotNullOrEmpty())
+                    if (getTemplate(defaultShapeNode) is (var hash, { } template) && template.NotNullOrEmpty())
                     {
                         if (hash) tooltip = template;
                         using (XmlWriter elementUxml = CreateXml(Path.Combine(documentFolder, "Elements"), template))
                         {
                             elementUxml.WriteStartElement(prefix, "UXML", "UnityEngine.UIElements");
-
                             WriteStart(defaultShapeNode, elementUxml);
                             WriteEnd(elementUxml);
-
                             elementUxml.WriteEndElement();
                         }
 
@@ -1796,7 +1775,7 @@ namespace Figma
                 }
 
                 if (!IsVisible(node)) return;
-                if (!node.EnabledInHierarchy()) return;
+                if (!enabledInHierarchy(node)) return;
                 if (IsStateNode(node)) return;
 
                 if (node is DocumentNode document) WriteDocumentNode(document, uxml);
@@ -1823,51 +1802,56 @@ namespace Figma
 
             void WriteStart(BaseNode node, XmlWriter uxml)
             {
-                static (string prefix, string elementName, string pickingMode) GetElementData(BaseNode node)
+                (string prefix, string elementName, string pickingMode) GetElementData(BaseNode node)
                 {
                     string prefix = UxmlWriter.prefix;
                     string elementName = "VisualElement";
                     string pickingMode = "Ignore";
 
-                    ElementType elementType = node.GetElementType();
+                    (ElementType elementType, string elementTypeFullName) = getElementType(node);
                     if (elementType == ElementType.IElement)
                     {
                         prefix = default;
-                        elementName = $"{node.GetFieldInfo()!.FieldType!.FullName!.Replace("+", ".")}";
+                        elementName = elementTypeFullName;
                         pickingMode = "Position";
                     }
                     else if (elementType == ElementType.None)
                     {
-                        if (node is TextNode)
+                        switch (node)
                         {
-                            if (node.name.StartsWith("Inputs"))
-                            {
+                            case TextNode when node.name.StartsWith("Inputs"):
                                 elementName = "TextField";
                                 pickingMode = "Position";
-                            }
-                            else
-                            {
+                                break;
+
+                            case TextNode:
                                 elementName = "Label";
-                            }
+                                break;
                         }
 
-                        if (node is DefaultFrameNode || node is TextNode)
+                        switch (node)
                         {
-                            if (node.name.StartsWith("Buttons"))
-                            {
-                                elementName = "Button";
-                                pickingMode = "Position";
-                            }
-                            if (node.name.StartsWith("Toggles"))
-                            {
-                                elementName = "Toggle";
-                                pickingMode = "Position";
-                            }
-                            if (node.name.StartsWith("ScrollViews"))
-                            {
-                                elementName = "ScrollView";
-                                pickingMode = "Position";
-                            }
+                            case DefaultFrameNode:
+                            case TextNode:
+                                if (node.name.StartsWith("Buttons"))
+                                {
+                                    elementName = "Button";
+                                    pickingMode = "Position";
+                                }
+
+                                if (node.name.StartsWith("Toggles"))
+                                {
+                                    elementName = "Toggle";
+                                    pickingMode = "Position";
+                                }
+
+                                if (node.name.StartsWith("ScrollViews"))
+                                {
+                                    elementName = "ScrollView";
+                                    pickingMode = "Position";
+                                }
+
+                                break;
                         }
                     }
                     else
@@ -1908,75 +1892,58 @@ namespace Figma
         }
 
         #region Fields
-        DocumentNode document;
-        Dictionary<string, Style> documentStyles;
-        Func<string, string, (bool valid, string path)> getAssetPath;
-        Func<string, string, (bool valid, int width, int height)> getAssetSize;
+        readonly DocumentNode document;
+        readonly Dictionary<string, Style> documentStyles;
 
-        List<ComponentNode> components = new();
-        List<Dictionary<string, Style>> componentsStyles = new();
+        readonly List<ComponentNode> components = new();
+        readonly List<Dictionary<string, Style>> componentsStyles = new();
 
-        List<string> missingComponents = new();
-        List<BaseNode> imageFillNodes = new();
-        List<BaseNode> pngNodes = new();
-        List<BaseNode> svgNodes = new();
-        Dictionary<string, GradientPaint> gradients = new();
-
-        List<(StyleSlot slot, UssStyle style)> styles = new();
-        Dictionary<BaseNode, UssStyle> componentStyle = new();
-        Dictionary<BaseNode, UssStyle> nodeStyle = new();
+        readonly List<(StyleSlot slot, UssStyle style)> styles = new();
+        readonly Dictionary<BaseNode, UssStyle> componentStyleMap = new();
+        readonly Dictionary<BaseNode, UssStyle> nodeStyleMap = new();
         #endregion
 
         #region Properties
-        public List<string> MissingComponents => missingComponents;
-        public IEnumerable<BaseNode> ImageFillNodes => imageFillNodes;
-        public List<BaseNode> PngNodes => pngNodes;
-        public List<BaseNode> SvgNodes => svgNodes;
-        public Dictionary<string, GradientPaint> Gradients => gradients;
+        internal List<string> MissingComponents { get; } = new();
+        internal List<BaseNode> ImageFillNodes { get; } = new();
+        internal List<BaseNode> PngNodes { get; } = new();
+        internal List<BaseNode> SvgNodes { get; } = new();
+        internal Dictionary<string, GradientPaint> Gradients { get; } = new();
         #endregion
 
         #region Constructors
-        public FigmaParser(DocumentNode document, Dictionary<string, Style> documentStyles, Func<string, string, (bool valid, string path)> getAssetPath, Func<string, string, (bool valid, int width, int height)> getAssetSize)
+        internal FigmaParser(DocumentNode document, Dictionary<string, Style> documentStyles, Func<BaseNode, bool> enabledInHierarchy)
         {
             this.document = document;
             this.documentStyles = documentStyles;
-            this.getAssetPath = getAssetPath;
-            this.getAssetSize = getAssetSize;
 
             foreach (CanvasNode canvas in document.children)
             {
                 AddMissingNodesRecursively(canvas);
-                AddImageFillsRecursively(canvas);
-                AddPngNodesRecursively(canvas);
-                AddSvgNodesRecursively(canvas);
-                AddGradientsRecursively(canvas);
+                AddImageFillsRecursively(canvas, enabledInHierarchy);
+                AddPngNodesRecursively(canvas, enabledInHierarchy);
+                AddSvgNodesRecursively(canvas, enabledInHierarchy);
+                AddGradientsRecursively(canvas, enabledInHierarchy);
             }
         }
         #endregion
 
         #region Methods
-        public void AddMissingComponent(ComponentNode component, Dictionary<string, Style> componentStyles)
+        internal void AddMissingComponent(ComponentNode component, Dictionary<string, Style> componentStyles)
         {
             components.Add(component);
             componentsStyles.Add(componentStyles);
         }
-        public void AddMissingComponent(Nodes.Document document)
+        internal void Run(Func<string, string, (bool valid, string path)> getAssetPath, Func<string, string, (bool valid, int width, int height)> getAssetSize)
         {
-            document.document.parent = this.document;
-            document.document.SetParentRecursively();
-            components.Add(document.document);
-            componentsStyles.Add(document.styles);
-        }
-        public void Run()
-        {
-            AddStylesRecursively(document, documentStyles, false);
-            foreach (CanvasNode canvas in document.children) AddStylesRecursively(canvas, documentStyles, false);
-            foreach ((ComponentNode component, int index) in components.Select((x, i) => (x, i))) AddStylesRecursively(component, componentsStyles[index], true);
+            AddStylesRecursively(document, documentStyles, false, getAssetPath, getAssetSize);
+            foreach (CanvasNode canvas in document.children) AddStylesRecursively(canvas, documentStyles, false, getAssetPath, getAssetSize);
+            foreach ((ComponentNode component, int index) in components.Select((x, i) => (x, i))) AddStylesRecursively(component, componentsStyles[index], true, getAssetPath, getAssetSize);
 
             InheritStylesRecursively(document);
             foreach (CanvasNode canvas in document.children) InheritStylesRecursively(canvas);
         }
-        public void Write(string folder, string name)
+        internal void Write(string folder, string name, Func<BaseNode, bool> enabledInHierarchy, Func<BaseNode, (bool hash, string value)> getTemplate, Func<BaseNode, (ElementType type, string typeFullName)> getElementType)
         {
             void GroupRenameStyles(IEnumerable<UssStyle> styles)
             {
@@ -1989,17 +1956,19 @@ namespace Figma
 
                     string words = "";
 
-                    if ((number / 1000000) > 0)
+                    if (number / 1000000 > 0)
                     {
                         words += $"{NumberToWords(number / 1000000)}-million ";
                         number %= 1000000;
                     }
-                    if ((number / 1000) > 0)
+
+                    if (number / 1000 > 0)
                     {
                         words += $"{NumberToWords(number / 1000)}-thousand ";
                         number %= 1000;
                     }
-                    if ((number / 100) > 0)
+
+                    if (number / 100 > 0)
                     {
                         words += $"{NumberToWords(number / 100)}-hundred ";
                         number %= 100;
@@ -2015,7 +1984,7 @@ namespace Figma
                         else
                         {
                             words += tensMap[number / 10];
-                            if ((number % 10) > 0) words += $"-{unitsMap[number % 10]}";
+                            if (number % 10 > 0) words += $"-{unitsMap[number % 10]}";
                         }
                     }
 
@@ -2041,95 +2010,119 @@ namespace Figma
                             if (IsStateNode(child) && IsStateNode(child, node))
                             {
                                 UssStyle childStyle = GetStyle(child);
-                                if (childStyle is not null) childStyle.Name = $"{nodeStyle[node].Name}{GetState(childStyle.Name)}";
+                                if (childStyle is not null) childStyle.Name = $"{nodeStyleMap[node].Name}{GetState(childStyle.Name)}";
                             }
                         }
                     }
                 }
             }
 
-            KeyValuePair<BaseNode, UssStyle>[] nodeStyleFiltered = nodeStyle.Where(x => IsVisible(x.Key) && x.Key.EnabledInHierarchy()).ToArray();
+            KeyValuePair<BaseNode, UssStyle>[] nodeStyleFiltered = nodeStyleMap.Where(x => IsVisible(x.Key) && enabledInHierarchy(x.Key)).ToArray();
             UssStyle[] nodeStyleStatelessFiltered = nodeStyleFiltered.Where(x => !IsStateNode(x.Key)).Select(x => x.Value).ToArray();
             UssStyle[] stylesFiltered = styles.Select(x => x.style).Where(x => nodeStyleStatelessFiltered.Any(y => y.DoesInherit(x))).ToArray();
-            UssStyle[] componentStyleFiltered = componentStyle.Values.Where(x => nodeStyleStatelessFiltered.Any(y => y.DoesInherit(x))).ToArray();
+            UssStyle[] componentStyleFiltered = componentStyleMap.Values.Where(x => nodeStyleStatelessFiltered.Any(y => y.DoesInherit(x))).ToArray();
 
             GroupRenameStyles(stylesFiltered.Union(componentStyleFiltered).Union(nodeStyleStatelessFiltered));
             FixStateStyles(nodeStyleFiltered.Select(x => x.Key));
 
-            UxmlWriter _ = new(document, GetClassList, folder, name);
+#pragma warning disable S1481
+            UxmlWriter _ = new(document, folder, name, GetClassList, enabledInHierarchy, getTemplate, getElementType);
             using StreamWriter uss = new(Path.Combine(folder, $"{name}.uss"));
             UssWriter __ = new(stylesFiltered, componentStyleFiltered, nodeStyleFiltered.Select(x => x.Value), uss);
+#pragma warning restore S1481
         }
 
         void AddMissingNodesRecursively(BaseNode node)
         {
             if (node is InstanceNode instance && FindNode(instance.componentId) is null)
-                missingComponents.Add(instance.componentId);
+                MissingComponents.Add(instance.componentId);
 
             if (node is ChildrenMixin children)
                 foreach (SceneNode child in children.children)
                     AddMissingNodesRecursively(child);
         }
-        void AddImageFillsRecursively(BaseNode node)
+        void AddImageFillsRecursively(BaseNode node, Func<BaseNode, bool> enabledInHierarchy)
         {
             if (!IsVisible(node)) return;
-            if (!node.EnabledInHierarchy()) return;
+            if (!enabledInHierarchy(node)) return;
 
             if (node is BooleanOperationNode) return;
-            if (!IsSvgNode(node) && HasImageFill(node)) imageFillNodes.Add(node);
+            if (!IsSvgNode(node) && HasImageFill(node)) ImageFillNodes.Add(node);
 
             if (node is ChildrenMixin children)
                 foreach (SceneNode child in children.children)
-                    AddImageFillsRecursively(child);
+                    AddImageFillsRecursively(child, enabledInHierarchy);
         }
-        void AddPngNodesRecursively(BaseNode node)
+        void AddPngNodesRecursively(BaseNode node, Func<BaseNode, bool> enabledInHierarchy)
         {
             if (!IsVisible(node)) return;
-            if (!node.EnabledInHierarchy()) return;
+            if (!enabledInHierarchy(node)) return;
 
-            if (IsSvgNode(node) && HasImageFill(node)) pngNodes.Add(node);
-            if (node is BooleanOperationNode) return;
-
-            if (node is ChildrenMixin children)
-                foreach (SceneNode child in children.children)
-                    AddPngNodesRecursively(child);
-        }
-        void AddSvgNodesRecursively(BaseNode node)
-        {
-            if (!IsVisible(node)) return;
-            if (!node.EnabledInHierarchy()) return;
-
-            if (IsSvgNode(node) && !HasImageFill(node)) svgNodes.Add(node);
+            if (IsSvgNode(node) && HasImageFill(node)) PngNodes.Add(node);
             if (node is BooleanOperationNode) return;
 
             if (node is ChildrenMixin children)
                 foreach (SceneNode child in children.children)
-                    AddSvgNodesRecursively(child);
+                    AddPngNodesRecursively(child, enabledInHierarchy);
         }
-        void AddGradientsRecursively(BaseNode node)
+        void AddSvgNodesRecursively(BaseNode node, Func<BaseNode, bool> enabledInHierarchy)
         {
             if (!IsVisible(node)) return;
-            if (!node.EnabledInHierarchy()) return;
+            if (!enabledInHierarchy(node)) return;
 
-            if (node is BooleanOperationNode) return;
-            if (node is GeometryMixin geometry)
-                foreach (GradientPaint gradient in geometry.fills.OfType<GradientPaint>())
-                    gradients.TryAdd(gradient.GetHash(), gradient);
+            if (IsSvgNode(node) && !HasImageFill(node)) SvgNodes.Add(node);
 
-            if (node is ChildrenMixin children)
-                foreach (SceneNode child in children.children)
-                    AddGradientsRecursively(child);
+            switch (node)
+            {
+                case BooleanOperationNode:
+                    return;
+
+                case ChildrenMixin children:
+                {
+                    foreach (SceneNode child in children.children)
+                        AddSvgNodesRecursively(child, enabledInHierarchy);
+                    return;
+                }
+            }
         }
-        void AddStylesRecursively(BaseNode node, Dictionary<string, Style> styles, bool insideComponent)
+        void AddGradientsRecursively(BaseNode node, Func<BaseNode, bool> enabledInHierarchy)
+        {
+            if (!IsVisible(node)) return;
+            if (!enabledInHierarchy(node)) return;
+
+            switch (node)
+            {
+                case BooleanOperationNode:
+                    return;
+
+                case GeometryMixin geometry:
+                {
+                    foreach (GradientPaint gradient in geometry.fills.OfType<GradientPaint>())
+                        Gradients.TryAdd(gradient.GetHash(), gradient);
+                    break;
+                }
+            }
+
+            if (node is not ChildrenMixin children) return;
+            foreach (SceneNode child in children.children)
+                AddGradientsRecursively(child, enabledInHierarchy);
+        }
+        void AddStylesRecursively(BaseNode node, Dictionary<string, Style> styles, bool insideComponent, Func<string, string, (bool valid, string path)> getAssetPath, Func<string, string, (bool valid, int width, int height)> getAssetSize)
         {
             string GetClassName(string name, bool state, string prefix = "n")
             {
                 if (name.Length > 64) name = name[..64];
                 name = Regex.Replace(name, $"[^a-zA-Z0-9{(state ? ":" : "")}]", "-");
 
-                for (int i = 0; i < 10; ++i) if (name.Contains("--")) name = name.Replace("--", "-");
-                for (int i = 0; i < 10; ++i) if (name.EndsWith("-")) name = name[..^1];
-                for (int i = 0; i < 10; ++i) if (name.StartsWith("-")) name = name.Substring(1, name.Length - 1);
+                for (int i = 0; i < 10; ++i)
+                    if (name.Contains("--"))
+                        name = name.Replace("--", "-");
+                for (int i = 0; i < 10; ++i)
+                    if (name.EndsWith('-'))
+                        name = name[..^1];
+                for (int i = 0; i < 10; ++i)
+                    if (name.StartsWith('-'))
+                        name = name.Substring(1, name.Length - 1);
                 if (name.All(x => x == '-')) name = $"{prefix}";
                 if (name.Length > 0 && char.IsDigit(name[0])) name = $"{prefix}-{name}";
 
@@ -2138,8 +2131,8 @@ namespace Figma
 
             if (node is ComponentNode) insideComponent = true;
 
-            if (insideComponent) componentStyle[node] = new UssStyle(GetClassName(node.name, IsStateNode(node)), getAssetPath, getAssetSize, node);
-            else nodeStyle[node] = new UssStyle(GetClassName(node.name, IsStateNode(node)), getAssetPath, getAssetSize, node);
+            if (insideComponent) componentStyleMap[node] = new UssStyle(GetClassName(node.name, IsStateNode(node)), getAssetPath, getAssetSize, node);
+            else nodeStyleMap[node] = new UssStyle(GetClassName(node.name, IsStateNode(node)), getAssetPath, getAssetSize, node);
 
             if (node is BlendMixin { styles: not null } blend)
             {
@@ -2147,21 +2140,28 @@ namespace Figma
                 {
                     bool text = node.type == NodeType.TEXT;
                     string slot = keyValue.Key;
-                    if (slot.EndsWith("s")) slot = slot[..^1];
+                    if (slot.EndsWith('s')) slot = slot[..^1];
                     string id = keyValue.Value;
                     string key = styles[id].key;
 
                     StyleSlot style = new(text, slot, styles[id]);
-                    if (!this.styles.Any(x => x.slot.text == text && x.slot.slot == slot && x.slot.key == key))
-                        this.styles.Add((style, new UssStyle(GetClassName(style.name, false, "s"), getAssetPath, getAssetSize, style.slot, style.styleType, node)));
+                    if (!this.styles.Any(x => x.slot.Text == text && x.slot.Slot == slot && x.slot.key == key))
+                        this.styles.Add((style, new UssStyle(GetClassName(style.name, false, "s"), getAssetPath, getAssetSize, style.Slot, style.styleType, node)));
                 }
             }
 
-            if (node is BooleanOperationNode) return;
+            switch (node)
+            {
+                case BooleanOperationNode:
+                    return;
 
-            if (node is ChildrenMixin children)
-                foreach (SceneNode child in children.children)
-                    AddStylesRecursively(child, styles, insideComponent);
+                case ChildrenMixin children:
+                {
+                    foreach (SceneNode child in children.children)
+                        AddStylesRecursively(child, styles, insideComponent, getAssetPath, getAssetSize);
+                    return;
+                }
+            }
         }
 
         BaseNode FindNode(string id)
@@ -2194,8 +2194,8 @@ namespace Figma
         }
         UssStyle GetStyle(BaseNode node)
         {
-            if (componentStyle.TryGetValue(node, out UssStyle style)) return style;
-            return nodeStyle.TryGetValue(node, out style) ? style : default;
+            if (componentStyleMap.TryGetValue(node, out UssStyle style)) return style;
+            return nodeStyleMap.TryGetValue(node, out style) ? style : default;
         }
         void InheritStylesRecursively(BaseNode node)
         {
@@ -2219,7 +2219,7 @@ namespace Figma
                 string[] splits = node.id.Split(';');
                 if (splits.Length >= 2)
                 {
-                    string componentId = splits.Last();
+                    string componentId = splits[^1];
                     BaseNode componentNode = FindNode(componentId);
                     if (componentNode is not null) component = GetStyle(componentNode);
                 }
@@ -2231,15 +2231,16 @@ namespace Figma
                 {
                     bool text = node.type == NodeType.TEXT;
                     string slot = keyValue.Key;
-                    if (slot.EndsWith("s")) slot = slot[..^1];
+                    if (slot.EndsWith('s')) slot = slot[..^1];
                     string id = keyValue.Value;
                     string key = default;
                     if (documentStyles.TryGetValue(id, out Style documentStyle)) key = documentStyle.key;
                     foreach (Dictionary<string, Style> componentStyle in componentsStyles)
-                        if (componentStyle.TryGetValue(id, out Style value)) key = value.key;
+                        if (componentStyle.TryGetValue(id, out Style value))
+                            key = value.key;
 
                     int index;
-                    if (key.NotNullOrEmpty() && (index = this.styles.FindIndex(x => x.slot.text == text && x.slot.slot == slot && x.slot.key == key)) >= 0)
+                    if (key.NotNullOrEmpty() && (index = this.styles.FindIndex(x => x.slot.Text == text && x.slot.Slot == slot && x.slot.key == key)) >= 0)
                         styles.Add(this.styles[index].style);
                 }
             }
@@ -2279,7 +2280,7 @@ namespace Figma
                 string[] splits = node.id.Split(';');
                 if (splits.Length >= 2)
                 {
-                    string componentId = splits.Last();
+                    string componentId = splits[^1];
                     BaseNode componentNode = FindNode(componentId);
                     if (componentNode is not null) component = GetStyle(componentNode).Name;
                 }
@@ -2291,17 +2292,18 @@ namespace Figma
                 {
                     bool text = node.type == NodeType.TEXT;
                     string slot = keyValue.Key;
-                    if (slot.EndsWith("s")) slot = slot[..^1];
+                    if (slot.EndsWith('s')) slot = slot[..^1];
                     string id = keyValue.Value;
                     string key = default;
 
                     if (documentStyles.TryGetValue(id, out Style documentStyle)) key = documentStyle.key;
 
                     foreach (Dictionary<string, Style> componentStyle in componentsStyles)
-                        if (componentStyle.TryGetValue(id, out Style value)) key = value.key;
+                        if (componentStyle.TryGetValue(id, out Style value))
+                            key = value.key;
 
                     int index;
-                    if (key.NotNullOrEmpty() && (index = this.styles.FindIndex(x => x.slot.text == text && x.slot.slot == slot && x.slot.key == key)) >= 0)
+                    if (key.NotNullOrEmpty() && (index = this.styles.FindIndex(x => x.slot.Text == text && x.slot.Slot == slot && x.slot.key == key)) >= 0)
                         styles.Add(this.styles[index].style.Name);
                 }
             }
@@ -2345,34 +2347,6 @@ namespace Figma
         }
         static bool IsStateNode(BaseNodeMixin mixin) => mixin.name.EndsWith(":hover") || mixin.name.EndsWith(":active") || mixin.name.EndsWith(":inactive") || mixin.name.EndsWith(":focus") || mixin.name.EndsWith(":selected") || mixin.name.EndsWith(":disabled") || mixin.name.EndsWith(":enabled") || mixin.name.EndsWith(":checked") || mixin.name.EndsWith(":root");
         static bool IsStateNode(BaseNodeMixin mixin, BaseNodeMixin normal) => mixin.name[..mixin.name.LastIndexOf(":", StringComparison.Ordinal)] == normal.name;
-        static (int, int) CenterChildrenCount(DefaultFrameMixin mixin)
-        {
-            if (mixin.layoutMode.HasValue) return (0, 0);
-
-            int horizontalCenterCount = mixin.children.Cast<ConstraintMixin>().Count(x => x.constraints.horizontal == ConstraintHorizontal.CENTER);
-            int verticalCenterCount = mixin.children.Cast<ConstraintMixin>().Count(x => x.constraints.vertical == ConstraintVertical.CENTER);
-            return (horizontalCenterCount, verticalCenterCount);
-        }
-        static bool HasMixedCenterChildren(DefaultFrameMixin mixin)
-        {
-            (int horizontalCenterCount, int verticalCenterCount) = CenterChildrenCount(mixin);
-            return horizontalCenterCount > 0 && verticalCenterCount > 0;
-        }
-        static bool HasAnyCenterChildren(DefaultFrameMixin mixin)
-        {
-            (int horizontalCenterCount, int verticalCenterCount) = CenterChildrenCount(mixin);
-            return horizontalCenterCount > 0 || verticalCenterCount > 0;
-        }
-        static bool HasManyCenterChildren(DefaultFrameMixin mixin)
-        {
-            (int horizontalCenterCount, int verticalCenterCount) = CenterChildrenCount(mixin);
-            return horizontalCenterCount > 1 || verticalCenterCount > 1;
-        }
-        static bool IsMostlyHorizontal(DefaultFrameMixin mixin)
-        {
-            (int horizontalCenterCount, int verticalCenterCount) = CenterChildrenCount(mixin);
-            return horizontalCenterCount > verticalCenterCount;
-        }
         #endregion
     }
 }

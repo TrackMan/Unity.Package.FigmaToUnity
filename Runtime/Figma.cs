@@ -1,29 +1,26 @@
-﻿using Figma.Attributes;
-using System.Linq;
+﻿using System.Linq;
 using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Figma
 {
+    using Attributes;
+
     [DefaultExecutionOrder(-10)]
     [AddComponentMenu("Figma/Figma")]
     [RequireComponent(typeof(UIDocument))]
     public class Figma : MonoBehaviour
     {
         #region Fields
-        [SerializeField]
-        string title;
-        [SerializeField]
-        bool filter;
-        [SerializeField]
-        bool reorder;
-        [SerializeField]
-        string[] fontsDirs;
+        [SerializeField] string title;
+        [SerializeField] bool filter;
+        [SerializeField] bool reorder;
+        [SerializeField] string[] fontsDirs;
         #endregion
 
         #region Properties
-        public string Title { get => title; }
-        public bool Filter { get => filter; }
+        public string Title => title;
+        public bool Filter => filter;
         #endregion
 
         #region Base Methods
@@ -37,21 +34,19 @@ namespace Figma
             IRootElement[] elements = GetComponentsInChildren<IRootElement>();
             VisualElementMetadata.Initialize(document, elements);
 
-            if (Application.isPlaying)
-            {
-                await new WaitForEndOfFrame();
-                VisualElementMetadata.Rebuild(elements);
+            if (!Application.isPlaying) return;
 
-                VisualElement root = document.rootVisualElement.Q(UxmlAttribute.prefix);
-                if (root is not null && reorder)
-                {
-                    foreach (IRootElement element in elements.OrderBy(x => x.RootOrder))
-                    {
-                        if (element.Root is null) continue;
-                        element.Root.RemoveFromHierarchy();
-                        root.Add(element.Root);
-                    }
-                }
+            await new WaitForEndOfFrame();
+            VisualElementMetadata.Rebuild(elements);
+
+            VisualElement root = document.rootVisualElement.Q(UxmlAttribute.prefix);
+            if (root is null || !reorder) return;
+
+            foreach (IRootElement element in elements.OrderBy(x => x.RootOrder))
+            {
+                if (element.Root is null) continue;
+                element.Root.RemoveFromHierarchy();
+                root.Add(element.Root);
             }
         }
         #endregion
