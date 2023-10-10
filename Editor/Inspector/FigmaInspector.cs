@@ -177,28 +177,32 @@ namespace Figma.Inspectors
                 PackageInfo packageInfo = PackageInfo.GetAllRegisteredPackages().First(x => Path.GetFullPath(path).StartsWith(Path.GetFullPath(x.resolvedPath)));
                 return $"{packageInfo.assetPath}/{Path.GetFullPath(path).Replace(Path.GetFullPath(packageInfo.resolvedPath), "")}";
             }
-            (string folder, string relativeFolder) GetFolderAndRelativeFolder(string assetPath)
+            (string folder, string relativeFolder, string name) GetFolderAndRelativeFolder(string assetPath)
             {
                 string folder;
                 string relativeFolder;
+                string product;
                 if (assetPath.StartsWith("Packages"))
                 {
                     PackageInfo packageInfo = PackageInfo.FindForAssetPath(assetPath);
                     folder = $"{packageInfo.resolvedPath}{Path.GetDirectoryName(assetPath.Replace(packageInfo.assetPath, ""))}";
                     relativeFolder = Path.GetDirectoryName(assetPath);
+                    product = packageInfo.displayName;
                 }
                 else
                 {
                     folder = Path.GetDirectoryName(assetPath);
                     relativeFolder = Path.GetRelativePath(Directory.GetCurrentDirectory(), folder);
+                    product = Application.productName;
                 }
-                return (folder, relativeFolder);
+                return (folder, relativeFolder, product);
             }
 
-            (string folder, string relativeFolder) = GetFolderAndRelativeFolder(GetAssetPath());
+            (string folder, string relativeFolder, string product) = GetFolderAndRelativeFolder(GetAssetPath());
             if (folder.NullOrEmpty() || relativeFolder.NullOrEmpty()) return;
 
-            int progress = Progress.Start($"Figma Update {figma.name}{(downloadImages ? " & Images" : string.Empty)}", default, Progress.Options.Managed);
+            string display = $"Figma {product}{(downloadImages ? " (Images)" : "")}";
+            int progress = Progress.Start(display, default, Progress.Options.Managed);
             using CancellationTokenSource cancellationToken = new();
             try
             {
@@ -211,7 +215,7 @@ namespace Figma.Inspectors
 
                 await UpdateTitleAsync(figma, progress, title, folder, relativeFolder, systemCopyBuffer, downloadImages, fontDirs, cancellationToken.Token);
 
-                Debug.Log($"Figma Update {figma.name} OK");
+                Debug.Log($"{display} OK");
                 Progress.Finish(progress);
             }
             catch (Exception exception)

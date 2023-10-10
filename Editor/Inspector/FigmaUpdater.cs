@@ -162,13 +162,13 @@ namespace Figma.Inspectors
             {
                 string filename = Path.GetFileName(path);
                 string relativePath = Path.Combine(relativeFolder, elements, filename);
-                if (uxmlContents.Contains(filename)) AssetDatabase.ImportAsset(relativePath);
+                if (uxmlContents.Contains(filename)) AssetDatabase.ImportAsset(relativePath, ImportAssetOptions.ForceUpdate);
             }
         }
         internal void ImportFinal(string name)
         {
-            if (File.Exists(Path.GetFileName(Path.Combine(folder, $"{name}.uxml")))) AssetDatabase.ImportAsset(Path.Combine(relativeFolder, $"{name}.uxml"));
-            if (File.Exists(Path.GetFileName(Path.Combine(folder, $"{name}.uss")))) AssetDatabase.ImportAsset(Path.Combine(relativeFolder, $"{name}.uss"));
+            if (File.Exists(Path.GetFileName(Path.Combine(folder, $"{name}.uxml")))) AssetDatabase.ImportAsset(Path.Combine(relativeFolder, $"{name}.uxml"), ImportAssetOptions.ForceUpdate);
+            if (File.Exists(Path.GetFileName(Path.Combine(folder, $"{name}.uss")))) AssetDatabase.ImportAsset(Path.Combine(relativeFolder, $"{name}.uss"), ImportAssetOptions.ForceUpdate);
         }
         internal void Cleanup(string name)
         {
