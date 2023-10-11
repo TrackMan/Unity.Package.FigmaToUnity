@@ -238,11 +238,10 @@ namespace Figma.Inspectors
             string name = figma.name;
             FigmaUpdater updater = new(PersonalAccessToken, title, folder, relativeFolder, fontDirs);
             await updater.DownloadAssetsAsync(name, downloadImages, elements, figma.Filter, systemCopyBuffer, progress, token);
-            updater.ImportTextures();
+            AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport); // Force import all images
             updater.WriteUssUxml(name, progress);
-            updater.ImportElements(name);
-            updater.ImportFinal(name);
             updater.Cleanup(name);
+            AssetDatabase.Refresh();
         }
         #endregion
     }

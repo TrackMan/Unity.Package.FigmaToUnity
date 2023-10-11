@@ -133,42 +133,12 @@ namespace Figma.Inspectors
             await DownloadMissingComponentsAsync();
             await DownloadImagesAsync();
         }
-        internal void ImportTextures()
-        {
-            foreach (string path in Directory.GetFiles(Path.Combine(folder, elements), "*.png"))
-            {
-                string filename = Path.GetFileName(path);
-                string relativePath = Path.Combine(relativeFolder, elements, filename);
-                AssetDatabase.ImportAsset(relativePath);
-            }
-            foreach (string path in Directory.GetFiles(Path.Combine(folder, elements), "*.svg"))
-            {
-                string filename = Path.GetFileName(path);
-                string relativePath = Path.Combine(relativeFolder, elements, filename);
-                AssetDatabase.ImportAsset(relativePath);
-            }
-        }
         internal void WriteUssUxml(string name, int progress)
         {
             Progress.Report(progress, 5, 5, "Updating uss/uxml files");
 
             parser.Run(GetAssetPath, GetAssetSize);
             parser.Write(folder, name, nodeMetadata.EnabledInHierarchy, nodeMetadata.GetTemplate, nodeMetadata.GetElementType);
-        }
-        internal void ImportElements(string name)
-        {
-            string uxmlContents = File.ReadAllText(Path.Combine(folder, $"{name}.uxml"));
-            foreach (string path in Directory.GetFiles(Path.Combine(folder, elements), "*.uxml"))
-            {
-                string filename = Path.GetFileName(path);
-                string relativePath = Path.Combine(relativeFolder, elements, filename);
-                if (uxmlContents.Contains(filename)) AssetDatabase.ImportAsset(relativePath, ImportAssetOptions.ForceUpdate);
-            }
-        }
-        internal void ImportFinal(string name)
-        {
-            if (File.Exists(Path.GetFileName(Path.Combine(folder, $"{name}.uxml")))) AssetDatabase.ImportAsset(Path.Combine(relativeFolder, $"{name}.uxml"), ImportAssetOptions.ForceUpdate);
-            if (File.Exists(Path.GetFileName(Path.Combine(folder, $"{name}.uss")))) AssetDatabase.ImportAsset(Path.Combine(relativeFolder, $"{name}.uss"), ImportAssetOptions.ForceUpdate);
         }
         internal void Cleanup(string name)
         {
@@ -224,18 +194,49 @@ namespace Figma.Inspectors
 
         async Task DownloadImagesAsync(int progress, CancellationToken token)
         {
-            HttpClient client = new();
-            foreach (KeyValuePair<string, string> header in headers) client.DefaultRequestHeaders.Add(header.Key, header.Value);
+            async Task WriteInvalidSvgAsync(string assetPath)
+            {
+                XmlWriter writer = XmlWriter.Create(Path.Combine(folder, assetPath), new XmlWriterSettings
+                {
+                    Indent = true,
+                    NewLineOnAttributes = true,
+                    IndentChars = "    ",
+                    Async = true
+                });
+                writer.WriteStartElement("svg");
+                {
+                    writer.WriteStartElement("rect");
+                    writer.WriteAttributeString("width", "100");
+                    writer.WriteAttributeString("height", "100");
+                    writer.WriteAttributeString("fill", "magenta");
+                    await writer.WriteEndElementAsync();
+                    await Task.Delay(0, token);
+                }
 
+                await writer.WriteEndElementAsync();
+                await Task.Delay(0, token);
+
+                writer.Close();
+            }
+            async Task WriteInvalidPngAsync(string assetPath)
+            {
+                Texture2D magenta = new(2, 2);
+                magenta.SetPixel(0, 0, Color.magenta);
+                magenta.SetPixel(1, 0, Color.magenta);
+                magenta.SetPixel(0, 1, Color.magenta);
+                magenta.SetPixel(1, 1, Color.magenta);
+                magenta.Apply();
+                await File.WriteAllBytesAsync(Path.Combine(folder, assetPath), magenta.EncodeToPNG(), token);
+            }
             async Task GetImageAsync(string nodeID, string url, string extension)
             {
-                (bool fileExists, string _) = GetAssetPath(nodeID, extension);
+                (bool fileExists, string test) = GetAssetPath(nodeID, extension);
 
                 Progress.SetStepLabel(progress, $"{url}");
 
+                HttpClient client = new();
+                foreach (KeyValuePair<string, string> header in headers) client.DefaultRequestHeaders.Add(header.Key, header.Value);
                 if (fileExists && remaps.TryGetValue(nodeID, out string etag)) client.DefaultRequestHeaders.Add("If-None-Match", $"\"{etag}\"");
-                else client.DefaultRequestHeaders.Remove("If-None-Match");
-
                 HttpResponseMessage response = await client.GetAsync(url, token);
 
                 if (response.Headers.TryGetValues("ETag", out IEnumerable<string> values))
@@ -245,7 +246,29 @@ namespace Figma.Inspectors
                 string relativePath = Path.Combine(relativeFolder, assetPath).Replace('\\', '/');
 
                 if (response.StatusCode == HttpStatusCode.OK)
-                    await File.WriteAllBytesAsync(relativePath, await response.Content.ReadAsByteArrayAsync(), token);
+                {
+                    byte[] bytes = await response.Content.ReadAsByteArrayAsync();
+                    switch (bytes.Length)
+                    {
+                        case 0:
+                            Debug.LogWarning($"Response is empty for node={nodeID}, url={url}");
+                            switch (extension)
+                            {
+                                case "svg":
+                                    await WriteInvalidSvgAsync(assetPath);
+                                    break;
+
+                                default:
+                                    await WriteInvalidPngAsync(assetPath);
+                                    break;
+                            }
+                            break;
+
+                        default:
+                            await File.WriteAllBytesAsync(relativePath, bytes, token);
+                            break;
+                    }
+                }
             }
             async Task WriteGradientsAsync(int progress, CancellationToken token)
             {
