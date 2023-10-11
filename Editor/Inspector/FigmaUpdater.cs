@@ -4,7 +4,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Net.Http;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,6 +12,7 @@ using Trackman;
 using Unity.VectorGraphics.Editor;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Networking;
 using Object = UnityEngine.Object;
 
 namespace Figma.Inspectors
@@ -230,45 +230,24 @@ namespace Figma.Inspectors
             }
             async Task GetImageAsync(string nodeID, string url, string extension)
             {
-                (bool fileExists, string test) = GetAssetPath(nodeID, extension);
+                (bool fileExists, string _) = GetAssetPath(nodeID, extension);
 
                 Progress.SetStepLabel(progress, $"{url}");
 
-                HttpClient client = new();
-                foreach (KeyValuePair<string, string> header in headers) client.DefaultRequestHeaders.Add(header.Key, header.Value);
-                if (fileExists && remaps.TryGetValue(nodeID, out string etag)) client.DefaultRequestHeaders.Add("If-None-Match", $"\"{etag}\"");
-                HttpResponseMessage response = await client.GetAsync(url, token);
+                Dictionary<string, string> responseHeaders = new();
+                Dictionary<string, string> requestHeaders = headers.ToDictionary(header => header.Key, header => header.Value);
+                if (fileExists && remaps.TryGetValue(nodeID, out string etag)) requestHeaders.Add("If-None-Match", $"\"{etag}\"");
 
-                if (response.Headers.TryGetValues("ETag", out IEnumerable<string> values))
-                    remaps[nodeID] = values.First().Trim('"');
+                UnityWebRequest request = await url.HttpGetRequestAsync(requestHeaders, responseHeaders, cancellationToken: token);
+
+                if (responseHeaders.TryGetValue("ETag", out etag))
+                    remaps[nodeID] = etag.Trim('"');
 
                 (bool _, string assetPath) = GetAssetPath(nodeID, extension);
                 string relativePath = Path.Combine(relativeFolder, assetPath).Replace('\\', '/');
 
-                if (response.StatusCode == HttpStatusCode.OK)
-                {
-                    byte[] bytes = await response.Content.ReadAsByteArrayAsync();
-                    switch (bytes.Length)
-                    {
-                        case 0:
-                            Debug.LogWarning($"Response is empty for node={nodeID}, url={url}");
-                            switch (extension)
-                            {
-                                case "svg":
-                                    await WriteInvalidSvgAsync(assetPath);
-                                    break;
-
-                                default:
-                                    await WriteInvalidPngAsync(assetPath);
-                                    break;
-                            }
-                            break;
-
-                        default:
-                            await File.WriteAllBytesAsync(relativePath, bytes, token);
-                            break;
-                    }
-                }
+                if (request.result == UnityWebRequest.Result.Success && request.responseCode == (long)HttpStatusCode.OK &&
+                    request.downloadHandler.data is { Length: > 0 } data) await File.WriteAllBytesAsync(relativePath, data, token);
             }
             async Task WriteGradientsAsync(int progress, CancellationToken token)
             {
