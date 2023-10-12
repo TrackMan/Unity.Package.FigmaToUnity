@@ -1,0 +1,5 @@
+@import url("unity-theme://default");
+
+@import url("/Packages/com.trackman.figma/Assets/UnityBase.uss");
+
+VisualElement {}

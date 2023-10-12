@@ -45,7 +45,7 @@ MonoBehaviour:
   m_Script: {fileID: 19102, guid: 0000000000000000e000000000000000, type: 0}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_PanelSettings: {fileID: 0}
+  m_PanelSettings: {fileID: 11400000, guid: f486055d8ec653edc96c3f3c38380c8f, type: 2}
   m_ParentUI: {fileID: 0}
   sourceAsset: {fileID: 0}
   m_SortingOrder: 0
@@ -63,3 +63,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   title: 
   filter: 0
+  reorder: 0
+  fontsDirs: []

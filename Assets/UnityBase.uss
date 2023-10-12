@@ -1,0 +1,75 @@
+:root {
+  --selection-color: #5890DE;
+  --cursor-color: #FFFFFF;
+}
+
+.unity-base-field {
+    flex-direction: row;
+    margin: initial;
+    overflow: hidden;
+    flex-shrink: 0;
+    --unity-sync-text-editor-engine: true;
+}
+
+.unity-base-text-field {
+    white-space: nowrap;
+    --unity-selection-color: var(--selection-color);
+    --unity-cursor-color: var(--cursor-color);
+}
+
+.unity-base-field__input {
+    flex: 1 0 0;
+    overflow: hidden;
+    margin: initial;
+}
+
+.unity-base-text-field__input {
+    padding: initial;
+    border-radius: initial;
+    cursor: initial;
+    -unity-overflow-clip-box: content-box;
+    flex: 1 1 auto;
+    background-color: initial; 
+    border-color: initial;
+    border-width: initial;
+    margin: initial;
+    --unity-sync-text-editor-engine: true;
+}
+
+.unity-base-text-field__input:focus,
+.unity-base-text-field__input:hover,
+.unity-base-text-field:focus > .unity-base-text-field__input,
+.unity-base-text-field:hover > .unity-base-text-field__input {
+    border-color: var(--selection-color);
+}
+
+.unity-base-slider,           .unity-base-slider__dragger, .unity-base-slider__tracker {
+    border-width: initial;
+    border-color: initial;
+    background-color: initial; 
+}
+.unity-base-slider:focus,     .unity-base-slider__dragger, .unity-base-slider__tracker {
+    border-color: initial;
+}
+
+.unity-base-slider--vertical, .unity-base-slider__dragger, .unity-base-slider__tracker {
+    margin: initial;
+}
+
+.unity-scroller,    .unity-base-slider__dragger, .unity-base-slider__tracker {
+    border-color: initial;
+    background-color: initial; 
+}
+
+.unity-scroller--vertical,    .unity-base-slider__dragger, .unity-base-slider__tracker {
+    left: initial;
+    top: initial;
+    margin: initial;
+    border-width: initial;
+    border-color: initial;
+    background-color: initial; 
+}
+.unity-scroller--vertical > .unity-scroller__slider {
+    margin: initial;
+    width: initial;
+}

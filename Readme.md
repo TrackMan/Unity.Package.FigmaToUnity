@@ -71,20 +71,76 @@ To start using Figma Inspector, a Figma Personal Access Token is needed for API 
 4. Locate the Figma script in Unity's Inspector.
 5. Paste the token into the designated field.
 
-## Figma class (TODO)
-## Element class (OnInitialize, OnRebuild, Custom Elements) (TODO)
+## Figma class (TOBEREVIEWED)
+During the update process the Figma class retrieves data based on the Uxml and Query attributes of the Element scripts. It then utilizes this data while producing UXML asset.
+> [!WARNING]
+> Element scripts should be attached to the same game object to which the Figma script is also attached.
+
+## Element class (OnInitialize, OnRebuild, Custom Elements) (TOBEREVIEWED)
+The Uxml and Query attributes define the structure of the Uxml asset and, consequently, the appearance of your UI.
+The type of the field following the Query attribute defines the UI element itself and, consequently, its behavior (VisualElement, Button, Label, etc.). Field types are written into UXML. Therefore, if you change the field type (for example, from VisualElement to Button), you will need to perform a Figma Update to regenerate the UXML.
+Each element can override OnInitialize and OnRebuild methods which can be used to do any initial setup operations.
+
 ``` csharp
-[Uxml("SamplePage/SampleFrame", UxmlDownloadImages.Everything, UxmlElementTypeIdentification.ByElementType)]
-public class SampleFrame : Element
+[Uxml("TestPage/TestFrame", UxmlDownloadImages.Everything, UxmlElementTypeIdentification.ByElementType)]
+[AddComponentMenu("Figma/Samples/Test")]
+public class Test : Element
 {
-#region Fields
-[Query("SampleButton", Clicked = nameof(Test))] Button sampleButton;
-#endregion
+	const int minCircles = 1;
+	const int maxCircles = 7;
 
-    #region Methods
-    void Test() => Debug.Log("Test");
-    #endregion
+	#region Fields
+	[Query("Header")] Label header;
 
+	[Query("CloneButton", Clicked = nameof(Clone))] Button cloneButton;
+	[Query("RemoveButton", Clicked = nameof(Remove))] Button removeButton;
+	[Query("CloneContainer", StartRoot = true)] VisualElement cloneContainer;
+	[Query("CloneCircle", EndRoot = true)] PerfectCircle cloneCircle;
+
+	[Query("SyncButton", Clicked = nameof(Sync))] Button syncButton;
+	[Query("SyncContainer")] VisualElement syncContainer;
+	[Query("SyncContainer/SyncCircle")] PerfectCircle syncCircle;
+
+	[Query("FunctionDescription", Hide = true)] Label functionDescription;
+	#endregion
+
+	#region Methods
+	protected override void OnInitialize() => cloneContainer.style.flexWrap = Wrap.NoWrap;
+	protected override void OnRebuild() => header.text = "Welcome to Figma Test Frame!";
+
+	void Clone()
+	{
+		if (cloneContainer.childCount == maxCircles) return;
+
+		cloneCircle.Clone(cloneContainer);
+	}
+	void Remove()
+	{
+		if (cloneContainer.childCount == minCircles) return;
+
+		cloneContainer.Remove(cloneContainer.Children().First());
+	}
+	void Sync()
+	{
+		void RandomColor(int index) => syncContainer.Children().ElementAt(index).style.backgroundColor = Random.ColorHSV();
+
+		syncCircle.Sync(syncContainer, RandomColor, Enumerable.Range(0, Random.Range(1, maxCircles + 1)));
+		syncCircle.Hide();
+
+		functionDescription.Show();
+	}
+	#endregion
+}
+```
+### Custom element example
+``` csharp
+public class PerfectCircle : SyncButtonSimple<int>
+{
+	public new class UxmlFactory : UxmlFactory<PerfectCircle> { }
+
+	#region Methods
+	public override bool IsVisible(int index, int data) => true;
+	#endregion
 }
 ```
 
@@ -159,7 +215,7 @@ This interface serves as an identifier, signifying that within the IRootElement 
 ## IRootElement
 This interface acts as a marker, indicating that an element within the IRootElement hierarchy is capable of functioning as a component derived from the VisualElement class.
 
-## Visual Element Style (TOBEREVIEWED)
+## Visual Element Style
 The imported USS file contains all the classes used by Visual Elements. USS is inspired by CSS and has a similar syntax. To manipulate properties in your code, you should use the techniques described below.
 ### Changing Element Appearance
 To change the appearance of a VisualElement, you should manipulate its style properties. For example, to set the top margin of an element to 3:
@@ -173,7 +229,7 @@ float margin = element.resolvedStyle.marginTop;
 ```
 > You can find the list of all supported properties in the official Unity documentation.
 
-## Visual Element Extensions (TOBEREVIEWED)
+## Visual Element Extensions
 When working with VisualElements, there are various visual element extensions that allow you to find/clone/replace/etc elements:
 ```csharp
 VisualElement rectangle = element.Find<VisualElement>("Rectangle");
