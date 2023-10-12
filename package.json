@@ -10,5 +10,6 @@
     "com.trackman.commonutils": "3.7.0"
   },
   "author": "TrackMan",
-  "type": "trackman.package"
+  "type": "trackman.package",
+  "hideInEditor": false
 }
