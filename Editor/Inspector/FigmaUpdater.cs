@@ -194,45 +194,11 @@ namespace Figma.Inspectors
 
         async Task DownloadImagesAsync(int progress, CancellationToken token)
         {
-            async Task WriteInvalidSvgAsync(string assetPath)
-            {
-                XmlWriter writer = XmlWriter.Create(Path.Combine(folder, assetPath), new XmlWriterSettings
-                {
-                    Indent = true,
-                    NewLineOnAttributes = true,
-                    IndentChars = "    ",
-                    Async = true
-                });
-                writer.WriteStartElement("svg");
-                {
-                    writer.WriteStartElement("rect");
-                    writer.WriteAttributeString("width", "100");
-                    writer.WriteAttributeString("height", "100");
-                    writer.WriteAttributeString("fill", "magenta");
-                    await writer.WriteEndElementAsync();
-                    await Task.Delay(0, token);
-                }
-
-                await writer.WriteEndElementAsync();
-                await Task.Delay(0, token);
-
-                writer.Close();
-            }
-            async Task WriteInvalidPngAsync(string assetPath)
-            {
-                Texture2D magenta = new(2, 2);
-                magenta.SetPixel(0, 0, Color.magenta);
-                magenta.SetPixel(1, 0, Color.magenta);
-                magenta.SetPixel(0, 1, Color.magenta);
-                magenta.SetPixel(1, 1, Color.magenta);
-                magenta.Apply();
-                await File.WriteAllBytesAsync(Path.Combine(folder, assetPath), magenta.EncodeToPNG(), token);
-            }
             async Task GetImageAsync(string nodeID, string url, string extension)
             {
                 (bool fileExists, string _) = GetAssetPath(nodeID, extension);
 
-                Progress.SetStepLabel(progress, $"{url}");
+                Progress.SetStepLabel(progress, url);
 
                 Dictionary<string, string> responseHeaders = new();
                 Dictionary<string, string> requestHeaders = headers.ToDictionary(header => header.Key, header => header.Value);
