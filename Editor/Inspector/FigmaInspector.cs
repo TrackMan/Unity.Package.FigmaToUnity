@@ -1,15 +1,16 @@
 ﻿using System;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Reflection;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
+using Trackman;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
-using Trackman;
 using Debug = UnityEngine.Debug;
 using PackageInfo = UnityEditor.PackageManager.PackageInfo;
 
@@ -26,6 +27,7 @@ namespace Figma.Inspectors
         const string documentsOnlyIcon = "d_Refresh@2x";
         const string documentWithImagesIcon = "d_RawImage Icon";
         const string folderIcon = "d_Project";
+        static Regex regex = new (@"[^/\\]+$");
 
         #region Fields
         SerializedProperty title;
@@ -177,7 +179,7 @@ namespace Figma.Inspectors
                 PackageInfo packageInfo = PackageInfo.GetAllRegisteredPackages().First(x => Path.GetFullPath(path).StartsWith(Path.GetFullPath(x.resolvedPath)));
                 return $"{packageInfo.assetPath}/{Path.GetFullPath(path).Replace(Path.GetFullPath(packageInfo.resolvedPath), "")}";
             }
-            (string folder, string relativeFolder, string name) GetFolderAndRelativeFolder(string assetPath)
+            (string folder, string relativeFolder, string product, string name) GetFolderAndRelativeFolder(string assetPath)
             {
                 string folder;
                 string relativeFolder;
@@ -195,10 +197,11 @@ namespace Figma.Inspectors
                     relativeFolder = Path.GetRelativePath(Directory.GetCurrentDirectory(), folder);
                     product = Application.productName;
                 }
-                return (folder, relativeFolder, product);
+
+                return (folder, relativeFolder, product, regex.Match(assetPath).Value);
             }
 
-            (string folder, string relativeFolder, string product) = GetFolderAndRelativeFolder(GetAssetPath());
+            (string folder, string relativeFolder, string product, string uxmlName) = GetFolderAndRelativeFolder(GetAssetPath());
             if (folder.NullOrEmpty() || relativeFolder.NullOrEmpty()) return;
 
             string display = $"Figma {product}{(downloadImages ? " (Images)" : "")}";
@@ -213,7 +216,7 @@ namespace Figma.Inspectors
                     return true;
                 });
 
-                await UpdateTitleAsync(figma, progress, title, folder, relativeFolder, systemCopyBuffer, downloadImages, fontDirs, cancellationToken.Token);
+                await UpdateTitleAsync(document, figma, progress, title, folder, relativeFolder, uxmlName, systemCopyBuffer, downloadImages, fontDirs, cancellationToken.Token);
 
                 Debug.Log($"{display} OK");
                 Progress.Finish(progress);
@@ -231,8 +234,14 @@ namespace Figma.Inspectors
                 cancellationToken.Dispose();
             }
         }
-        static async Task UpdateTitleAsync(Figma figma, int progress, string title, string folder, string relativeFolder, bool systemCopyBuffer, bool downloadImages, IReadOnlyCollection<string> fontDirs, CancellationToken token)
+        static async Task UpdateTitleAsync(UIDocument document, Figma figma, int progress, string title, string folder, string relativeFolder, string uxmlName, bool systemCopyBuffer, bool downloadImages, IReadOnlyCollection<string> fontDirs, CancellationToken token)
         {
+            void LoadUxml()
+            {
+                document.visualTreeAsset = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(relativeFolder.Contains("Packages") ? $"{relativeFolder}\\{uxmlName}" : Path.Combine(relativeFolder, uxmlName));
+                EditorUtility.SetDirty(document);
+            }
+
             IReadOnlyCollection<Type> elements = figma.GetComponentsInChildren<IRootElement>().Select(x => x.GetType()).ToArray();
 
             string name = figma.name;
@@ -241,6 +250,7 @@ namespace Figma.Inspectors
             updater.WriteUssUxml(name, progress);
             updater.Cleanup(name);
             AssetDatabase.Refresh();
+            LoadUxml();
         }
         #endregion
     }
