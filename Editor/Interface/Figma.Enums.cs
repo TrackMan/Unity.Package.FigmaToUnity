@@ -92,5 +92,7 @@ namespace Figma
         public enum ComponentPropertyType { BOOLEAN, TEXT, INSTANCE_SWAP, VARIANT }
 
         public enum LayoutWrap { NO_WRAP, WRAP }
+
+        public enum MaskType { ALPHA, VECTOR, LUMINANCE }
     }
 }

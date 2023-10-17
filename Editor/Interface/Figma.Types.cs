@@ -617,6 +617,7 @@ namespace Figma
             public ComponentPropertyReferences componentPropertyReferences { get; set; }
 
             public LayoutPositioning? layoutPositioning { get; set; }
+            public MaskType? maskType { get; set; }
             #endregion
         }
 
