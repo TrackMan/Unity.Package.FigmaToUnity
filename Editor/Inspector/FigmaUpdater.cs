@@ -225,6 +225,7 @@ namespace Figma.Inspectors
                     {
                         Indent = true,
                         NewLineOnAttributes = true,
+                        NewLineChars = "\r\n",
                         IndentChars = "    ",
                         Async = true
                     });
