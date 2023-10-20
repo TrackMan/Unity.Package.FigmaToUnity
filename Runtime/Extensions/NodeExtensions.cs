@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -53,12 +52,12 @@ namespace Figma
             VisualElement targetRoot = document.rootVisualElement.Find(uxml.DocumentRoot, throwException: false, silent: false);
             if (targetRoot is null) return;
 
-            rootMetadata.Add(targetRoot, new(document, uxml, uxml.DocumentRoot));
+            rootMetadata.Add(targetRoot, new Metadata(document, uxml, uxml.DocumentRoot));
 
             (string path, VisualElement element)[] rootsPreserved = uxml.DocumentPreserve.Select(x => (x, document.rootVisualElement.Find(x, throwException: false, silent: false))).ToArray();
             foreach ((string path, VisualElement element) value in rootsPreserved)
                 if (!rootMetadata.ContainsKey(value.element))
-                    rootMetadata.Add(value.element, new(document, uxml, value.path));
+                    rootMetadata.Add(value.element, new Metadata(document, uxml, value.path));
 
             OnInitializeRoot?.Invoke(targetRoot, document, uxml);
             Initialize(target, targetType, targetRoot);

@@ -1490,7 +1490,7 @@ namespace Figma
                     unityTextAlign = $"{vertical}-{horizontal}";
                 }
 
-                if (style.fontSize.HasValue) this.fontSize = style.fontSize;
+                if (style.fontSize.HasValue) fontSize = style.fontSize;
                 if (style.fontPostScriptName.NullOrEmpty() && style.fontFamily == "Inter") style.fontPostScriptName = "Inter-Regular";
                 if (style.fontPostScriptName.NotNullOrEmpty()) AddUnityFont();
                 if (style.textAlignVertical.HasValue && style.textAlignHorizontal.HasValue) AddTextAlign();
