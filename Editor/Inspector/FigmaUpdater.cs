@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,13 +13,11 @@ using Trackman;
 using Unity.VectorGraphics.Editor;
 using UnityEditor;
 using UnityEngine;
-using UnityEngine.Networking;
 using Object = UnityEngine.Object;
 
 namespace Figma.Inspectors
 {
     using global;
-    using number = Double;
 
     class FigmaUpdater : FigmaApi
     {
@@ -194,26 +193,81 @@ namespace Figma.Inspectors
 
         async Task DownloadImagesAsync(int progress, CancellationToken token)
         {
+            async Task WriteInvalidSvgAsync(string assetPath)
+            {
+                XmlWriter writer = XmlWriter.Create(Path.Combine(folder, assetPath), new XmlWriterSettings
+                {
+                    Indent = true,
+                    NewLineOnAttributes = true,
+                    IndentChars = "    ",
+                    Async = true
+                });
+                writer.WriteStartElement("svg");
+                {
+                    writer.WriteStartElement("rect");
+                    writer.WriteAttributeString("width", "100");
+                    writer.WriteAttributeString("height", "100");
+                    writer.WriteAttributeString("fill", "magenta");
+                    await writer.WriteEndElementAsync();
+                    await Task.Delay(0, token);
+                }
+
+                await writer.WriteEndElementAsync();
+                await Task.Delay(0, token);
+
+                writer.Close();
+            }
+            async Task WriteInvalidPngAsync(string assetPath)
+            {
+                Texture2D magenta = new(2, 2);
+                magenta.SetPixel(0, 0, Color.magenta);
+                magenta.SetPixel(1, 0, Color.magenta);
+                magenta.SetPixel(0, 1, Color.magenta);
+                magenta.SetPixel(1, 1, Color.magenta);
+                magenta.Apply();
+                await File.WriteAllBytesAsync(Path.Combine(folder, assetPath), magenta.EncodeToPNG(), token);
+            }
             async Task GetImageAsync(string nodeID, string url, string extension)
             {
-                (bool fileExists, string _) = GetAssetPath(nodeID, extension);
+                (bool fileExists, string test) = GetAssetPath(nodeID, extension);
 
-                Progress.SetStepLabel(progress, url);
+                Progress.SetStepLabel(progress, $"{url}");
 
-                Dictionary<string, string> responseHeaders = new();
-                Dictionary<string, string> requestHeaders = headers.ToDictionary(header => header.Key, header => header.Value);
-                if (fileExists && remaps.TryGetValue(nodeID, out string etag)) requestHeaders.Add("If-None-Match", $"\"{etag}\"");
+                HttpClient client = new();
+                foreach (KeyValuePair<string, string> header in headers) client.DefaultRequestHeaders.Add(header.Key, header.Value);
+                if (fileExists && remaps.TryGetValue(nodeID, out string etag)) client.DefaultRequestHeaders.Add("If-None-Match", $"\"{etag}\"");
+                HttpResponseMessage response = await client.GetAsync(url, token);
 
-                UnityWebRequest request = await url.HttpGetRequestAsync(requestHeaders, responseHeaders, cancellationToken: token);
-
-                if (responseHeaders.TryGetValue("ETag", out etag))
-                    remaps[nodeID] = etag.Trim('"');
+                if (response.Headers.TryGetValues("ETag", out IEnumerable<string> values))
+                    remaps[nodeID] = values.First().Trim('"');
 
                 (bool _, string assetPath) = GetAssetPath(nodeID, extension);
                 string relativePath = Path.Combine(relativeFolder, assetPath).Replace('\\', '/');
 
-                if (request.result == UnityWebRequest.Result.Success && request.responseCode == (long)HttpStatusCode.OK &&
-                    request.downloadHandler.data is { Length: > 0 } data) await File.WriteAllBytesAsync(relativePath, data, token);
+                if (response.StatusCode == HttpStatusCode.OK)
+                {
+                    byte[] bytes = await response.Content.ReadAsByteArrayAsync();
+                    switch (bytes.Length)
+                    {
+                        case 0:
+                            Debug.LogWarning($"Response is empty for node={nodeID}, url={url}");
+                            switch (extension)
+                            {
+                                case "svg":
+                                    await WriteInvalidSvgAsync(assetPath);
+                                    break;
+
+                                default:
+                                    await WriteInvalidPngAsync(assetPath);
+                                    break;
+                            }
+                            break;
+
+                        default:
+                            await File.WriteAllBytesAsync(relativePath, bytes, token);
+                            break;
+                    }
+                }
             }
             async Task WriteGradientsAsync(int progress, CancellationToken token)
             {
