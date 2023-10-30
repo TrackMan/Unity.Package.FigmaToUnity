@@ -233,6 +233,7 @@ namespace Figma.Inspectors
 
                 Progress.SetStepLabel(progress, $"{url}");
 
+                // Using HttpClient here instead of UnityWebRequest because using of UnityWebRequest causes deadlock
                 HttpClient client = new();
                 foreach (KeyValuePair<string, string> header in headers) client.DefaultRequestHeaders.Add(header.Key, header.Value);
                 if (fileExists && remaps.TryGetValue(nodeID, out string etag)) client.DefaultRequestHeaders.Add("If-None-Match", $"\"{etag}\"");
