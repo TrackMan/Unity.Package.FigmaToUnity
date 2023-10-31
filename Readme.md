@@ -1,7 +1,7 @@
 > [!WARNING]
 > **Experimental Release**: This plugin is currently in an experimental phase and is provided "as is" without warranty of any kind. It was originally developed for internal use and may contain issues or limitations. Use it at your own risk. Feedback and contributions are welcome but please keep in mind the experimental nature of this tool.
 
-[video](https://github.com/TrackMan/Unity.Package.FigmaToUnity/assets/22183046/59423710-61af-44b0-b233-47216881c051)
+[output.webm](https://github.com/TrackMan/Unity.Package.FigmaForUnity/assets/22183046/59423710-61af-44b0-b233-47216881c051)
 
 # Overview
 FigmaToUnity is a specialized Unity tool that streamlines the UI development process by enabling the direct import of Figma page documents into Unity. The tool automatically converts Figma designs into UI Toolkit assets, allowing for quick and accurate integration of UI interfaces into your Unity games.
@@ -73,12 +73,12 @@ To start using Figma Inspector, a Figma Personal Access Token is needed for API 
 4. Locate the Figma script in Unity's Inspector.
 5. Paste the token into the designated field.
 
-## Figma class (TOBEREVIEWED)
+## Figma class
 During the update process the Figma class retrieves data based on the Uxml and Query attributes of the Element scripts. It then utilizes this data while producing UXML asset.
 > [!WARNING]
 > Element scripts should be attached to the same game object to which the Figma script is also attached.
 
-## Element class (OnInitialize, OnRebuild, Custom Elements) (TOBEREVIEWED)
+## Element class (OnInitialize, OnRebuild, Custom Elements)
 The Uxml and Query attributes define the structure of the Uxml asset and, consequently, the appearance of your UI.
 The type of the field following the Query attribute defines the UI element itself and, consequently, its behavior (VisualElement, Button, Label, etc.). Field types are written into UXML. Therefore, if you change the field type (for example, from VisualElement to Button), you will need to perform a Figma Update to regenerate the UXML.
 Each element can override OnInitialize and OnRebuild methods which can be used to do any initial setup operations.
