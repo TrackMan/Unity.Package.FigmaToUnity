@@ -11,5 +11,5 @@
   },
   "author": "TrackMan",
   "type": "trackman.package",
-  "hideInEditor": false
+  "hideInEditor": "false"
 }
