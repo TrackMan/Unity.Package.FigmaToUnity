@@ -10,6 +10,5 @@
     "com.trackman.commonutils": "3.8.0"
   },
   "author": "TrackMan",
-  "type": "trackman.package",
-  "hideInEditor": "false"
+  "type": "trackman.package"
 }
