@@ -19,15 +19,19 @@ FigmaToUnity is a specialized Unity tool that streamlines the UI development pro
 1. Open `Window > Package Manager`
 2. Click the `+` button in the top-left corner
 3. Choose `Add package from git URL...`
-4. Enter https://github.com/TrackMan/Unity.Package.FigmaForUnity.git
+4. Enter https://github.com/TrackMan/Unity.Package.AsyncAwaitUtil.git
+5. Click the `+` button in the top-left corner
+6. Choose `Add package from git URL...`
+7. Enter https://github.com/TrackMan/Unity.Package.CommonUtils.git
+8. Click the `+` button in the top-left corner
+9. Choose `Add package from git URL...`
+10. Enter https://github.com/TrackMan/Unity.Package.FigmaForUnity.git
 
 # Dependencies
 To integrate these dependencies, you must either manually include them in your project's manifest file or ensure they are automatically resolved through Unity's Package Manager registry.
 
-- [Newtonsoft.Json 13.0.1](https://docs.unity3d.com/Packages/com.unity.vectorgraphics@2.0/manual/index.html)
-- [Unity Vector Graphics 2.0.0-preview.21](https://docs.unity3d.com/Packages/com.unity.vectorgraphics@2.0/manual/index.html)
 - [Async Await Util 1.0.6](https://github.com/TrackMan/Unity.Package.AsyncAwaitUtil)
-- [Common Utils 3.7.0](https://github.com/TrackMan/Unity.Package.CommonUtils)
+- [Common Utils 3.8.0](https://github.com/TrackMan/Unity.Package.CommonUtils)
 
 # Quick Start
 - Finish [Installing](#installing)
