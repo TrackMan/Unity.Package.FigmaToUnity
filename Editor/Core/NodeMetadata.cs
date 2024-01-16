@@ -306,7 +306,7 @@ namespace Figma
             catch (Exception exception)
             {
                 Debug.LogWarning(exception);
-                throw exception;
+                throw;
             }
         }
         BaseNodeMetadata GetMetadata(BaseNode value)

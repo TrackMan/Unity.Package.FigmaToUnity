@@ -1,4 +1,6 @@
 ﻿
+// ReSharper disable InconsistentNaming
+
 namespace Figma
 {
     namespace global

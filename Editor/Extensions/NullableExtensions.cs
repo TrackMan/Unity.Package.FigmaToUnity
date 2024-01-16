@@ -3,9 +3,6 @@ using System.Diagnostics;
 
 namespace Figma
 {
-    using boolean = Boolean;
-    using number = Double;
-
     [DebuggerStepThrough]
     public static class NullableExtensions
     {
