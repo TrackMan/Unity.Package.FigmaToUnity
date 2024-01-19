@@ -14,6 +14,7 @@ namespace Figma
 {
     using boolean = Boolean;
     using number = Double;
+    using VariableAlias = Object;
 
     namespace global
     {
@@ -130,6 +131,7 @@ namespace Figma
             public boolean? visible;
             public number? opacity;
             public BlendMode? blendMode;
+            public Dictionary<string, VariableAlias> boundVariables;
         }
 
         public class GradientPaint : Paint
@@ -674,6 +676,7 @@ namespace Figma
             #region Properties
             public boolean? visible { get; set; }
             public boolean? locked { get; set; }
+            public Dictionary<string, VariableAlias> boundVariables { get; set; }
             #endregion
         }
 
