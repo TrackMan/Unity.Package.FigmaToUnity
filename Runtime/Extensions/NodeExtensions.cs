@@ -320,7 +320,10 @@ namespace Figma
                 if (valueResolvedStyle.opacity != sourceResolvedStyle.opacity) style.opacity = sourceResolvedStyle.opacity;
                 if (valueResolvedStyle.visibility != sourceResolvedStyle.visibility) style.visibility = sourceResolvedStyle.visibility;
                 if (valueResolvedStyle.unityBackgroundImageTintColor != sourceResolvedStyle.unityBackgroundImageTintColor) style.unityBackgroundImageTintColor = sourceResolvedStyle.unityBackgroundImageTintColor;
-                if (valueResolvedStyle.unityBackgroundScaleMode != sourceResolvedStyle.unityBackgroundScaleMode) style.unityBackgroundScaleMode = sourceResolvedStyle.unityBackgroundScaleMode;
+                if (valueResolvedStyle.backgroundPositionX != sourceResolvedStyle.backgroundPositionX) style.backgroundPositionX = sourceResolvedStyle.backgroundPositionX;
+                if (valueResolvedStyle.backgroundPositionY != sourceResolvedStyle.backgroundPositionY) style.backgroundPositionY = sourceResolvedStyle.backgroundPositionY;
+                if (valueResolvedStyle.backgroundRepeat != sourceResolvedStyle.backgroundRepeat) style.backgroundRepeat = sourceResolvedStyle.backgroundRepeat;
+                if (valueResolvedStyle.backgroundSize != sourceResolvedStyle.backgroundSize) style.backgroundSize = sourceResolvedStyle.backgroundSize;
                 if (valueResolvedStyle.backgroundImage != sourceResolvedStyle.backgroundImage) style.backgroundImage = sourceResolvedStyle.backgroundImage;
                 if (valueResolvedStyle.backgroundColor != sourceResolvedStyle.backgroundColor) style.backgroundColor = sourceResolvedStyle.backgroundColor;
                 if (valueResolvedStyle.color != sourceResolvedStyle.color) style.color = sourceResolvedStyle.color;
@@ -438,7 +441,10 @@ namespace Figma
                 if (sourceStyle.backgroundImage.keyword != StyleKeyword.Null && valueStyle.backgroundImage != sourceStyle.backgroundImage) valueStyle.backgroundImage = sourceStyle.backgroundImage;
                 if (sourceStyle.backgroundColor.keyword != StyleKeyword.Null && valueStyle.backgroundColor != sourceStyle.backgroundColor) valueStyle.backgroundColor = sourceStyle.backgroundColor;
                 if (sourceStyle.unityBackgroundImageTintColor.keyword != StyleKeyword.Null && valueStyle.unityBackgroundImageTintColor != sourceStyle.unityBackgroundImageTintColor) valueStyle.unityBackgroundImageTintColor = sourceStyle.unityBackgroundImageTintColor;
-                if (sourceStyle.unityBackgroundScaleMode.keyword != StyleKeyword.Null && valueStyle.unityBackgroundScaleMode != sourceStyle.unityBackgroundScaleMode) valueStyle.unityBackgroundScaleMode = sourceStyle.unityBackgroundScaleMode;
+                if (sourceStyle.backgroundPositionX.keyword != StyleKeyword.Null && valueStyle.backgroundPositionX != sourceStyle.backgroundPositionX) valueStyle.backgroundPositionX = sourceStyle.backgroundPositionX;
+                if (sourceStyle.backgroundPositionY.keyword != StyleKeyword.Null && valueStyle.backgroundPositionY != sourceStyle.backgroundPositionY) valueStyle.backgroundPositionY = sourceStyle.backgroundPositionY;
+                if (sourceStyle.backgroundRepeat.keyword != StyleKeyword.Null && valueStyle.backgroundRepeat != sourceStyle.backgroundRepeat) valueStyle.backgroundRepeat = sourceStyle.backgroundRepeat;
+                if (sourceStyle.backgroundSize.keyword != StyleKeyword.Null && valueStyle.backgroundSize != sourceStyle.backgroundSize) valueStyle.backgroundSize = sourceStyle.backgroundSize;
             }
 
             if (copyMask.HasFlag(CopyStyleMask.Padding))

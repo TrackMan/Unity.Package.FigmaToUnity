@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using System.Xml;
 using UnityEngine;
 using Trackman;
+using UnityEngine.UIElements;
 
 // ReSharper disable UnusedMember.Local
 // ReSharper disable UnusedParameter.Local
@@ -129,13 +130,6 @@ namespace Figma
                 Italic,
                 Bold,
                 BoldAndItalic
-            }
-
-            enum ScaleMode
-            {
-                StretchToFill,
-                ScaleAndCrop,
-                ScaleToFit
             }
 
             enum TextAlign
@@ -588,7 +582,10 @@ namespace Figma
             // Background
             ColorProperty backgroundColor { get => Get("background-color"); set => Set("background-color", value); }
             AssetProperty backgroundImage { get => Get("background-image"); set => Set("background-image", value); }
-            EnumProperty<ScaleMode> unityBackgroundScaleMode { get => Get("-unity-background-scale-mode"); set => Set("-unity-background-scale-mode", value); }
+            EnumProperty<BackgroundPositionKeyword> unityBackgroundPositionX { get => Get("background-position-x"); set => Set("background-position-x", value); }
+            EnumProperty<BackgroundPositionKeyword> unityBackgroundPositionY { get => Get("background-position-y"); set => Set("background-position-y", value); }
+            EnumProperty<Repeat> unityBackgroundRepeat { get => Get("background-repeat"); set => Set("background-repeat", value); }
+            EnumProperty<BackgroundSizeType> unityBackgroundSize { get => Get("background-size"); set => Set("background-size", value); }
             ColorProperty unityBackgroundImageTintColor { get => Get("-unity-background-image-tint-color"); set => Set("-unity-background-image-tint-color", value); }
             // Slicing
             IntegerProperty unitySliceLeft { get => Get("-unity-slice-left"); set => Set("-unity-slice-left", value); }
@@ -642,6 +639,9 @@ namespace Figma
                         unityFontDefinition = Unit.Initial;
                         justifyContent = JustifyContent.Center;
                         alignItems = Align.Center;
+                        unityBackgroundPositionX = BackgroundPositionKeyword.Center;
+                        unityBackgroundPositionY = BackgroundPositionKeyword.Center;
+                        unityBackgroundRepeat = Repeat.NoRepeat;
                         break;
 
                     case viewportClass:
@@ -1408,12 +1408,12 @@ namespace Figma
 
                         switch (image.scaleMode)
                         {
-                            case global.ScaleMode.FILL:
-                                unityBackgroundScaleMode = ScaleMode.ScaleAndCrop;
+                            case ScaleMode.FILL:
+                                unityBackgroundSize = BackgroundSizeType.Cover;
                                 break;
 
-                            case global.ScaleMode.FIT:
-                                unityBackgroundScaleMode = ScaleMode.ScaleToFit;
+                            case ScaleMode.FIT:
+                                unityBackgroundSize = BackgroundSizeType.Contain;
                                 break;
                         }
                     }
