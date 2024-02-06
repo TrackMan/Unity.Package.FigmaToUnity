@@ -35,7 +35,7 @@ namespace Figma
 
         public enum TriggerType { ON_CLICK, ON_HOVER, ON_PRESS, ON_DRAG, AFTER_TIMEOUT, MOUSE_ENTER, MOUSE_LEAVE, MOUSE_UP, MOUSE_DOWN }
 
-        public enum EasingType { EASE_IN, EASE_OUT, EASE_IN_AND_OUT, LINEAR, SLOW }
+        public enum EasingType { EASE_IN, EASE_OUT, EASE_IN_AND_OUT, LINEAR, SLOW, CUSTOM_SPRING }
 
         public enum LayoutAlign { CENTER, MIN, MAX, STRETCH, INHERIT }
 
