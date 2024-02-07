@@ -27,11 +27,22 @@ FigmaToUnity is a specialized Unity tool that streamlines the UI development pro
 9. Choose `Add package from git URL...`
 10. Enter https://github.com/TrackMan/Unity.Package.FigmaForUnity.git
 
-# Dependencies
+## Dependencies
 To integrate these dependencies, you must either manually include them in your project's manifest file or ensure they are automatically resolved through Unity's Package Manager registry.
 
 - [Async Await Util 1.0.6](https://github.com/TrackMan/Unity.Package.AsyncAwaitUtil)
 - [Common Utils 3.8.0](https://github.com/TrackMan/Unity.Package.CommonUtils)
+
+## Personal Access Token
+To start using [Figma Inspector](#Figma-Inspector), a Figma Personal Access Token is needed for API calls.
+> [!WARNING]
+> The token is stored in raw format.
+
+1. Visit the [Figma API Authentication Page](https://www.figma.com/developers/api?fuid=797042793200923967#authentication).
+2. Click + Get personal access token to generate the token.
+3. Copy the generated token.
+4. Locate the Figma script in [Unity's Inspector](#Figma-Inspector).
+5. Paste the token into the designated field.
 
 # Quick Start
 - Finish [Installing](#installing)
@@ -40,6 +51,7 @@ To integrate these dependencies, you must either manually include them in your p
 - Go to `Figma` GameObject
 - In the `Title`, enter the title of your Figma document (ie dfeQabSU71CHXVqweameSF) from Figma website ([some templates](https://www.figma.com/community/files))
 - Go to `Test.cs` and edit the UXML attribute to points to your Page/Element path
+- Configure [Personal Access Token](#Personal-Access-Token) in [Unity's Inspector](#Figma-Inspector)
 - Click `Update UI & Images`
 - Save the `VisualAssetTree` somewhere
 - Start `playmode` and enjoy!
@@ -66,16 +78,6 @@ These components serve a dual purpose:
 | **De-root and Re-order Hierarchy** | Adjusts the organization of all frames based on each element's RootOrder property, optimizing the UI hierarchy.                                                                                        |
 | **Filter by Path**                 | When activated, this feature limits the download to only those UI frames that have associated scripts attached to the prefab, otherwise, all UI elements within the Figma document will be downloaded. |
 | **Additional Fonts Directories**   | Provides the capability to specify paths to any fonts that are incorporated within the UI, ensuring seamless visual consistency.                                                                       |
-
-To start using Figma Inspector, a Figma Personal Access Token is needed for API calls.
-> [!WARNING]
-> The token is stored in raw format.
-
-1. Visit the [Figma API Authentication Page](https://www.figma.com/developers/api?fuid=797042793200923967#authentication).
-2. Click + Get personal access token to generate the token.
-3. Copy the generated token.
-4. Locate the Figma script in Unity's Inspector.
-5. Paste the token into the designated field.
 
 ## Figma class
 During the update process the Figma class retrieves data based on the Uxml and Query attributes of the Element scripts. It then utilizes this data while producing UXML asset.
