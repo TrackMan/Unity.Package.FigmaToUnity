@@ -550,6 +550,7 @@ namespace Figma
 
         public class ComponentSetNode : DefaultFrameNode
         {
+            public object componentPropertyDefinitions;
         }
 
         public class ComponentNode : DefaultFrameNode
