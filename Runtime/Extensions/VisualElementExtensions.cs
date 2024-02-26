@@ -12,6 +12,10 @@ namespace Figma
         static Dictionary<(VisualElement prefab, VisualElement parent), IList> cloneDictionary = new();
         #endregion
 
+        #region Constructors
+        static VisualElementExtensions() => DisposeStatic.OnDisposeStatic += () => cloneDictionary.Clear();
+        #endregion
+
         #region Methods
         public static bool HasVisibility(this VisualElement element) => element.style.visibility == Visibility.Visible;
         public static void MakeVisible(this VisualElement element) => element.style.visibility = Visibility.Visible;

@@ -39,6 +39,16 @@ namespace Figma
         public static Action<VisualElement> OnRebuildElement { get; set; }
         #endregion
 
+        #region Constructors
+        static VisualElementMetadata() => DisposeStatic.OnDisposeStatic += () =>
+        {
+            rootMetadata.Clear();
+            search.Clear();
+            cloneMap.Clear();
+            hide.Clear();
+        };
+        #endregion
+
         #region Methods
         public static void Initialize(UIDocument document, IEnumerable<IRootElement> targets)
         {
