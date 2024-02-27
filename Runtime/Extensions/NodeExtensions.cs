@@ -533,6 +533,8 @@ namespace Figma
 
             await Awaiters.EndOfFrame;
 
+            if (!value.IsShowing()) return;
+
             VisualElement parent = value.parent;
             if (parent is null) return;
 
@@ -540,6 +542,7 @@ namespace Figma
             if (spacing.Invalid()) return;
 
             IEnumerable<VisualElement> children = parent.Children().Where(x => x.resolvedStyle.display == DisplayStyle.Flex);
+            if (!children.Any()) return;
 
             bool horizontalDirection = parent.resolvedStyle.flexDirection == FlexDirection.Row;
             bool fixedSize = parent.resolvedStyle.flexWrap == Wrap.Wrap;
