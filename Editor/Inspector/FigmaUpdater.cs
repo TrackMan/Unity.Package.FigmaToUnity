@@ -43,6 +43,12 @@ namespace Figma.Inspectors
 
                 textureImporter.npotScale = TextureImporterNPOTScale.None;
                 textureImporter.mipmapEnabled = false;
+                
+                TextureImporterPlatformSettings androidOverrides = textureImporter.GetPlatformTextureSettings("Android");
+                androidOverrides.overridden = true;
+                androidOverrides.format = TextureImporterFormat.ETC2_RGBA8Crunched;
+                androidOverrides.compressionQuality = 90;
+                textureImporter.SetPlatformTextureSettings(androidOverrides);
             }
             #endregion
         }
