@@ -5,7 +5,7 @@
   "version": "1.2.5",
   "unity": "2022.3",
   "dependencies": {
-    "com.unity.vectorgraphics": "2.0.0-preview.24",
+    "com.unity.vectorgraphics": "2.0.0-preview.21",
     "com.trackman.asyncawaitutil": "1.0.6",
     "com.trackman.commonutils": "3.8.0"
   },
