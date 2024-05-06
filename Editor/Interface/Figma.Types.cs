@@ -528,6 +528,7 @@ namespace Figma
                 public Paint[] fills;
                 public Dictionary<string, double> opentypeFlags;
                 public number? lineHeightPx;
+                public number? listSpacing;
                 public number? lineHeightPercent;
                 public number? lineHeightPercentFontSize;
                 public string lineHeightUnit;
