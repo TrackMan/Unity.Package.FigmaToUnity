@@ -775,11 +775,7 @@ namespace Figma
             {
                 stream.WriteLine($".{Name} {{");
 
-                if (Has("--unity-font-missing"))
-                {
-                    Debug.LogWarning($"Cannot find Font [<color=yellow>{attributes["--unity-font-missing"]}</color>]");
-                    attributes.Remove("--unity-font-missing");
-                }
+                if (Has("--unity-font-missing")) attributes.Remove("--unity-font-missing");
 
                 foreach (KeyValuePair<string, string> keyValue in attributes) stream.WriteLine($"    {keyValue.Key}: {keyValue.Value};");
 
@@ -1464,7 +1460,10 @@ namespace Figma
 
                     bool valid;
                     if (!TryGetFontWithExtension($"{style.fontFamily}-{weightPostfix}{italicPostfix}", out string resource, out string url) && !TryGetFontWithExtension(style.fontPostScriptName, out resource, out url))
+                    {
                         unityFontMissing = $"url('{url}')";
+                        Debug.LogWarning($"Cannot find Font [<color=yellow>{style.fontFamily}-{weightPostfix}{italicPostfix}</color>]");
+                    }
 
                     unityFont = resource;
                     (valid, url) = getAssetPath($"{style.fontFamily}-{weightPostfix}{italicPostfix}", "asset");

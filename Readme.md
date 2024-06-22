@@ -79,6 +79,24 @@ These components serve a dual purpose:
 | **Filter by Path**                 | When activated, this feature limits the download to only those UI frames that have associated scripts attached to the prefab, otherwise, all UI elements within the Figma document will be downloaded. |
 | **Additional Fonts Directories**   | Provides the capability to specify paths to any fonts that are incorporated within the UI, ensuring seamless visual consistency.                                                                       |
 
+## Folders Layout
+This is how the final setup should look:
+```
+<UI folder>
+  ├── UI.uxml
+  ├── UI.uss
+  ├── UI.asset
+  ├── remaps_UI.json
+  ├── Elements
+  │   └── CustomElement.uxml
+  ├── Images
+  │   ├── AmazingImage.svg
+  │   └── PerfectImage.png
+  └── Fonts
+      └── Inter-Regular.ttf
+```
+Please note that you need to place your **custom fonts** in a **'Fonts' folder**. If you try to import a Figma document that includes a font which does not exist in the 'Fonts' folder, you will see a message in the console indicating which font is missing. You can also add an additional fonts directory using the appropriate property in the Figma object.
+
 ## Figma class
 During the update process the Figma class retrieves data based on the Uxml and Query attributes of the Element scripts. It then utilizes this data while producing UXML asset.
 > [!WARNING]
@@ -271,4 +289,4 @@ element.Replace(newElement);
 - Various CodeGenerators
 - Search by name/class/path
 - Dragging items for scroll-view
-- Generation of the various states of Elements with states
+- Generation of the various states of Elements with states- Generation of the various states of Elements with states- Generation of the various states of Elements with states
