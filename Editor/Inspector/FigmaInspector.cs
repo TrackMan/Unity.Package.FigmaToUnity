@@ -33,6 +33,7 @@ namespace Figma.Inspectors
         SerializedProperty title;
         SerializedProperty filter;
         SerializedProperty reorder;
+        SerializedProperty waitFrameBeforeRebuild;
         SerializedProperty fontsDirs;
         UIDocument document;
         #endregion
@@ -51,6 +52,7 @@ namespace Figma.Inspectors
             title = serializedObject.FindProperty(nameof(title));
             filter = serializedObject.FindProperty(nameof(filter));
             reorder = serializedObject.FindProperty(nameof(reorder));
+            waitFrameBeforeRebuild = serializedObject.FindProperty(nameof(waitFrameBeforeRebuild));
             fontsDirs = serializedObject.FindProperty(nameof(fontsDirs));
             document = ((MonoBehaviour)target).GetComponent<UIDocument>();
         }
@@ -139,6 +141,7 @@ namespace Figma.Inspectors
             EditorGUILayout.PropertyField(reorder, new GUIContent("De-root and Re-order Hierarchy"));
             EditorGUILayout.PropertyField(filter, new GUIContent("Filter by Path"));
             EditorGUILayout.PropertyField(fontsDirs, new GUIContent("Additional Fonts Directories"));
+            EditorGUILayout.PropertyField(waitFrameBeforeRebuild, new GUIContent("Wait Frame Before Rebuild"));
             EditorGUI.BeginDisabledGroup(true);
 
             if (document && document.visualTreeAsset)

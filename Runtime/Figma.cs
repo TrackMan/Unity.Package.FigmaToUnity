@@ -15,6 +15,7 @@ namespace Figma
         [SerializeField] string title;
         [SerializeField] bool filter;
         [SerializeField] bool reorder;
+        [SerializeField] bool waitFrameBeforeRebuild = true;
         [SerializeField] string[] fontsDirs;
         #endregion
 
@@ -36,7 +37,7 @@ namespace Figma
 
             if (!Application.isPlaying) return;
 
-            await new WaitForEndOfFrame();
+            if (waitFrameBeforeRebuild) await new WaitForEndOfFrame();
             VisualElementMetadata.Rebuild(elements);
 
             VisualElement root = document.rootVisualElement.Q(UxmlAttribute.prefix);
