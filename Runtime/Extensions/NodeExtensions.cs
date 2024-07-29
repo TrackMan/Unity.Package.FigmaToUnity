@@ -11,7 +11,10 @@ using Debug = UnityEngine.Debug;
 // ReSharper disable MemberCanBePrivate.Global
 // ReSharper disable UnusedMember.Global
 
-namespace System.Runtime.CompilerServices { public class IsExternalInit { } }
+namespace System.Runtime.CompilerServices
+{
+    public class IsExternalInit { }
+}
 
 namespace Figma
 {
@@ -535,6 +538,7 @@ namespace Figma
                 foreach (VisualElement child in children)
                 {
                     if (child == value) return index;
+
                     index++;
                 }
 
@@ -593,16 +597,19 @@ namespace Figma
         static VisualElement FindRoot(VisualElement value)
         {
             if (rootMetadata.ContainsKey(value)) return value;
+
             return value.parent is not null ? FindRoot(value.parent) : default;
         }
         static (VisualElement value, string path) FindRoot(VisualElement value, string path)
         {
             if (rootMetadata.ContainsKey(value)) return (value, path);
+
             if (value.parent is not null)
             {
                 string name = value.name.Split($" {nameof(VisualElement)}:", StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? value.name;
                 return FindRoot(value.parent, path.NotNullOrEmpty() ? Path.Combine(name, path) : name);
             }
+
             throw new ArgumentException();
         }
 
@@ -666,6 +673,7 @@ namespace Figma
                 {
                     MethodInfo methodInfo = targetType.GetMethod(name, MethodsFlags);
                     if (methodInfo != null) return (EventCallback<TEventType>)Delegate.CreateDelegate(typeof(EventCallback<TEventType>), target, methodInfo.Name, true);
+
                     throw new NotSupportedException();
                 }
 
@@ -684,12 +692,14 @@ namespace Figma
             void AddClicked(VisualElement value, QueryAttribute query)
             {
                 if (!query.Clicked.NotNullOrEmpty() || value is not Button button) return;
+
                 MethodInfo methodInfo = targetType.GetMethod(query.Clicked, BindingFlags.NonPublic | BindingFlags.Instance);
                 if (methodInfo != null) button.clicked += (Action)Delegate.CreateDelegate(typeof(Action), target, methodInfo.Name, true);
             }
             void AddTemplate(VisualElement value, QueryAttribute query)
             {
                 if (!query.Template.NotNullOrEmpty()) return;
+
                 if (query.Template == "Hash")
                 {
                     cloneMap.Add(value, value.tooltip);
@@ -707,7 +717,9 @@ namespace Figma
                     VisualElement FindIn(VisualElement root)
                     {
                         if (query is null) throw new ArgumentNullException();
+
                         if (queryRoot is not null && !ReferenceEquals(queryRoot, query)) return root.Find(queryRoot.Path, queryRoot.ClassName, throwException, silent)?.Find(query.Path, query.ClassName, throwException, silent);
+
                         return root.Find(query.Path, query.ClassName, throwException);
                     }
 
@@ -748,6 +760,7 @@ namespace Figma
                     if (valueType != field.FieldType && valueType.IsAssignableFrom(field.FieldType) && field.FieldType != typeof(VisualElement))
                     {
                         if (throwException) throw new Exception($"Element `{value.name}` of type=[{value.GetType()}] cannot be inserted into `{field.Name}` with type=[{field.FieldType}]");
+
                         if (!silent) Debug.LogWarning($"[{nameof(VisualElementMetadata)}] Element `{value.name}` of type=[{value.GetType()}] cannot be inserted into `{field.Name}` with type=[{field.FieldType}]");
                         return default;
                     }
@@ -772,6 +785,7 @@ namespace Figma
             {
                 QueryAttribute query = field.GetCustomAttribute<QueryAttribute>();
                 if (query is null) continue;
+
                 if (query.StartRoot) queryRoot = query;
 
                 VisualElement element = InitializeElement(field, queryRoot, query);

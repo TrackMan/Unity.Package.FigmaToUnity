@@ -184,6 +184,7 @@ namespace Figma
                     if (value.Contains("px")) return new LengthProperty(number.Parse(value.ToLower().Replace("px", ""), culture), Unit.Pixel);
                     if (value.Contains("deg")) return new LengthProperty(number.Parse(value.ToLower().Replace("deg", ""), culture), Unit.Degrees);
                     if (value.Contains('%')) return new LengthProperty(number.Parse(value.Replace("%", ""), culture), Unit.Percent);
+
                     return default;
                 }
                 public static implicit operator string(LengthProperty value)
@@ -311,6 +312,7 @@ namespace Figma
                     if (value.rgb.NotNullOrEmpty()) return value.rgb;
                     if (value.hex.NotNullOrEmpty()) return value.hex;
                     if (value.name.NotNullOrEmpty()) return value.name;
+
                     return "initial";
                 }
                 public override string ToString() => this;
@@ -354,6 +356,7 @@ namespace Figma
                 {
                     if (value.url.NotNullOrEmpty()) return value.url;
                     if (value.resource.NotNullOrEmpty()) return value.resource;
+
                     return value.unit switch
                     {
                         Unit.None => "none",
@@ -1023,6 +1026,7 @@ namespace Figma
                     if ((layout.relativeTransform[0][0] == 1 && layout.relativeTransform[0][0] == 0 &&
                          layout.relativeTransform[0][0] == 0 && layout.relativeTransform[1][1] == 1) || !layout.relativeTransform[0][0].HasValue ||
                         !layout.relativeTransform[0][1].HasValue || !layout.relativeTransform[1][0].HasValue || !layout.relativeTransform[1][1].HasValue) return;
+
                     float m00 = (float)layout.relativeTransform[0][0].Value;
                     float m01 = (float)layout.relativeTransform[0][1].Value;
                     int rotation = Mathf.RoundToInt(Mathf.Rad2Deg * Mathf.Acos(m00 / Mathf.Sqrt(m00 * m00 + m01 * m01)));
@@ -1046,6 +1050,7 @@ namespace Figma
                     AddFillStyle(mixin.fills);
 
                     if (mixin.strokes.Length == 0) return;
+
                     AddStrokeFillStyle(mixin.strokes);
 
                     if (!mixin.strokeWeight.HasValue) return;
@@ -1069,9 +1074,11 @@ namespace Figma
                         layout.absoluteBoundingBox = new Rect(layout.absoluteBoundingBox.x, layout.absoluteBoundingBox.y, width, height);
 
                     if (geometry.strokes.Length == 0 || geometry.strokeWeight is not > 0) return;
+
                     layout.absoluteBoundingBox = new Rect(layout.absoluteBoundingBox.x - geometry.strokeWeight.Value / 2, layout.absoluteBoundingBox.y, layout.absoluteBoundingBox.width, layout.absoluteBoundingBox.height);
 
                     if (geometry.strokeCap is null or StrokeCap.NONE) return;
+
                     layout.absoluteBoundingBox = new Rect(layout.absoluteBoundingBox.x, layout.absoluteBoundingBox.y - geometry.strokeWeight.Value / 2, layout.absoluteBoundingBox.width, layout.absoluteBoundingBox.height);
                 }
                 void AddSizeByParentAutoLayoutFromAutoLayout(DefaultFrameMixin frame)
@@ -1531,11 +1538,13 @@ namespace Figma
                 }
 
                 if (Has(name)) return attributes[name];
+
                 throw new NotSupportedException();
             }
             string Get4(string name, params string[] names)
             {
                 if (Has(name)) return attributes[name];
+
                 LengthProperty[] properties = new LengthProperty[4];
                 for (int i = 0; i < 4; ++i)
                 {
@@ -1632,6 +1641,7 @@ namespace Figma
             void Write(UssStyle style)
             {
                 if (!style.HasAttributes) return;
+
                 if (count > 0)
                 {
                     uss.WriteLine();
@@ -2046,6 +2056,7 @@ namespace Figma
             if (!enabledInHierarchy(node)) return;
 
             if (node is BooleanOperationNode) return;
+
             if (!IsSvgNode(node) && HasImageFill(node)) ImageFillNodes.Add(node);
 
             if (node is ChildrenMixin children)
@@ -2103,6 +2114,7 @@ namespace Figma
             }
 
             if (node is not ChildrenMixin children) return;
+
             foreach (SceneNode child in children.children)
                 AddGradientsRecursively(child, enabledInHierarchy);
         }
@@ -2194,6 +2206,7 @@ namespace Figma
         UssStyle GetStyle(BaseNode node)
         {
             if (componentStyleMap.TryGetValue(node, out UssStyle style)) return style;
+
             return nodeStyleMap.TryGetValue(node, out style) ? style : default;
         }
         void InheritStylesRecursively(BaseNode node)
@@ -2328,6 +2341,7 @@ namespace Figma
         static bool IsVisible(BaseNodeMixin mixin)
         {
             if (mixin is SceneNodeMixin scene && scene.visible.HasValueAndFalse()) return false;
+
             return mixin.parent is null || IsVisible(mixin.parent);
         }
         static bool HasImageFill(BaseNodeMixin mixin) => mixin is GeometryMixin geometry && geometry.fills.Any(x => x is ImagePaint);

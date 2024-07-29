@@ -43,7 +43,7 @@ namespace Figma.Inspectors
 
                 textureImporter.npotScale = TextureImporterNPOTScale.None;
                 textureImporter.mipmapEnabled = false;
-                
+
                 TextureImporterPlatformSettings androidOverrides = textureImporter.GetPlatformTextureSettings("Android");
                 androidOverrides.overridden = true;
                 androidOverrides.format = TextureImporterFormat.ETC2_RGBA8Crunched;
@@ -168,6 +168,7 @@ namespace Figma.Inspectors
                 Debug.LogWarning($"Removing obsolete image {relativePath}");
                 FileUtil.DeleteFileOrDirectory(path);
             }
+
             foreach (string path in Directory.GetFiles(Path.Combine(folder, elements), "*.svg"))
             {
                 string filename = Path.GetFileName(path);
@@ -268,6 +269,7 @@ namespace Figma.Inspectors
                                     await WriteInvalidPngAsync(assetPath);
                                     break;
                             }
+
                             break;
 
                         default:
@@ -443,6 +445,7 @@ namespace Figma.Inspectors
             {
                 case "png":
                     if (!valid) return (false, -1, -1);
+
                     TextureImporter importer = (TextureImporter)AssetImporter.GetAtPath(Path.Combine(relativeFolder, path));
                     importer.GetSourceTextureWidthAndHeight(out int width, out int height);
                     return (true, width, height);

@@ -15,6 +15,7 @@ namespace Figma
             {
                 if (path[startIndex + i].IsSeparator() && value[i].IsSeparator()) continue;
                 if (path[startIndex + i] == value[i]) continue;
+
                 return false;
             }
 
@@ -29,6 +30,7 @@ namespace Figma
             {
                 if (path[startIndex + i].IsSeparator() && value[i].IsSeparator()) continue;
                 if (path[startIndex + i] == value[i]) continue;
+
                 return false;
             }
 

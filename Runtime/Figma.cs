@@ -46,6 +46,7 @@ namespace Figma
             foreach (IRootElement element in elements.OrderBy(x => x.RootOrder))
             {
                 if (element.Root is null) continue;
+
                 element.Root.RemoveFromHierarchy();
                 root.Add(element.Root);
             }

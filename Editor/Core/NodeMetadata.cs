@@ -16,8 +16,10 @@ namespace Figma
     {
         #region Containers
         record RootMetadata(bool filter, UxmlAttribute uxml, UxmlDownloadImages downloadImages);
+
         // ReSharper disable once NotAccessedPositionalProperty.Global
         record QueryMetadata(Type fieldType, QueryAttribute query);
+
         record BaseNodeMetadata(RootMetadata root, QueryMetadata query);
         #endregion
 
@@ -39,9 +41,7 @@ namespace Figma
                 void InitializeElement(Type type, BaseNode rootNode)
                 {
                     BaseNode FindNodeByQuery(QueryAttribute queryRoot, QueryAttribute query, bool throwException) =>
-                        queryRoot is not null && !ReferenceEquals(queryRoot, query) && Find(rootNode, queryRoot.Path, throwException, silent) is { } queryRootNode ?
-                            Find(queryRootNode, query.Path, throwException, silent) :
-                            Find(rootNode, query.Path, throwException, silent);
+                        queryRoot is not null && !ReferenceEquals(queryRoot, query) && Find(rootNode, queryRoot.Path, throwException, silent) is { } queryRootNode ? Find(queryRootNode, query.Path, throwException, silent) : Find(rootNode, query.Path, throwException, silent);
 
                     QueryAttribute queryRoot = default;
                     foreach (FieldInfo field in type.GetFields(FieldsFlags))
@@ -49,6 +49,7 @@ namespace Figma
                         Type fieldType = field.FieldType;
                         QueryAttribute query = field.GetCustomAttribute<QueryAttribute>();
                         if (query is null) continue;
+
                         if (query.StartRoot) queryRoot = query;
 
                         BaseNode node = FindNodeByQuery(queryRoot, query, throwExceptions && !query.Nullable && query.ReplaceElementPath.NullOrEmpty() && query.RebuildElementEvent.NullOrEmpty());
@@ -88,6 +89,7 @@ namespace Figma
             if (metadata.query is null) return shouldDownload;
             if (metadata.query.query.ImageFiltering == ElementDownloadImage.Download) return true;
             if (metadata.query.query.ImageFiltering == ElementDownloadImage.Ignore) return false;
+
             return shouldDownload;
         }
         internal (bool hash, string value) GetTemplate(BaseNode node)
@@ -174,9 +176,9 @@ namespace Figma
 
             BaseNodeMetadata metadata = GetMetadata(node);
             return metadata.root is not null && metadata.root.filter &&
-                   metadata.root.uxml.TypeIdentification == UxmlElementTypeIdentification.ByElementType && metadata.query is not null ?
-                (FieldTypeToElementType(metadata.query.fieldType), metadata.query.fieldType!.FullName!.Replace("+", ".")) :
-                (ElementType.None, default);
+                   metadata.root.uxml.TypeIdentification == UxmlElementTypeIdentification.ByElementType && metadata.query is not null
+                ? (FieldTypeToElementType(metadata.query.fieldType), metadata.query.fieldType!.FullName!.Replace("+", "."))
+                : (ElementType.None, default);
         }
         #endregion
 
@@ -207,6 +209,7 @@ namespace Figma
                     static bool IsVisible(BaseNodeMixin mixin)
                     {
                         if (mixin is SceneNodeMixin scene && scene.visible.HasValueAndFalse()) return false;
+
                         return mixin.parent is null || IsVisible(mixin.parent);
                     }
                     static IReadOnlyCollection<BaseNode> GetChildren(BaseNode value)
@@ -222,6 +225,7 @@ namespace Figma
                                 children.AddRange(childrenMixin.children);
                                 break;
                         }
+
                         return children;
                     }
                     IReadOnlyCollection<BaseNode> children = GetChildren(value);
@@ -241,6 +245,7 @@ namespace Figma
                     static bool IsVisible(BaseNodeMixin mixin)
                     {
                         if (mixin is SceneNodeMixin scene && scene.visible.HasValueAndFalse()) return false;
+
                         return mixin.parent is null || IsVisible(mixin.parent);
                     }
                     static IReadOnlyCollection<BaseNode> GetChildren(BaseNode value)
@@ -249,6 +254,7 @@ namespace Figma
                         if (value is DocumentNode documentNode) children.AddRange(documentNode.children);
                         else if (value is ChildrenMixin childrenMixin) children.AddRange(childrenMixin.children);
                         else return children;
+
                         return children;
                     }
                     IReadOnlyCollection<BaseNode> children = GetChildren(value);
@@ -323,6 +329,7 @@ namespace Figma
                             BaseNode node = FindRootInChildren(child);
                             if (node is not null) return node;
                         }
+
                         break;
 
                     case ChildrenMixin children:
@@ -331,6 +338,7 @@ namespace Figma
                             BaseNode node = FindRootInChildren(child);
                             if (node is not null) return node;
                         }
+
                         break;
                 }
 

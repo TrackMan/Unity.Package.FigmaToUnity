@@ -1,4 +1,3 @@
-
 namespace Figma
 {
     public enum ElementType

@@ -17,10 +17,7 @@ namespace Figma
             [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
             public static void Initialize()
             {
-                JsonSerializerSettings settings = new()
-                {
-                    NullValueHandling = NullValueHandling.Ignore
-                };
+                JsonSerializerSettings settings = new() { NullValueHandling = NullValueHandling.Ignore };
                 settings.Converters.Add(new EffectArrayConverter());
                 settings.Converters.Add(new PaintArrayConverter());
                 settings.Converters.Add(new LayoutGridArrayConverter());
@@ -192,8 +189,6 @@ namespace Figma
             #endregion
         }
 
-        public class FigmaGeneration
-        {
-        }
+        public class FigmaGeneration { }
     }
 }

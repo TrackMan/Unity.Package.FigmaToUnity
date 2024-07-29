@@ -19,6 +19,7 @@ namespace Figma
                         canvas.parent = node;
                         SetParentRecursively(canvas);
                     }
+
                     break;
 
                 case ChildrenMixin { children: not null } children:
@@ -27,6 +28,7 @@ namespace Figma
                         child.parent = node;
                         SetParentRecursively(child);
                     }
+
                     break;
             }
         }

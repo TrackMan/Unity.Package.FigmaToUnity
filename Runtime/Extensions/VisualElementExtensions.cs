@@ -54,6 +54,7 @@ namespace Figma
         public static List<TVisualElement> GetElements<TVisualElement>(this TVisualElement prefab, VisualElement parent) where TVisualElement : VisualElement
         {
             if (EnsureList(prefab, parent) is List<TVisualElement> list) return list;
+
             throw new ArgumentException($"Casting from {typeof(List<TVisualElement>)} to {cloneDictionary[(prefab, parent)]}");
         }
         public static List<VisualElement> GetElements(this VisualElement prefab) => GetElements<VisualElement>(prefab);

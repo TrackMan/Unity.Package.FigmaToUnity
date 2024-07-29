@@ -89,9 +89,7 @@ namespace Figma
             public boolean visible;
         }
 
-        public class Effect
-        {
-        }
+        public class Effect { }
 
         public class IndividualStrokeWeights
         {
@@ -187,9 +185,7 @@ namespace Figma
             public number? offset;
         }
 
-        public class LayoutGrid
-        {
-        }
+        public class LayoutGrid { }
 
         public class ExportSettingsConstraints
         {
@@ -224,9 +220,7 @@ namespace Figma
             public ExportSettingsConstraints constraint;
         }
 
-        public class ExportSettings
-        {
-        }
+        public class ExportSettings { }
 
         public class Reaction
         {
@@ -261,9 +255,7 @@ namespace Figma
             public number duration;
         }
 
-        public class Transition
-        {
-        }
+        public class Transition { }
 
         public class Trigger
         {
@@ -366,7 +358,7 @@ namespace Figma
             StrokeJoin? strokeJoin { get; set; }
             object[] strokeGeometry { get; set; }
             IndividualStrokeWeights individualStrokeWeights { get; set; }
-    }
+        }
 
         public interface CornerMixin
         {
@@ -396,10 +388,8 @@ namespace Figma
         }
 
         public interface DefaultShapeMixin :
-          BaseNodeMixin, SceneNodeMixin, ConstraintMixin, LayoutMixin, BlendMixin, GeometryMixin,
-          ReactionMixin, ExportMixin
-        {
-        }
+            BaseNodeMixin, SceneNodeMixin, ConstraintMixin, LayoutMixin, BlendMixin, GeometryMixin,
+            ReactionMixin, ExportMixin { }
 
         public interface DefaultFrameMixin : DefaultShapeMixin, ContainerMixin, CornerMixin, RectangleCornerMixin, ChildrenMixin
         {
@@ -441,13 +431,9 @@ namespace Figma
             #endregion
         }
 
-        public class FrameNode : DefaultFrameNode
-        {
-        }
+        public class FrameNode : DefaultFrameNode { }
 
-        public class GroupNode : DefaultFrameNode
-        {
-        }
+        public class GroupNode : DefaultFrameNode { }
 
         public class SliceNode : SceneNode, ConstraintMixin, LayoutMixin, ExportMixin
         {
@@ -473,9 +459,7 @@ namespace Figma
             #endregion
         }
 
-        public class LineNode : DefaultShapeNode
-        {
-        }
+        public class LineNode : DefaultShapeNode { }
 
         public class EllipseNode : DefaultShapeNode
         {

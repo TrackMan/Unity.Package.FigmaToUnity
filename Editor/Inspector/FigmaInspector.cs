@@ -27,7 +27,7 @@ namespace Figma.Inspectors
         const string documentsOnlyIcon = "d_Refresh@2x";
         const string documentWithImagesIcon = "d_RawImage Icon";
         const string folderIcon = "d_Project";
-        static Regex regex = new (@"[^/\\]+$");
+        static Regex regex = new(@"[^/\\]+$");
 
         #region Fields
         SerializedProperty title;
@@ -229,6 +229,7 @@ namespace Figma.Inspectors
                 Progress.Finish(progress, Progress.Status.Failed);
 
                 if (!exception.Message.Contains("404") || exception is not OperationCanceledException) throw;
+
                 Debug.LogException(exception);
             }
             finally

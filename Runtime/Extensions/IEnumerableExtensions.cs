@@ -11,8 +11,9 @@ namespace Figma
         #region Methods
         public static async Task ForEachParallelAsync<T>(this IEnumerable<T> elements, int maxConcurrentRequests, Func<T, Task> func, CancellationToken token)
         {
-            using SemaphoreSlim semaphore = new (maxConcurrentRequests);
-            Task[] tasks = elements.Select(async (x) => {
+            using SemaphoreSlim semaphore = new(maxConcurrentRequests);
+            Task[] tasks = elements.Select(async (x) =>
+            {
                 await semaphore.WaitAsync(token);
                 await func(x);
                 semaphore.Release();
