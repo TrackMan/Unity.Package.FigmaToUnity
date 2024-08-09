@@ -389,7 +389,7 @@ namespace Figma
                 if (valueResolvedStyle.letterSpacing != sourceResolvedStyle.letterSpacing) style.letterSpacing = sourceResolvedStyle.letterSpacing;
                 if (valueResolvedStyle.textOverflow != sourceResolvedStyle.textOverflow) style.textOverflow = sourceResolvedStyle.textOverflow;
                 if (valueResolvedStyle.fontSize != sourceResolvedStyle.fontSize) style.fontSize = sourceResolvedStyle.fontSize;
-                if (valueResolvedStyle.unityFont != sourceResolvedStyle.unityFont) style.unityFont = new StyleFont() { value = sourceResolvedStyle.unityFont };
+                if (valueResolvedStyle.unityFont != sourceResolvedStyle.unityFont) style.unityFont = new StyleFont { value = sourceResolvedStyle.unityFont };
                 if (valueResolvedStyle.unityFontDefinition != sourceResolvedStyle.unityFontDefinition) style.unityFontDefinition = sourceResolvedStyle.unityFontDefinition;
                 if (valueResolvedStyle.unityParagraphSpacing != sourceResolvedStyle.unityParagraphSpacing) style.unityParagraphSpacing = sourceResolvedStyle.unityParagraphSpacing;
                 if (valueResolvedStyle.unityTextAlign != sourceResolvedStyle.unityTextAlign) style.unityTextAlign = sourceResolvedStyle.unityTextAlign;
