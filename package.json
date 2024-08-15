@@ -2,12 +2,12 @@
   "name": "com.trackman.figma",
   "description": "Figma to Unity uxml/uss converter, utilities for VisualTree management in runtime.",
   "displayName": "Figma for Unity",
-  "version": "1.2.5",
+  "version": "1.2.6",
   "unity": "2022.3",
   "dependencies": {
     "com.unity.vectorgraphics": "2.0.0-preview.24",
     "com.trackman.asyncawaitutil": "1.0.6",
-    "com.trackman.commonutils": "1.1.0"
+    "com.trackman.commonutils": "1.1.1"
   },
   "author": "TrackMan",
   "type": "trackman.package"
