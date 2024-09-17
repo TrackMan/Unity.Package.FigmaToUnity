@@ -606,6 +606,7 @@ namespace Figma
 
             public LayoutPositioning? layoutPositioning { get; set; }
             public MaskType? maskType { get; set; }
+            public object[] interactions { get; set; }
             #endregion
         }
 
