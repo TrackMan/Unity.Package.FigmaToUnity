@@ -5,14 +5,8 @@ namespace Figma
     public interface ISubElement
     {
         #region Methods
-        void OnInitialize()
-        {
-            /* Method intentionally left empty. */
-        }
-        void OnRebuild()
-        {
-            /* Method intentionally left empty. */
-        }
+        void OnInitialize() { } // Method is blank intentionally
+        void OnRebuild() { } // Method is blank intentionally
         #endregion
     }
 
@@ -24,14 +18,8 @@ namespace Figma
         #endregion
 
         #region Methods
-        void OnInitialize(VisualElement root, VisualElement[] rootsPreserved)
-        {
-            /* Method intentionally left empty. */
-        }
-        void OnRebuild()
-        {
-            /* Method intentionally left empty. */
-        }
+        void OnInitialize(VisualElement root, VisualElement[] rootsPreserved) { } // Method is blank intentionally 
+        void OnRebuild() { } // Method is blank intentionally
         #endregion
     }
 }

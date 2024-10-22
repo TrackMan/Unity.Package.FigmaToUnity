@@ -1,5 +1,100 @@
 namespace Figma
 {
+    enum Unit
+    {
+        Default,
+        None,
+        Initial,
+        Auto,
+        Pixel,
+        Degrees,
+        Percent
+    }
+
+    enum Align
+    {
+        Auto,
+        FlexStart,
+        FlexEnd,
+        Center,
+        Stretch
+    }
+
+    enum FlexDirection
+    {
+        Row,
+        RowReverse,
+        Column,
+        ColumnReverse
+    }
+
+    enum FlexWrap
+    {
+        Nowrap,
+        Wrap,
+        WrapReverse
+    }
+
+    enum JustifyContent
+    {
+        FlexStart,
+        FlexEnd,
+        Center,
+        SpaceBetween,
+        SpaceAround
+    }
+
+    enum Position
+    {
+        Absolute,
+        Relative
+    }
+
+    enum Visibility
+    {
+        Visible,
+        Hidden
+    }
+
+    enum OverflowClip
+    {
+        PaddingBox,
+        ContentBox
+    }
+
+    enum Display
+    {
+        Flex,
+        None
+    }
+
+    enum FontStyle
+    {
+        Normal,
+        Italic,
+        Bold,
+        BoldAndItalic
+    }
+
+    enum TextAlign
+    {
+        UpperLeft,
+        MiddleLeft,
+        LowerLeft,
+        UpperCenter,
+        MiddleCenter,
+        LowerCenter,
+        UpperRight,
+        MiddleRight,
+        LowerRight
+    }
+
+    enum Wrap
+    {
+        Normal,
+        Nowrap,
+    }
+
     public enum ElementType
     {
         None,

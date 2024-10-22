@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -9,7 +8,6 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
-using Trackman;
 using Unity.VectorGraphics.Editor;
 using UnityEditor;
 using UnityEngine;
@@ -17,14 +15,14 @@ using Object = UnityEngine.Object;
 
 namespace Figma.Inspectors
 {
-    using global;
+    using Internals;
+    using static Internals.Const;
 
-    class FigmaUpdater : FigmaApi
+    internal class FigmaUpdater : FigmaApi
     {
         const int maxConcurrentRequests = 5;
         const string images = FigmaParser.images;
         const string elements = FigmaParser.elements;
-        readonly CultureInfo culture = FigmaParser.culture;
 
         #region Containers
 #pragma warning disable S1144 // Called from Unity
@@ -92,14 +90,15 @@ namespace Figma.Inspectors
                     shallowFiles.document.SetParentRecursively();
 
                     NodeMetadata shallowMetadata = new(shallowFiles.document, elements, true, false, true);
+
                     foreach (SceneNode node in shallowFiles.document.children.SelectMany(x => x.children))
                         if (shallowMetadata.EnabledInHierarchy(node))
                             visibleSceneNodes.Add(node.id);
 
-                    Progress.SetDescription(progress, "");
+                    Progress.SetDescription(progress, string.Empty);
                 }
 
-                string idsString = "";
+                string idsString = string.Empty;
                 if (visibleSceneNodes.Count > 0) idsString = $"?ids={string.Join(",", visibleSceneNodes)}";
 
                 string json = await GetJsonAsync($"files/{title}{idsString}", token);
@@ -126,21 +125,22 @@ namespace Figma.Inspectors
             async Task DownloadImagesAsync()
             {
                 Progress.Report(progress, 4, 5, "Downloading images");
-                if (downloadImages) await this.DownloadImagesAsync(progress, token);
+                await this.DownloadImagesAsync(progress, token);
             }
 
-            CreateFolders();
+            CreateDirectories();
             await LoadRemapsAsync(name, token);
 
             Files files = await GetFilesAsync();
             nodeMetadata = new NodeMetadata(files.document, elements, filter);
             parser = new FigmaParser(files.document, files.styles, nodeMetadata.EnabledInHierarchy);
             await DownloadMissingComponentsAsync();
-            await DownloadImagesAsync();
+            if (downloadImages) 
+                await DownloadImagesAsync();
         }
         internal void WriteUssUxml(string name, int progress)
         {
-            Progress.Report(progress, 5, 5, "Updating uss/uxml files");
+            Progress.Report(progress, 5, 5, "Updating *.uss/*.uxml files");
 
             parser.Run(GetAssetPath, GetAssetSize);
             parser.Write(folder, name, nodeMetadata.EnabledInHierarchy, nodeMetadata.GetTemplate, nodeMetadata.GetElementType);
@@ -182,7 +182,7 @@ namespace Figma.Inspectors
         #endregion
 
         #region Support Methods
-        void CreateFolders()
+        void CreateDirectories()
         {
             Directory.CreateDirectory(Path.Combine(folder, images));
             Directory.CreateDirectory(Path.Combine(folder, elements));
@@ -190,26 +190,17 @@ namespace Figma.Inspectors
 
         async Task LoadRemapsAsync(string name, CancellationToken token)
         {
-            remapsFilename = $"{folder}/remaps_{name}.json";
+            remapsFilename = Path.Combine(folder, $"remaps_{name}.json");
             remaps = File.Exists(remapsFilename) ? JsonUtility.FromJson<Dictionary<string, string>>(await File.ReadAllTextAsync(remapsFilename, token)) : new Dictionary<string, string>();
         }
-        async Task SaveRemapsAsync()
-        {
-            await File.WriteAllTextAsync(remapsFilename, JsonUtility.ToJson(remaps, prettyPrint: true));
-        }
+        async Task SaveRemapsAsync() => await File.WriteAllTextAsync(remapsFilename, JsonUtility.ToJson(remaps, prettyPrint: true));
 
         async Task DownloadImagesAsync(int progress, CancellationToken token)
         {
             async Task WriteInvalidSvgAsync(string assetPath)
             {
-                XmlWriter writer = XmlWriter.Create(Path.Combine(folder, assetPath), new XmlWriterSettings
-                {
-                    Indent = true,
-                    NewLineOnAttributes = true,
-                    IndentChars = "    ",
-                    Async = true
-                });
-                writer.WriteStartElement("svg");
+                XmlWriter writer = XmlWriter.Create(Path.Combine(folder, assetPath), new XmlWriterSettings { Indent = true, NewLineOnAttributes = true, IndentChars = indentCharacters, Async = true });
+                writer.WriteStartElement(KnownFormats.svg);
                 {
                     writer.WriteStartElement("rect");
                     writer.WriteAttributeString("width", "100");
@@ -224,21 +215,12 @@ namespace Figma.Inspectors
 
                 writer.Close();
             }
-            async Task WriteInvalidPngAsync(string assetPath)
-            {
-                Texture2D magenta = new(2, 2);
-                magenta.SetPixel(0, 0, Color.magenta);
-                magenta.SetPixel(1, 0, Color.magenta);
-                magenta.SetPixel(0, 1, Color.magenta);
-                magenta.SetPixel(1, 1, Color.magenta);
-                magenta.Apply();
-                await File.WriteAllBytesAsync(Path.Combine(folder, assetPath), magenta.EncodeToPNG(), token);
-            }
+            async Task WriteInvalidPngAsync(string assetPath) => await File.WriteAllBytesAsync(Path.Combine(folder, assetPath), invalidPng, token);
             async Task GetImageAsync(string nodeID, string url, string extension)
             {
-                (bool fileExists, string test) = GetAssetPath(nodeID, extension);
+                (bool fileExists, _) = GetAssetPath(nodeID, extension);
 
-                Progress.SetStepLabel(progress, $"{url}");
+                Progress.SetStepLabel(progress, url);
 
                 // Using HttpClient here instead of UnityWebRequest because using of UnityWebRequest causes deadlock
                 HttpClient client = new();
@@ -251,6 +233,7 @@ namespace Figma.Inspectors
 
                 (bool _, string assetPath) = GetAssetPath(nodeID, extension);
                 string relativePath = Path.Combine(relativeFolder, assetPath).Replace('\\', '/');
+                ;
 
                 if (response.StatusCode == HttpStatusCode.OK)
                 {
@@ -261,7 +244,7 @@ namespace Figma.Inspectors
                             Debug.LogWarning($"Response is empty for node={nodeID}, url={url}");
                             switch (extension)
                             {
-                                case "svg":
+                                case KnownFormats.svg:
                                     await WriteInvalidSvgAsync(assetPath);
                                     break;
 
@@ -284,15 +267,15 @@ namespace Figma.Inspectors
 
                 foreach ((string key, GradientPaint gradient) in parser.Gradients)
                 {
-                    XmlWriter writer = XmlWriter.Create(Path.Combine(folder, $"{GetAssetPath(key, "svg").path}"), new XmlWriterSettings
+                    XmlWriter writer = XmlWriter.Create(Path.Combine(folder, GetAssetPath(key, KnownFormats.svg).path), new XmlWriterSettings
                     {
                         Indent = true,
                         NewLineOnAttributes = true,
-                        NewLineChars = "\r\n",
-                        IndentChars = "    ",
+                        NewLineChars = Environment.NewLine,
+                        IndentChars = indentCharacters,
                         Async = true
                     });
-                    writer.WriteStartElement("svg");
+                    writer.WriteStartElement(KnownFormats.svg);
                     {
                         writer.WriteStartElement("defs");
                         {
@@ -347,9 +330,7 @@ namespace Figma.Inspectors
                         writer.WriteAttributeString("fill", "url(#gradient)");
 
                         if (gradient.opacity.HasValue)
-                        {
                             writer.WriteAttributeString("fill-opacity", gradient.opacity.Value.ToString("F2", culture));
-                        }
 
                         await writer.WriteEndElementAsync();
                         await Task.Delay(0, token);
@@ -372,7 +353,7 @@ namespace Figma.Inspectors
                 IEnumerable<string> imageRefs = nodes.OfType<GeometryMixin>().Select(y => y.fills.OfType<ImagePaint>().First().imageRef);
 
                 IEnumerable<KeyValuePair<string, string>> urls = filesImages.meta.images.Where(item => imageRefs.Contains(item.Key));
-                await urls.ForEachParallelAsync(maxConcurrentRequests, x => GetImageAsync(x.Key, x.Value, "png"), token);
+                await urls.ForEachParallelAsync(maxConcurrentRequests, x => GetImageAsync(x.Key, x.Value, KnownFormats.png), token);
             }
             async Task GetImageNodesAsync(IEnumerable<BaseNode> targetNodes, UxmlDownloadImages downloadImages, string extension)
             {
@@ -393,64 +374,65 @@ namespace Figma.Inspectors
 
             await WriteGradientsAsync(progress, token);
             await GetImageFillsAsync();
-            await GetImageNodesAsync(parser.PngNodes, UxmlDownloadImages.RenderAsPng, "png");
-            await GetImageNodesAsync(parser.SvgNodes, UxmlDownloadImages.RenderAsSvg, "svg");
+            await GetImageNodesAsync(parser.PngNodes, UxmlDownloadImages.RenderAsPng, KnownFormats.png);
+            await GetImageNodesAsync(parser.SvgNodes, UxmlDownloadImages.RenderAsSvg, KnownFormats.svg);
             await SaveRemapsAsync();
 
-            Progress.SetStepLabel(progress, "");
+            Progress.SetStepLabel(progress, string.Empty);
         }
 
-        string GetFontPath(string name, string extension)
-        {
-            string localFontsPath = $"Fonts/{name}.{extension}";
-            if (File.Exists(FileUtil.GetPhysicalPath($"{relativeFolder}/{localFontsPath}")))
-                return localFontsPath;
-
-            foreach (string fontsDir in fontDirs)
-            {
-                string projectFontPath = $"{fontsDir}/{name}.{extension}";
-                if (File.Exists(FileUtil.GetPhysicalPath(projectFontPath)))
-                    return $"/{projectFontPath}";
-            }
-
-            return default;
-        }
         (bool valid, string path) GetAssetPath(string name, string extension)
         {
+            string GetFontPath(string name, string extension)
+            {
+                string localFontsPath = $"Fonts/{name}.{extension}";
+
+                if (File.Exists(FileUtil.GetPhysicalPath($"{relativeFolder}/{localFontsPath}")))
+                    return localFontsPath;
+
+                foreach (string fontsDir in fontDirs)
+                {
+                    string projectFontPath = $"{fontsDir}/{name}.{extension}";
+                    if (File.Exists(FileUtil.GetPhysicalPath(projectFontPath)))
+                        return $"/{projectFontPath}";
+                }
+
+                return default;
+            }
+
             switch (extension)
             {
-                case "otf":
-                case "ttf":
+                case KnownFormats.otf or KnownFormats.ttf:
                     string fontPath = GetFontPath(name, extension);
-                    return (fontPath.NotNullOrEmpty(), $"{fontPath}");
+                    return (fontPath.NotNullOrEmpty(), fontPath);
 
-                case "asset":
+                case KnownFormats.asset:
                     string fontAssetPath = GetFontPath(name, extension);
                     return (fontAssetPath.NotNullOrEmpty(), $"{Path.GetDirectoryName(fontAssetPath)}/{name} SDF.{extension}");
 
-                case "png":
-                case "svg":
+                case KnownFormats.png or KnownFormats.svg:
                     remaps.TryGetValue(name, out string mappedName);
                     string filename = $"{images}/{mappedName ?? name}.{extension}";
                     return (File.Exists(Path.Combine(folder, filename)), filename);
 
                 default:
-                    throw new NotSupportedException();
+                    throw new NotSupportedException(extension);
             }
         }
+
         (bool valid, int width, int height) GetAssetSize(string name, string extension)
         {
             (bool valid, string path) = GetAssetPath(name, extension);
             switch (extension)
             {
-                case "png":
+                case KnownFormats.png:
                     if (!valid) return (false, -1, -1);
 
                     TextureImporter importer = (TextureImporter)AssetImporter.GetAtPath(Path.Combine(relativeFolder, path));
                     importer.GetSourceTextureWidthAndHeight(out int width, out int height);
                     return (true, width, height);
 
-                case "svg":
+                case KnownFormats.svg:
                     if (!valid) return (false, -1, -1);
 
                     SVGImporter svgImporter = (SVGImporter)AssetImporter.GetAtPath(Path.Combine(relativeFolder, path));
@@ -465,7 +447,7 @@ namespace Figma.Inspectors
                     return (true, Mathf.CeilToInt(size.x), Mathf.CeilToInt(size.y));
 
                 default:
-                    throw new NotSupportedException();
+                    throw new NotSupportedException(extension);
             }
         }
         #endregion

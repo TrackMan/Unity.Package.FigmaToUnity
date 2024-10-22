@@ -2,9 +2,9 @@ using System.Threading.Tasks;
 
 namespace Figma.Inspectors
 {
-    using global;
+    using Internals;
 
-    class FigmaTokenTest : FigmaApi
+    internal class FigmaTokenTest : FigmaApi
     {
         #region Constructors
         internal FigmaTokenTest(string personalAccessToken = default) : base(personalAccessToken) { }

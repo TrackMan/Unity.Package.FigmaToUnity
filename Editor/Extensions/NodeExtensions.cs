@@ -1,11 +1,13 @@
+using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 
 namespace Figma
 {
-    using global;
+    using Internals;
 
+    [DebuggerStepThrough]
     public static class NodeExtensions
     {
         #region Methods

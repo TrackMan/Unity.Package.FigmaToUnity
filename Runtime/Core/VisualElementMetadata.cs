@@ -46,8 +46,8 @@ namespace Figma
         static VisualElementMetadata() => DisposeStatic.OnDisposeStatic += () =>
         {
             rootMetadata.Clear();
-            search.Clear();
             cloneMap.Clear();
+            search.Clear();
             hide.Clear();
         };
         #endregion
@@ -63,6 +63,7 @@ namespace Figma
             Type targetType = target.GetType();
             UxmlAttribute uxml = targetType.GetCustomAttribute<UxmlAttribute>();
             VisualElement targetRoot = document.rootVisualElement.Find(uxml.DocumentRoot, throwException: false, silent: false);
+
             if (targetRoot is null) return;
 
             rootMetadata.Add(targetRoot, new Metadata(document, uxml, uxml.DocumentRoot));
@@ -89,13 +90,16 @@ namespace Figma
             foreach (IRootElement target in targets.Where(x => x.Root is not null))
             {
                 target.OnRebuild();
-                foreach (VisualElement child in target.Root.Children()) Rebuild(child);
+                foreach (VisualElement child in target.Root.Children())
+                    Rebuild(child);
             }
         }
         public static void Rebuild(VisualElement target)
         {
             if (target is ISubElement targetSubElement) targetSubElement.OnRebuild();
-            foreach (VisualElement child in target.Children()) Rebuild(child);
+
+            foreach (VisualElement child in target.Children())
+                Rebuild(child);
 
             OnRebuildElement?.Invoke(target);
 
@@ -111,7 +115,8 @@ namespace Figma
             }
             static int LastIndexOf(VisualElement root, VisualElement leaf, VisualElement value, string path, int startIndex = 0)
             {
-                if (value.parent is not null && value.parent != root) startIndex = LastIndexOf(root, leaf, value.parent, path, startIndex);
+                if (value.parent is not null && value.parent != root)
+                    startIndex = LastIndexOf(root, leaf, value.parent, path, startIndex);
                 if (startIndex >= 0 && StartsWith(path, value, startIndex))
                 {
                     int endIndex = startIndex + value.name.Length;
@@ -170,13 +175,16 @@ namespace Figma
         public static T Find<T>(this VisualElement value, string path, string className = default, bool throwException = true, bool silent = false) where T : VisualElement
         {
             T result = value.Search<T>(path, className).FirstOrDefault();
+
             if (result is not null)
                 return result;
 
             if (throwException)
-                throw new Exception($"Cannot find {typeof(T).Name} [<color=yellow>{path}</color>]");
+                throw new KeyNotFoundException(Extensions.BuildTargetMessage($"Cannot find {typeof(T).Name}", path));
 
-            if (!silent) Debug.LogWarning($"[{nameof(VisualElementMetadata)}] Cannot find {typeof(T).Name} [<color=yellow>{path}</color>]");
+            if (!silent)
+                Debug.LogWarning(Extensions.BuildTargetMessage($"[{nameof(VisualElementMetadata)}] Cannot find {typeof(T).Name}", path));
+
             return default;
         }
         public static (T1, T2) Find<T1, T2>(this VisualElement value, string path1, string path2, bool throwException = true, bool silent = false) where T1 : VisualElement where T2 : VisualElement => (value.Find<T1>(path1, throwException: throwException, silent: silent), value.Find<T2>(path2, throwException: throwException, silent: silent));
@@ -187,7 +195,7 @@ namespace Figma
         {
             parent ??= value.parent;
 
-            (VisualElement root, string pathToValue) = FindRoot(value, "");
+            (VisualElement root, string pathToValue) = FindRoot(value, string.Empty);
             Metadata metadata = rootMetadata[root];
 
             VisualElement documentRoot = new();
@@ -229,7 +237,7 @@ namespace Figma
             catch (Exception exception)
             {
                 Debug.LogException(exception);
-                throw new ArgumentException($"Cannot clone {typeof(T).Name} [<color=yellow>{value.name}</color>]", exception);
+                throw new ArgumentException(Extensions.BuildTargetMessage($"Cannot clone {typeof(T).Name}", value.name), exception);
             }
             finally
             {
@@ -518,11 +526,7 @@ namespace Figma
             }
         }
 
-        public static float GetItemSpacing(this ICustomStyle style)
-        {
-            if (style.TryGetValue(new CustomStyleProperty<float>("--item-spacing"), out float spacing)) return spacing;
-            else return float.NaN;
-        }
+        public static float GetItemSpacing(this ICustomStyle style) => style.TryGetValue(new CustomStyleProperty<float>("--item-spacing"), out float spacing) ? spacing : float.NaN;
         public static async void MarginMe(this VisualElement value)
         {
             static int GetLines(VisualElement value, VisualElement parent, float spacing, bool horizontalDirection)
@@ -555,7 +559,7 @@ namespace Figma
             float spacing = parent.customStyle.GetItemSpacing();
             if (spacing.Invalid()) return;
 
-            IEnumerable<VisualElement> children = parent.Children().Where(x => x.resolvedStyle.display == DisplayStyle.Flex);
+            IEnumerable<VisualElement> children = parent.Children().Where(x => x.resolvedStyle.display == DisplayStyle.Flex).ToArray();
             if (!children.Any()) return;
 
             bool horizontalDirection = parent.resolvedStyle.flexDirection == FlexDirection.Row;
@@ -571,7 +575,7 @@ namespace Figma
 
             int lines = fixedSize ? GetLines(value, parent, spacing, horizontalDirection) : children.Count();
             int index = FindIndex(value, children);
-            float primaryMargin = lines > 0 ? (((index - 1) % lines != lines - 1) ? spacing : 0) : 0;
+            float primaryMargin = (lines > 0 && (index - 1) % lines != lines - 1) ? spacing : 0;
             float counterMargin = (index >= lines) ? spacing : 0;
 
             if (index == children.Count() - 1)
@@ -610,7 +614,7 @@ namespace Figma
                 return FindRoot(value.parent, path.NotNullOrEmpty() ? Path.Combine(name, path) : name);
             }
 
-            throw new ArgumentException();
+            throw new ArgumentNullException(nameof(value));
         }
 
         static void Initialize(object target, Type targetType, VisualElement targetRoot, bool throwException = false, bool silent = false)
@@ -716,8 +720,6 @@ namespace Figma
                 {
                     VisualElement FindIn(VisualElement root)
                     {
-                        if (query is null) throw new ArgumentNullException();
-
                         if (queryRoot is not null && !ReferenceEquals(queryRoot, query)) return root.Find(queryRoot.Path, queryRoot.ClassName, throwException, silent)?.Find(query.Path, query.ClassName, throwException, silent);
 
                         return root.Find(query.Path, query.ClassName, throwException);
@@ -734,6 +736,7 @@ namespace Figma
                         else
                         {
                             string name = Path.GetFileName(query.Path);
+
                             if (name == query.Path)
                             {
                                 value = targetRoot.Find(query.ReplaceElementPath, default, throwException, silent)?.Clone(targetRoot);
@@ -759,7 +762,7 @@ namespace Figma
                     Type valueType = value.GetType();
                     if (valueType != field.FieldType && valueType.IsAssignableFrom(field.FieldType) && field.FieldType != typeof(VisualElement))
                     {
-                        if (throwException) throw new Exception($"Element `{value.name}` of type=[{value.GetType()}] cannot be inserted into `{field.Name}` with type=[{field.FieldType}]");
+                        if (throwException) throw new InvalidOperationException($"Element `{value.name}` of type=[{value.GetType()}] cannot be inserted into `{field.Name}` with type=[{field.FieldType}]");
 
                         if (!silent) Debug.LogWarning($"[{nameof(VisualElementMetadata)}] Element `{value.name}` of type=[{value.GetType()}] cannot be inserted into `{field.Name}` with type=[{field.FieldType}]");
                         return default;
@@ -769,6 +772,9 @@ namespace Figma
 
                     return value;
                 }
+                
+                if (query is null) throw new ArgumentNullException(nameof(query));
+                
                 VisualElement element = ResolveElement();
                 if (element is null) return default;
 
@@ -781,9 +787,11 @@ namespace Figma
             }
 
             QueryAttribute queryRoot = default;
+
             foreach (FieldInfo field in targetType.GetFields(FieldsFlags))
             {
                 QueryAttribute query = field.GetCustomAttribute<QueryAttribute>();
+
                 if (query is null) continue;
 
                 if (query.StartRoot) queryRoot = query;

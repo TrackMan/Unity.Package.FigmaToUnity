@@ -30,6 +30,7 @@ namespace Figma
             if (Application.isBatchMode) return;
 
             UIDocument document = GetComponent<UIDocument>();
+            
             if (document.rootVisualElement is null) return;
 
             IRootElement[] elements = GetComponentsInChildren<IRootElement>();
@@ -37,10 +38,13 @@ namespace Figma
 
             if (!Application.isPlaying) return;
 
+            // Do not change this to Awaiters, since it is breaking the loading.
             if (waitFrameBeforeRebuild) await new WaitForEndOfFrame();
+            
             VisualElementMetadata.Rebuild(elements);
 
             VisualElement root = document.rootVisualElement.Q(UxmlAttribute.prefix);
+            
             if (root is null || !reorder) return;
 
             foreach (IRootElement element in elements.OrderBy(x => x.RootOrder))

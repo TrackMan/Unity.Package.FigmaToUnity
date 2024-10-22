@@ -20,11 +20,7 @@ namespace Figma
         public static bool HasVisibility(this VisualElement element) => element.style.visibility == Visibility.Visible;
         public static void MakeVisible(this VisualElement element) => element.style.visibility = Visibility.Visible;
         public static void MakeInvisible(this VisualElement element) => element.style.visibility = Visibility.Hidden;
-        public static void SetVisibility(this VisualElement element, bool visible)
-        {
-            if (visible) element.MakeVisible();
-            else element.MakeInvisible();
-        }
+        public static void SetVisibility(this VisualElement element, bool visible) => element.style.visibility = visible ? Visibility.Visible : Visibility.Hidden;
         public static bool IsShowing(this VisualElement element) => element.resolvedStyle.display == DisplayStyle.Flex;
         public static void Show(this VisualElement element)
         {
@@ -34,8 +30,8 @@ namespace Figma
         public static void Hide(this VisualElement element) => element.style.display = DisplayStyle.None;
         public static void SetDisplay(this VisualElement element, bool visible)
         {
-            if (visible) Show(element);
-            else Hide(element);
+            element.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
+            if (visible) element.MarginMe();
         }
         public static void Disable(this VisualElement element) => element.pickingMode = PickingMode.Ignore;
         public static void Enable(this VisualElement element) => element.pickingMode = PickingMode.Position;

@@ -6,12 +6,10 @@ using Trackman;
 
 namespace Figma.Inspectors
 {
-    using global;
+    using Internals;
 
-    abstract class FigmaApi
+    internal abstract class FigmaApi
     {
-        const string api = "https://api.figma.com/v1";
-
         #region Fields
         protected readonly string title;
         protected readonly Dictionary<string, string> headers;
@@ -26,23 +24,10 @@ namespace Figma.Inspectors
         #endregion
 
         #region Support Methods
-        protected async Task<string> GetJsonAsync(string get, CancellationToken token = default)
-        {
-            return GetString(await $"{api}/{get}".HttpGetAsync(headers, cancellationToken: token));
-        }
-        protected async Task<T> ConvertOnBackgroundAsync<T>(string json, CancellationToken token) where T : class
-        {
-            return await Task.Run(() => Task.FromResult(JsonUtility.FromJson<T>(json)), token);
-        }
-        protected async Task<T> GetAsync<T>(string get, CancellationToken token = default) where T : class
-        {
-            string json = await GetJsonAsync(get, token);
-            return await ConvertOnBackgroundAsync<T>(json, token);
-        }
-        string GetString(byte[] bytes)
-        {
-            return Encoding.UTF8.GetString(bytes);
-        }
+        protected async Task<string> GetJsonAsync(string get, CancellationToken token = default) => GetString(await $"{Const.api}/{get}".HttpGetAsync(headers, cancellationToken: token));
+        protected async Task<T> ConvertOnBackgroundAsync<T>(string json, CancellationToken token) where T : class => await Task.Run(() => Task.FromResult(JsonUtility.FromJson<T>(json)), token);
+        protected async Task<T> GetAsync<T>(string get, CancellationToken token = default) where T : class => await ConvertOnBackgroundAsync<T>(await GetJsonAsync(get, token), token);
+        string GetString(byte[] bytes) => Encoding.UTF8.GetString(bytes);
         #endregion
     }
 }

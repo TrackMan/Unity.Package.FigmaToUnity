@@ -5,22 +5,81 @@ using System.Reflection;
 using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
-using Trackman;
 
 namespace Figma
 {
-    using global;
+    using Internals;
     using Attributes;
 
-    class NodeMetadata
+    internal class NodeMetadata
     {
-        #region Containers
-        record RootMetadata(bool filter, UxmlAttribute uxml, UxmlDownloadImages downloadImages);
+        #region Consts
+        static readonly Dictionary<Type, ElementType> typeMap = new()
+        {
+            // Base elements
+            { typeof(VisualElement), ElementType.VisualElement },
+            { typeof(BindableElement), ElementType.BindableElement },
 
-        // ReSharper disable once NotAccessedPositionalProperty.Global
-        record QueryMetadata(Type fieldType, QueryAttribute query);
+            // Utilities
+            { typeof(Box), ElementType.Box },
+            { typeof(TextElement), ElementType.TextElement },
+            { typeof(Label), ElementType.Label },
+            { typeof(Image), ElementType.Image },
+            { typeof(IMGUIContainer), ElementType.IMGUIContainer },
+            { typeof(Foldout), ElementType.Foldout },
 
-        record BaseNodeMetadata(RootMetadata root, QueryMetadata query);
+            // Controls
+            { typeof(Button), ElementType.Button },
+            { typeof(RepeatButton), ElementType.RepeatButton },
+            { typeof(Toggle), ElementType.Toggle },
+            { typeof(Scroller), ElementType.Scroller },
+            { typeof(Slider), ElementType.Slider },
+            { typeof(SliderInt), ElementType.SliderInt },
+            { typeof(MinMaxSlider), ElementType.MinMaxSlider },
+            { typeof(EnumField), ElementType.EnumField },
+            { typeof(MaskField), ElementType.MaskField },
+            { typeof(LayerField), ElementType.LayerField },
+            { typeof(LayerMaskField), ElementType.LayerMaskField },
+            { typeof(TagField), ElementType.TagField },
+            { typeof(ProgressBar), ElementType.ProgressBar },
+
+            // Text input
+            { typeof(TextField), ElementType.TextField },
+            { typeof(IntegerField), ElementType.IntegerField },
+            { typeof(LongField), ElementType.LongField },
+            { typeof(FloatField), ElementType.FloatField },
+            { typeof(DoubleField), ElementType.DoubleField },
+            { typeof(Vector2Field), ElementType.Vector2Field },
+            { typeof(Vector2IntField), ElementType.Vector2IntField },
+            { typeof(Vector3Field), ElementType.Vector3Field },
+            { typeof(Vector3IntField), ElementType.Vector3IntField },
+            { typeof(Vector4Field), ElementType.Vector4Field },
+            { typeof(RectField), ElementType.RectField },
+            { typeof(RectIntField), ElementType.RectIntField },
+            { typeof(BoundsField), ElementType.BoundsField },
+            { typeof(BoundsIntField), ElementType.BoundsIntField },
+
+            // Complex widgets
+            { typeof(PropertyField), ElementType.PropertyField },
+            { typeof(ColorField), ElementType.ColorField },
+            { typeof(CurveField), ElementType.CurveField },
+            { typeof(GradientField), ElementType.GradientField },
+            { typeof(ObjectField), ElementType.ObjectField },
+
+            // Toolbar
+            { typeof(Toolbar), ElementType.Toolbar },
+            { typeof(ToolbarButton), ElementType.ToolbarButton },
+            { typeof(ToolbarToggle), ElementType.ToolbarToggle },
+            { typeof(ToolbarMenu), ElementType.ToolbarMenu },
+            { typeof(ToolbarSearchField), ElementType.ToolbarSearchField },
+            { typeof(ToolbarPopupSearchField), ElementType.ToolbarPopupSearchField },
+            { typeof(ToolbarSpacer), ElementType.ToolbarSpacer },
+
+            // Views and windows
+            { typeof(ListView), ElementType.ListView },
+            { typeof(ScrollView), ElementType.ScrollView },
+            { typeof(PopupWindow), ElementType.PopupWindow },
+        };
         #endregion
 
         #region Fields
@@ -41,7 +100,9 @@ namespace Figma
                 void InitializeElement(Type type, BaseNode rootNode)
                 {
                     BaseNode FindNodeByQuery(QueryAttribute queryRoot, QueryAttribute query, bool throwException) =>
-                        queryRoot is not null && !ReferenceEquals(queryRoot, query) && Find(rootNode, queryRoot.Path, throwException, silent) is { } queryRootNode ? Find(queryRootNode, query.Path, throwException, silent) : Find(rootNode, query.Path, throwException, silent);
+                        queryRoot is not null && !ReferenceEquals(queryRoot, query) && Find(rootNode, queryRoot.Path, throwException, silent) is { } queryRootNode
+                            ? Find(queryRootNode, query.Path, throwException, silent)
+                            : Find(rootNode, query.Path, throwException, silent);
 
                     QueryAttribute queryRoot = default;
                     foreach (FieldInfo field in type.GetFields(FieldsFlags))
@@ -103,80 +164,16 @@ namespace Figma
         }
         internal (ElementType, string) GetElementType(BaseNode node)
         {
-            ElementType FieldTypeToElementType(Type type)
-            {
-                //Base elements
-                if (type == typeof(VisualElement)) return ElementType.VisualElement;
-                if (type == typeof(BindableElement)) return ElementType.BindableElement;
-
-                //Utilities
-                if (type == typeof(Box)) return ElementType.Box;
-                if (type == typeof(TextElement)) return ElementType.TextElement;
-                if (type == typeof(Label)) return ElementType.Label;
-                if (type == typeof(Image)) return ElementType.Image;
-                if (type == typeof(IMGUIContainer)) return ElementType.IMGUIContainer;
-                if (type == typeof(Foldout)) return ElementType.Foldout;
-
-                //Controls
-                if (type == typeof(Button)) return ElementType.Button;
-                if (type == typeof(RepeatButton)) return ElementType.RepeatButton;
-                if (type == typeof(Toggle)) return ElementType.Toggle;
-                if (type == typeof(Scroller)) return ElementType.Scroller;
-                if (type == typeof(Slider)) return ElementType.Slider;
-                if (type == typeof(SliderInt)) return ElementType.SliderInt;
-                if (type == typeof(MinMaxSlider)) return ElementType.MinMaxSlider;
-                if (type == typeof(EnumField)) return ElementType.EnumField;
-                if (type == typeof(MaskField)) return ElementType.MaskField;
-                if (type == typeof(LayerField)) return ElementType.LayerField;
-                if (type == typeof(LayerMaskField)) return ElementType.LayerMaskField;
-                if (type == typeof(TagField)) return ElementType.TagField;
-                if (type == typeof(ProgressBar)) return ElementType.ProgressBar;
-
-                //Text input
-                if (type == typeof(TextField)) return ElementType.TextField;
-                if (type == typeof(IntegerField)) return ElementType.IntegerField;
-                if (type == typeof(LongField)) return ElementType.LongField;
-                if (type == typeof(FloatField)) return ElementType.FloatField;
-                if (type == typeof(DoubleField)) return ElementType.DoubleField;
-                if (type == typeof(Vector2Field)) return ElementType.Vector2Field;
-                if (type == typeof(Vector2IntField)) return ElementType.Vector2IntField;
-                if (type == typeof(Vector3Field)) return ElementType.Vector3Field;
-                if (type == typeof(Vector3IntField)) return ElementType.Vector3IntField;
-                if (type == typeof(Vector4Field)) return ElementType.Vector4Field;
-                if (type == typeof(RectField)) return ElementType.RectField;
-                if (type == typeof(RectIntField)) return ElementType.RectIntField;
-                if (type == typeof(BoundsField)) return ElementType.BoundsField;
-                if (type == typeof(BoundsIntField)) return ElementType.BoundsIntField;
-
-                //Complex widgets
-                if (type == typeof(PropertyField)) return ElementType.PropertyField;
-                if (type == typeof(ColorField)) return ElementType.ColorField;
-                if (type == typeof(CurveField)) return ElementType.CurveField;
-                if (type == typeof(GradientField)) return ElementType.GradientField;
-                if (type == typeof(ObjectField)) return ElementType.ObjectField;
-
-                //Toolbar
-                if (type == typeof(Toolbar)) return ElementType.Toolbar;
-                if (type == typeof(ToolbarButton)) return ElementType.ToolbarButton;
-                if (type == typeof(ToolbarToggle)) return ElementType.ToolbarToggle;
-                if (type == typeof(ToolbarMenu)) return ElementType.ToolbarMenu;
-                if (type == typeof(ToolbarSearchField)) return ElementType.ToolbarSearchField;
-                if (type == typeof(ToolbarPopupSearchField)) return ElementType.ToolbarPopupSearchField;
-                if (type == typeof(ToolbarSpacer)) return ElementType.ToolbarSpacer;
-
-                //Views and windows
-                if (type == typeof(ListView)) return ElementType.ListView;
-                if (type == typeof(ScrollView)) return ElementType.ScrollView;
-                if (type == typeof(PopupWindow)) return ElementType.PopupWindow;
-
-                if (typeof(VisualElement).IsAssignableFrom(type)) return ElementType.IElement;
-
-                throw new ArgumentOutOfRangeException(type.FullName);
-            }
+            ElementType FieldTypeToElementType(Type type) => typeMap.TryGetValue(type, out ElementType elementType)
+                ? elementType
+                : typeof(VisualElement).IsAssignableFrom(type)
+                    ? ElementType.IElement
+                    : throw new ArgumentOutOfRangeException(type.FullName);
 
             BaseNodeMetadata metadata = GetMetadata(node);
-            return metadata.root is not null && metadata.root.filter &&
-                   metadata.root.uxml.TypeIdentification == UxmlElementTypeIdentification.ByElementType && metadata.query is not null
+            return metadata.root is not null && metadata.root.filter
+                                             && metadata.root.uxml.TypeIdentification == UxmlElementTypeIdentification.ByElementType
+                                             && metadata.query is not null
                 ? (FieldTypeToElementType(metadata.query.fieldType), metadata.query.fieldType!.FullName!.Replace("+", "."))
                 : (ElementType.None, default);
         }
@@ -291,23 +288,34 @@ namespace Figma
 
                 foreach (BaseNode result in search.OfType<BaseNode>()) yield return result;
             }
+            
             string GetFullPath(BaseNode node) => node.parent is not null ? $"{GetFullPath(node.parent)}/{node.name}" : node.name;
 
             BaseNode result = Search(value, path).FirstOrDefault();
+
             if (result is not null)
                 return result;
 
             if (throwException)
-                throw new Exception($"Cannot find node at [<color=yellow>{GetFullPath(value)}/{path}</color>]");
+                throw new Exception(Extensions.BuildTargetMessage("Cannot find node at", $"{GetFullPath(value)}/{path}"));
 
-            if (!silent) Debug.LogWarning($"Cannot find node at [<color=yellow>{GetFullPath(value)}/{path}</color>]");
+            if (!silent) 
+                Debug.LogWarning(Extensions.BuildTargetMessage($"Cannot find node at", $"{GetFullPath(value)}/{path}"));
+
             return default;
         }
         BaseNode FindRoot(BaseNode value)
         {
             try
             {
-                return rootMetadata.ContainsKey(value) ? value : value.parent is not null ? FindRoot(value.parent) : default;
+                while (value != null)
+                {
+                    if (rootMetadata.ContainsKey(value))
+                        return value;
+                    value = value.parent;
+                }
+
+                return default;
             }
             catch (Exception exception)
             {

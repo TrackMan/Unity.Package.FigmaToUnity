@@ -6,7 +6,7 @@ using System.Collections.Generic;
 
 namespace Figma
 {
-    public static class IEnumerableExtensions
+    public static class EnumerableExtensions
     {
         #region Methods
         public static async Task ForEachParallelAsync<T>(this IEnumerable<T> elements, int maxConcurrentRequests, Func<T, Task> func, CancellationToken token)
