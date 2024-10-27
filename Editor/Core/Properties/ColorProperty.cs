@@ -3,6 +3,7 @@ using System;
 namespace Figma
 {
     using Internals;
+    using InternalsExtensions;
 
     /// <summary>
     /// Represents a color. You can define a color with a #hexadecimal code, the rgb() or rgba() function, or a color keyword (for example, blue or transparent).

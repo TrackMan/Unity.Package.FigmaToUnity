@@ -13,11 +13,12 @@ namespace Figma
 {
     using Core;
     using Internals;
+    using InternalsExtensions;
 
     internal class FigmaParser
     {
         const int initialCollectionCapacity = 128;
-        
+
         internal const string images = "Images";
         internal const string elements = "Elements";
 

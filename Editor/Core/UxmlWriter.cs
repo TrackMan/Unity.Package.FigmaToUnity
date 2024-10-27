@@ -5,6 +5,7 @@ using System.Xml;
 namespace Figma.Core
 {
     using Internals;
+    using InternalsExtensions;
     using static Internals.Const;
     using static FigmaParser;
 
@@ -214,11 +215,11 @@ namespace Figma.Core
                     elementName = elementType.ToString();
                     switch (elementType)
                     {
-                        case ElementType.VisualElement or 
-                             ElementType.BindableElement or 
-                             ElementType.Box or 
-                             ElementType.TextElement or 
-                             ElementType.Label or 
+                        case ElementType.VisualElement or
+                             ElementType.BindableElement or
+                             ElementType.Box or
+                             ElementType.TextElement or
+                             ElementType.Label or
                              ElementType.Image:
                             pickingMode = "Ignore";
                             break;

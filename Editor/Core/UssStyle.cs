@@ -8,6 +8,7 @@ using UnityEngine.UIElements;
 namespace Figma
 {
     using Internals;
+    using InternalsExtensions;
     using static FigmaParser;
 
     internal class UssStyle
@@ -451,7 +452,7 @@ namespace Figma
                 {
                     if (rectangleCornerMixin.rectangleCornerRadii is null)
                     {
-                        if (cornerMixin.cornerRadius.HasPositive()) 
+                        if (cornerMixin.cornerRadius.HasPositive())
                             borderRadius = Math.Min(minValue, cornerMixin!.cornerRadius!.Value) + value;
                     }
                     else

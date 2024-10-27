@@ -16,6 +16,7 @@ using Object = UnityEngine.Object;
 namespace Figma.Inspectors
 {
     using Internals;
+    using InternalsExtensions;
     using static Internals.Const;
 
     internal class FigmaUpdater : FigmaApi
@@ -135,7 +136,7 @@ namespace Figma.Inspectors
             nodeMetadata = new NodeMetadata(files.document, elements, filter);
             parser = new FigmaParser(files.document, files.styles, nodeMetadata.EnabledInHierarchy);
             await DownloadMissingComponentsAsync();
-            if (downloadImages) 
+            if (downloadImages)
                 await DownloadImagesAsync();
         }
         internal void WriteUssUxml(string name, int progress)

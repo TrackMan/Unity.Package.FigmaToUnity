@@ -19,6 +19,7 @@ namespace Figma.Inspectors
 {
     using Attributes;
     using Internals;
+    using InternalsExtensions;
 
     [CustomEditor(typeof(Figma), true)]
     [SuppressMessage("Roslynator", "RCS1213:Remove unused member declaration.")]
@@ -100,7 +101,7 @@ namespace Figma.Inspectors
                         TryPasteToken(token);
                 }
             }
-            
+
             if (!PersonalAccessToken.NotNullOrEmpty())
                 EditorGUILayout.HelpBox("You have to enter your personal access token in order to update.\n\nYou can get your token at https://figma.com/", MessageType.Warning);
         }

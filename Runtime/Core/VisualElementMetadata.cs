@@ -19,6 +19,7 @@ namespace System.Runtime.CompilerServices
 namespace Figma
 {
     using Attributes;
+    using InternalsExtensions;
 
     public static class VisualElementMetadata
     {
@@ -772,9 +773,9 @@ namespace Figma
 
                     return value;
                 }
-                
+
                 if (query is null) throw new ArgumentNullException(nameof(query));
-                
+
                 VisualElement element = ResolveElement();
                 if (element is null) return default;
 

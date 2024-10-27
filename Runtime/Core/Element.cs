@@ -5,6 +5,8 @@ using UnityEngine.UIElements;
 
 namespace Figma
 {
+    using InternalsExtensions;
+
     public abstract class Element : MonoBehaviour, IRootElement
     {
         #region Fields

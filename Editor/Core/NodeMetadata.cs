@@ -8,8 +8,9 @@ using UnityEngine.UIElements;
 
 namespace Figma
 {
-    using Internals;
     using Attributes;
+    using Internals;
+    using InternalsExtensions;
 
     internal class NodeMetadata
     {
@@ -288,7 +289,7 @@ namespace Figma
 
                 foreach (BaseNode result in search.OfType<BaseNode>()) yield return result;
             }
-            
+
             string GetFullPath(BaseNode node) => node.parent is not null ? $"{GetFullPath(node.parent)}/{node.name}" : node.name;
 
             BaseNode result = Search(value, path).FirstOrDefault();
@@ -299,7 +300,7 @@ namespace Figma
             if (throwException)
                 throw new Exception(Extensions.BuildTargetMessage("Cannot find node at", $"{GetFullPath(value)}/{path}"));
 
-            if (!silent) 
+            if (!silent)
                 Debug.LogWarning(Extensions.BuildTargetMessage($"Cannot find node at", $"{GetFullPath(value)}/{path}"));
 
             return default;

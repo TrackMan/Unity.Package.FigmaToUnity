@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace Figma
+namespace Figma.InternalsExtensions
 {
     [DebuggerStepThrough]
     public static class Extensions

@@ -2,6 +2,8 @@ using System;
 
 namespace Figma
 {
+    using InternalsExtensions;
+
     /// <summary>
     /// Represents an asset in a Resources folder or represents an asset specified by a path, it can be expressed as either a relative path or an absolute path.
     /// </summary>
