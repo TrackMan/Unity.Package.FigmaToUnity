@@ -1,3 +1,4 @@
+using Figma.Internals;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,7 +9,6 @@ using UnityEngine.UIElements;
 namespace Figma
 {
     using Internals;
-    using InternalsExtensions;
     using static FigmaParser;
 
     internal class UssStyle
@@ -158,7 +158,7 @@ namespace Figma
             this.getAssetPath = getAssetPath;
             this.getAssetSize = getAssetSize;
 
-            if (type == StyleType.FILL && node is GeometryMixin geometry)
+            if (type == StyleType.FILL && node is IGeometryMixin geometry)
             {
                 if (slot == "fill")
                     if (node is TextNode)
@@ -179,7 +179,7 @@ namespace Figma
             }
             else if (type == StyleType.TEXT && node is TextNode text)
                 AddTextStyle(text.style);
-            else if (type == StyleType.EFFECT && node is BlendMixin blend)
+            else if (type == StyleType.EFFECT && node is IBlendMixin blend)
                 AddNodeEffects(blend.effects);
         }
         public UssStyle(string name, Func<string, string, (bool valid, string path)> getAssetPath, Func<string, string, (bool valid, int width, int height)> getAssetSize, BaseNode node)
@@ -335,7 +335,7 @@ namespace Figma
         void AddInstanceNode(InstanceNode node) => AddDefaultFrameNode(node);
         void AddBooleanOperationNode(BooleanOperationNode node) => AddDefaultFrameNode(node);
 
-        void AddFrame(DefaultFrameMixin mixin)
+        void AddFrame(IDefaultFrameMixin mixin)
         {
             void AddPadding()
             {
@@ -391,7 +391,7 @@ namespace Figma
             AddPadding();
             if (mixin.layoutMode.HasValue) AddAutoLayout();
         }
-        void AddScene(BaseNodeMixin @base)
+        void AddScene(IBaseNodeMixin @base)
         {
             void HandleVisibility()
             {
@@ -401,12 +401,12 @@ namespace Figma
 
             HandleVisibility();
         }
-        void AddLayout(LayoutMixin mixin, BaseNodeMixin @base)
+        void AddLayout(ILayoutMixin mixin, IBaseNodeMixin @base)
         {
-            if (@base is DefaultFrameMixin frame && IsMostlyHorizontal(frame)) flexDirection = FlexDirection.Row;
-            if (@base.parent is DefaultFrameMixin { layoutMode: not null } && mixin.layoutAlign == LayoutAlign.STRETCH) alignSelf = Align.Stretch;
+            if (@base is IDefaultFrameMixin frame && IsMostlyHorizontal(frame)) flexDirection = FlexDirection.Row;
+            if (@base.parent is IDefaultFrameMixin { layoutMode: not null } && mixin.layoutAlign == LayoutAlign.STRETCH) alignSelf = Align.Stretch;
         }
-        void AddBlend(BlendMixin mixin)
+        void AddBlend(IBlendMixin mixin)
         {
             void AddOpacity()
             {
@@ -419,7 +419,7 @@ namespace Figma
             if (mixin is TextNode) AddTextNodeEffects(mixin.effects);
             else AddNodeEffects(mixin.effects);
         }
-        void AddGeometry(GeometryMixin mixin, LayoutMixin layout, BaseNodeMixin @base)
+        void AddGeometry(IGeometryMixin mixin, ILayoutMixin layout, IBaseNodeMixin @base)
         {
             void AddBackgroundImageForVectorNode()
             {
@@ -436,7 +436,7 @@ namespace Figma
             }
             void AddBorderWidth()
             {
-                bool state = IsStateNode(mixin.As<BaseNodeMixin>());
+                bool state = IsStateNode(mixin.As<IBaseNodeMixin>());
                 if (mixin.individualStrokeWeights is not null)
                 {
                     if (mixin.individualStrokeWeights.left > 0 || state) borderLeftWidth = mixin.individualStrokeWeights.left;
@@ -446,13 +446,13 @@ namespace Figma
                 }
                 else if (mixin.strokeWeight > 0 || state) borderWidth = mixin.strokeWeight;
             }
-            void AddBorderRadius(RectangleCornerMixin rectangleCornerMixin, CornerMixin cornerMixin)
+            void AddBorderRadius(IRectangleCornerMixin rectangleCornerMixin, ICornerMixin cornerMixin)
             {
                 void AddRadius(Double minValue, Double value)
                 {
                     if (rectangleCornerMixin.rectangleCornerRadii is null)
                     {
-                        if (cornerMixin.cornerRadius.HasPositive())
+                        if (cornerMixin.cornerRadius.HasPositive()) 
                             borderRadius = Math.Min(minValue, cornerMixin!.cornerRadius!.Value) + value;
                     }
                     else
@@ -518,16 +518,16 @@ namespace Figma
 
                 AddBorderWidth();
 
-                if (mixin.strokeAlign.HasValue) AddBorderRadius(mixin as RectangleCornerMixin, mixin as CornerMixin);
+                if (mixin.strokeAlign.HasValue) AddBorderRadius(mixin as IRectangleCornerMixin, mixin as ICornerMixin);
             }
         }
-        void AddCorner(CornerMixin cornerMixin, RectangleCornerMixin rectangleCornerMixin)
+        void AddCorner(ICornerMixin cornerMixin, IRectangleCornerMixin rectangleCornerMixin)
         {
             if (rectangleCornerMixin.rectangleCornerRadii is not null) borderRadius = rectangleCornerMixin.rectangleCornerRadii;
             else if (cornerMixin.cornerRadius.HasPositive()) borderRadius = cornerMixin.cornerRadius;
         }
 
-        void AddBoxModel(LayoutMixin layout, ConstraintMixin constraint, GeometryMixin geometry, BaseNodeMixin baseNode)
+        void AddBoxModel(ILayoutMixin layout, IConstraintMixin constraint, IGeometryMixin geometry, IBaseNodeMixin baseNode)
         {
             void AdjustSvgSize()
             {
@@ -544,12 +544,12 @@ namespace Figma
 
                 layout.absoluteBoundingBox = new Rect(layout.absoluteBoundingBox.x, layout.absoluteBoundingBox.y - geometry.strokeWeight.Value / 2, layout.absoluteBoundingBox.width, layout.absoluteBoundingBox.height);
             }
-            void AddSizeByParentAutoLayoutFromAutoLayout(DefaultFrameMixin frame)
+            void AddSizeByParentAutoLayoutFromAutoLayout(IDefaultFrameMixin frame)
             {
                 position = Position.Relative;
                 if (frame.layoutMode == LayoutMode.HORIZONTAL)
                 {
-                    if (((DefaultFrameMixin)frame.parent).layoutMode == LayoutMode.HORIZONTAL)
+                    if (((IDefaultFrameMixin)frame.parent).layoutMode == LayoutMode.HORIZONTAL)
                     {
                         width = layout.layoutGrow.HasPositive() ? new LengthProperty(100, Unit.Percent) : frame.primaryAxisSizingMode.IsValue(PrimaryAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.width : Unit.Auto;
                         height = frame.layoutAlign == LayoutAlign.STRETCH ? new LengthProperty(100, Unit.Percent) : frame.counterAxisSizingMode.IsValue(CounterAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.height : Unit.Auto;
@@ -562,7 +562,7 @@ namespace Figma
                 }
                 else if (frame.layoutMode == LayoutMode.VERTICAL)
                 {
-                    if (((DefaultFrameMixin)frame.parent).layoutMode == LayoutMode.VERTICAL)
+                    if (((IDefaultFrameMixin)frame.parent).layoutMode == LayoutMode.VERTICAL)
                     {
                         width = frame.layoutAlign == LayoutAlign.STRETCH ? new LengthProperty(100, Unit.Percent) : frame.counterAxisSizingMode.IsValue(CounterAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.width : Unit.Auto;
                         height = layout.layoutGrow.HasPositive() ? new LengthProperty(100, Unit.Percent) : frame.primaryAxisSizingMode.IsValue(PrimaryAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.height : Unit.Auto;
@@ -576,7 +576,7 @@ namespace Figma
 
                 if (layout.layoutGrow.HasPositive()) flexGrow = layout.layoutGrow;
             }
-            void AddSizeByParentAutoLayoutFromLayout(DefaultFrameMixin parent)
+            void AddSizeByParentAutoLayoutFromLayout(IDefaultFrameMixin parent)
             {
                 position = Position.Relative;
                 if (parent.layoutMode == LayoutMode.HORIZONTAL)
@@ -592,9 +592,9 @@ namespace Figma
 
                 if (layout.layoutGrow.HasPositive()) flexGrow = layout.layoutGrow;
             }
-            void AddSizeFromConstraint(DefaultFrameMixin parent, LengthProperty widthProperty, LengthProperty heightProperty)
+            void AddSizeFromConstraint(IDefaultFrameMixin parent, LengthProperty widthProperty, LengthProperty heightProperty)
             {
-                string GetFullPath(BaseNodeMixin node) => node.parent is not null ? $"{GetFullPath(node.parent)}/{node.name}" : node.name;
+                string GetFullPath(IBaseNodeMixin node) => node.parent is not null ? $"{GetFullPath(node.parent)}/{node.name}" : node.name;
 
                 ConstraintHorizontal horizontal = constraint.constraints.horizontal;
                 ConstraintVertical vertical = constraint.constraints.vertical;
@@ -766,7 +766,7 @@ namespace Figma
                 }
             }
 
-            void AddItemSpacing(DefaultFrameMixin parent, Double itemSpacing)
+            void AddItemSpacing(IDefaultFrameMixin parent, Double itemSpacing)
             {
                 if (baseNode == parent.children.LastOrDefault(IsVisible)) return;
 
@@ -804,7 +804,7 @@ namespace Figma
                     };
                 }
 
-                if (baseNode is DefaultFrameMixin { layoutMode: not null }) return;
+                if (baseNode is IDefaultFrameMixin { layoutMode: not null }) return;
 
                 if (!IsSvgNode(baseNode) && geometry is not null &&
                     geometry.strokes.Length > 0 && geometry.strokeWeight is > 0 &&
@@ -814,12 +814,12 @@ namespace Figma
 
             if (IsSvgNode(baseNode)) AdjustSvgSize();
 
-            DefaultFrameMixin parent = baseNode.parent as DefaultFrameMixin;
+            IDefaultFrameMixin parent = baseNode.parent as IDefaultFrameMixin;
             if (!IsRootNode(baseNode))
             {
                 if (parent!.layoutMode.HasValue)
                 {
-                    if (baseNode is DefaultFrameMixin { layoutMode: not null } frame)
+                    if (baseNode is IDefaultFrameMixin { layoutMode: not null } frame)
                         AddSizeByParentAutoLayoutFromAutoLayout(frame);
                     else
                         AddSizeByParentAutoLayoutFromLayout(parent);
@@ -829,7 +829,7 @@ namespace Figma
                 }
                 else
                 {
-                    if (baseNode is DefaultFrameMixin { layoutMode: not null } frame)
+                    if (baseNode is IDefaultFrameMixin { layoutMode: not null } frame)
                         AddSizeFromConstraint(parent, (frame.layoutMode == LayoutMode.HORIZONTAL
                                                   ? frame.primaryAxisSizingMode.IsValue(PrimaryAxisSizingMode.FIXED)
                                                   : frame.counterAxisSizingMode.IsValue(CounterAxisSizingMode.FIXED))
@@ -1027,32 +1027,32 @@ namespace Figma
             }
         }
 
-        static bool HasMixedCenterChildren(DefaultFrameMixin mixin)
+        static bool HasMixedCenterChildren(IDefaultFrameMixin mixin)
         {
             (int horizontalCenterCount, int verticalCenterCount) = CenterChildrenCount(mixin);
             return horizontalCenterCount > 0 && verticalCenterCount > 0;
         }
-        static bool HasAnyCenterChildren(DefaultFrameMixin mixin)
+        static bool HasAnyCenterChildren(IDefaultFrameMixin mixin)
         {
             (int horizontalCenterCount, int verticalCenterCount) = CenterChildrenCount(mixin);
             return horizontalCenterCount > 0 || verticalCenterCount > 0;
         }
-        static bool HasManyCenterChildren(DefaultFrameMixin mixin)
+        static bool HasManyCenterChildren(IDefaultFrameMixin mixin)
         {
             (int horizontalCenterCount, int verticalCenterCount) = CenterChildrenCount(mixin);
             return horizontalCenterCount > 1 || verticalCenterCount > 1;
         }
-        static bool IsMostlyHorizontal(DefaultFrameMixin mixin)
+        static bool IsMostlyHorizontal(IDefaultFrameMixin mixin)
         {
             (int horizontalCenterCount, int verticalCenterCount) = CenterChildrenCount(mixin);
             return horizontalCenterCount > verticalCenterCount;
         }
-        static (int, int) CenterChildrenCount(DefaultFrameMixin mixin)
+        static (int, int) CenterChildrenCount(IDefaultFrameMixin mixin)
         {
             if (mixin.layoutMode.HasValue) return (0, 0);
 
-            int horizontalCenterCount = mixin.children.Cast<ConstraintMixin>().Count(x => x.constraints.horizontal == ConstraintHorizontal.CENTER);
-            int verticalCenterCount = mixin.children.Cast<ConstraintMixin>().Count(x => x.constraints.vertical == ConstraintVertical.CENTER);
+            int horizontalCenterCount = mixin.children.Cast<IConstraintMixin>().Count(x => x.constraints.horizontal == ConstraintHorizontal.CENTER);
+            int verticalCenterCount = mixin.children.Cast<IConstraintMixin>().Count(x => x.constraints.vertical == ConstraintVertical.CENTER);
             return (horizontalCenterCount, verticalCenterCount);
         }
         #endregion

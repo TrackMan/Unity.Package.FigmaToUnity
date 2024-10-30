@@ -24,7 +24,7 @@ namespace Figma
 
                     break;
 
-                case ChildrenMixin { children: not null } children:
+                case IChildrenMixin { children: not null } children:
                     foreach (SceneNode child in children.children)
                     {
                         child.parent = node;

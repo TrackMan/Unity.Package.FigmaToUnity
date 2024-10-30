@@ -10,7 +10,6 @@ namespace Figma
 {
     using Attributes;
     using Internals;
-    using InternalsExtensions;
 
     internal class NodeMetadata
     {
@@ -204,9 +203,9 @@ namespace Figma
                 }
                 void SearchIn(BaseNode value, string path, int startIndex = 0)
                 {
-                    static bool IsVisible(BaseNodeMixin mixin)
+                    static bool IsVisible(IBaseNodeMixin mixin)
                     {
-                        if (mixin is SceneNodeMixin scene && scene.visible.HasValueAndFalse()) return false;
+                        if (mixin is ISceneNodeMixin scene && scene.visible.HasValueAndFalse()) return false;
 
                         return mixin.parent is null || IsVisible(mixin.parent);
                     }
@@ -219,7 +218,7 @@ namespace Figma
                                 children.AddRange(documentNode.children);
                                 break;
 
-                            case ChildrenMixin childrenMixin:
+                            case IChildrenMixin childrenMixin:
                                 children.AddRange(childrenMixin.children);
                                 break;
                         }
@@ -240,9 +239,9 @@ namespace Figma
                 }
                 void SearchByFullPath(BaseNode value, string path, int startIndex = 0)
                 {
-                    static bool IsVisible(BaseNodeMixin mixin)
+                    static bool IsVisible(IBaseNodeMixin mixin)
                     {
-                        if (mixin is SceneNodeMixin scene && scene.visible.HasValueAndFalse()) return false;
+                        if (mixin is ISceneNodeMixin scene && scene.visible.HasValueAndFalse()) return false;
 
                         return mixin.parent is null || IsVisible(mixin.parent);
                     }
@@ -250,7 +249,7 @@ namespace Figma
                     {
                         List<BaseNode> children = new();
                         if (value is DocumentNode documentNode) children.AddRange(documentNode.children);
-                        else if (value is ChildrenMixin childrenMixin) children.AddRange(childrenMixin.children);
+                        else if (value is IChildrenMixin childrenMixin) children.AddRange(childrenMixin.children);
                         else return children;
 
                         return children;
@@ -289,7 +288,7 @@ namespace Figma
 
                 foreach (BaseNode result in search.OfType<BaseNode>()) yield return result;
             }
-
+            
             string GetFullPath(BaseNode node) => node.parent is not null ? $"{GetFullPath(node.parent)}/{node.name}" : node.name;
 
             BaseNode result = Search(value, path).FirstOrDefault();
@@ -300,7 +299,7 @@ namespace Figma
             if (throwException)
                 throw new Exception(Extensions.BuildTargetMessage("Cannot find node at", $"{GetFullPath(value)}/{path}"));
 
-            if (!silent)
+            if (!silent) 
                 Debug.LogWarning(Extensions.BuildTargetMessage($"Cannot find node at", $"{GetFullPath(value)}/{path}"));
 
             return default;
@@ -341,7 +340,7 @@ namespace Figma
 
                         break;
 
-                    case ChildrenMixin children:
+                    case IChildrenMixin children:
                         foreach (SceneNode child in children.children)
                         {
                             BaseNode node = FindRootInChildren(child);

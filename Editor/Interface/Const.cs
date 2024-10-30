@@ -29,10 +29,10 @@ namespace Figma.Internals
 
     public static class KnownFormats
     {
-        public const string png = "png";
-        public const string svg = "svg";
-        public const string ttf = "ttf";
-        public const string otf = "otf";
-        public const string asset = "asset";
+        public const string png = nameof(png);
+        public const string svg = nameof(svg);
+        public const string ttf = nameof(ttf);
+        public const string otf = nameof(otf);
+        public const string asset = nameof(asset);
     }
 }

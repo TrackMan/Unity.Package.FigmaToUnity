@@ -16,14 +16,12 @@ using Object = UnityEngine.Object;
 namespace Figma.Inspectors
 {
     using Internals;
-    using InternalsExtensions;
     using static Internals.Const;
+    using static FigmaParser;
 
     internal class FigmaUpdater : FigmaApi
     {
         const int maxConcurrentRequests = 5;
-        const string images = FigmaParser.images;
-        const string elements = FigmaParser.elements;
 
         #region Containers
 #pragma warning disable S1144 // Called from Unity
@@ -35,10 +33,10 @@ namespace Figma.Inspectors
                 DirectoryInfo parentDirectory = Directory.GetParent(assetPath)?.Parent;
                 if (parentDirectory is null || !Directory.GetFiles(parentDirectory!.FullName, "*.uxml").Any()) return;
 
-                if (assetPath.Contains(images) && assetImporter is SVGImporter svgImporter)
+                if (assetPath.Contains(imagesDirectoryName) && assetImporter is SVGImporter svgImporter)
                     svgImporter.SvgType = SVGType.UIToolkit;
 
-                if (!assetPath.Contains(images) || assetImporter is not TextureImporter textureImporter) return;
+                if (!assetPath.Contains(imagesDirectoryName) || assetImporter is not TextureImporter textureImporter) return;
 
                 textureImporter.npotScale = TextureImporterNPOTScale.None;
                 textureImporter.mipmapEnabled = false;
@@ -148,45 +146,61 @@ namespace Figma.Inspectors
         }
         internal void Cleanup(string name)
         {
+            void CleanElements(string uxmlContents)
+            {
+                foreach (string path in Directory.GetFiles(Path.Combine(folder, componentsDirectoryName), "*.uxml"))
+                {
+                    string filename = Path.GetFileName(path);
+                    string relativePath = Path.Combine(relativeFolder, componentsDirectoryName, filename);
+                    if (uxmlContents.Contains(filename)) continue;
+
+                    Debug.LogWarning($"Removing obsolete uxml {relativePath}");
+                    FileUtil.DeleteFileOrDirectory(path);
+                }
+            }
+            void CleanComponents(string uxmlContents)
+            {
+                foreach (string path in Directory.GetFiles(Path.Combine(folder, elementsDirectoryName), "*.uxml"))
+                {
+                    string filename = Path.GetFileName(path);
+                    string relativePath = Path.Combine(relativeFolder, elementsDirectoryName, filename);
+                    if (uxmlContents.Contains(filename)) continue;
+
+                    Debug.LogWarning($"Removing obsolete uxml {relativePath}");
+                    FileUtil.DeleteFileOrDirectory(path);
+                }
+            }
+            void CleanReferencedItems(string ussContents, string extension)
+            {
+                foreach (string path in Directory.GetFiles(Path.Combine(folder, elementsDirectoryName), extension))
+                {
+                    string filename = Path.GetFileName(path);
+                    string relativePath = Path.Combine(relativeFolder, elementsDirectoryName, filename);
+                    if (ussContents.Contains(filename)) continue;
+
+                    Debug.LogWarning($"Removing obsolete item {relativePath}");
+                    FileUtil.DeleteFileOrDirectory(path);
+                }
+            }
+
             string uxmlContents = File.ReadAllText(Path.Combine(folder, $"{name}.uxml"));
-            foreach (string path in Directory.GetFiles(Path.Combine(folder, elements), "*.uxml"))
-            {
-                string filename = Path.GetFileName(path);
-                string relativePath = Path.Combine(relativeFolder, elements, filename);
-                if (uxmlContents.Contains(filename)) continue;
-
-                Debug.LogWarning($"Removing obsolete uxml {relativePath}");
-                FileUtil.DeleteFileOrDirectory(path);
-            }
-
             string ussContents = File.ReadAllText(Path.Combine(folder, $"{name}.uss"));
-            foreach (string path in Directory.GetFiles(Path.Combine(folder, elements), "*.png"))
-            {
-                string filename = Path.GetFileName(path);
-                string relativePath = Path.Combine(relativeFolder, elements, filename);
-                if (ussContents.Contains(filename)) continue;
 
-                Debug.LogWarning($"Removing obsolete image {relativePath}");
-                FileUtil.DeleteFileOrDirectory(path);
-            }
-
-            foreach (string path in Directory.GetFiles(Path.Combine(folder, elements), "*.svg"))
-            {
-                string filename = Path.GetFileName(path);
-                string relativePath = Path.Combine(relativeFolder, elements, filename);
-                if (ussContents.Contains(filename)) continue;
-
-                Debug.LogWarning($"Removing obsolete image {relativePath}");
-                FileUtil.DeleteFileOrDirectory(path);
-            }
+            CleanElements(uxmlContents);
+            CleanComponents(uxmlContents);
+            CleanReferencedItems(ussContents, "*.png");
+            CleanReferencedItems(ussContents, "*.svg");
         }
         #endregion
 
         #region Support Methods
         void CreateDirectories()
         {
-            Directory.CreateDirectory(Path.Combine(folder, images));
-            Directory.CreateDirectory(Path.Combine(folder, elements));
+            void CreateDirectory(string directory) => Directory.CreateDirectory(Path.Combine(folder, directory));
+
+            CreateDirectory(imagesDirectoryName);
+            CreateDirectory(elementsDirectoryName);
+            CreateDirectory(componentsDirectoryName);
         }
 
         async Task LoadRemapsAsync(string name, CancellationToken token)
@@ -225,8 +239,12 @@ namespace Figma.Inspectors
 
                 // Using HttpClient here instead of UnityWebRequest because using of UnityWebRequest causes deadlock
                 HttpClient client = new();
-                foreach (KeyValuePair<string, string> header in headers) client.DefaultRequestHeaders.Add(header.Key, header.Value);
-                if (fileExists && remaps.TryGetValue(nodeID, out string etag)) client.DefaultRequestHeaders.Add("If-None-Match", $"\"{etag}\"");
+                foreach (KeyValuePair<string, string> header in headers)
+                    client.DefaultRequestHeaders.Add(header.Key, header.Value);
+
+                if (fileExists && remaps.TryGetValue(nodeID, out string etag))
+                    client.DefaultRequestHeaders.Add("If-None-Match", $"\"{etag}\"");
+
                 HttpResponseMessage response = await client.GetAsync(url, token);
 
                 if (response.Headers.TryGetValues("ETag", out IEnumerable<string> values))
@@ -234,7 +252,6 @@ namespace Figma.Inspectors
 
                 (bool _, string assetPath) = GetAssetPath(nodeID, extension);
                 string relativePath = Path.Combine(relativeFolder, assetPath).Replace('\\', '/');
-                ;
 
                 if (response.StatusCode == HttpStatusCode.OK)
                 {
@@ -351,7 +368,7 @@ namespace Figma.Inspectors
                 if (!nodes.Any()) return;
 
                 Files.Images filesImages = await GetAsync<Files.Images>($"files/{title}/images", token);
-                IEnumerable<string> imageRefs = nodes.OfType<GeometryMixin>().Select(y => y.fills.OfType<ImagePaint>().First().imageRef);
+                IEnumerable<string> imageRefs = nodes.OfType<IGeometryMixin>().Select(y => y.fills.OfType<ImagePaint>().First().imageRef);
 
                 IEnumerable<KeyValuePair<string, string>> urls = filesImages.meta.images.Where(item => imageRefs.Contains(item.Key));
                 await urls.ForEachParallelAsync(maxConcurrentRequests, x => GetImageAsync(x.Key, x.Value, KnownFormats.png), token);
@@ -413,7 +430,7 @@ namespace Figma.Inspectors
 
                 case KnownFormats.png or KnownFormats.svg:
                     remaps.TryGetValue(name, out string mappedName);
-                    string filename = $"{images}/{mappedName ?? name}.{extension}";
+                    string filename = $"{imagesDirectoryName}/{mappedName ?? name}.{extension}";
                     return (File.Exists(Path.Combine(folder, filename)), filename);
 
                 default:

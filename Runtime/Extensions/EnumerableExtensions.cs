@@ -6,10 +6,10 @@ using System.Collections.Generic;
 
 namespace Figma
 {
-    public static class EnumerableExtensions
+    internal static class EnumerableExtensions
     {
         #region Methods
-        public static async Task ForEachParallelAsync<T>(this IEnumerable<T> elements, int maxConcurrentRequests, Func<T, Task> func, CancellationToken token)
+        internal static async Task ForEachParallelAsync<T>(this IEnumerable<T> elements, int maxConcurrentRequests, Func<T, Task> func, CancellationToken token)
         {
             using SemaphoreSlim semaphore = new(maxConcurrentRequests);
             Task[] tasks = elements.Select(async (x) =>

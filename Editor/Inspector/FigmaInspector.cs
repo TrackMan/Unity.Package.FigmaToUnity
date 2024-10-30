@@ -19,21 +19,17 @@ namespace Figma.Inspectors
 {
     using Attributes;
     using Internals;
-    using InternalsExtensions;
 
     [CustomEditor(typeof(Figma), true)]
     [SuppressMessage("Roslynator", "RCS1213:Remove unused member declaration.")]
     public class FigmaInspector : Editor
     {
         #region Consts
-        const string deleteIcon = "TestFailed";
-        const string loggedInIcon = "TestPassed";
-        const string warningIcon = "d_console.warnicon.sml";
-
         static readonly Regex regex = new(@"[^/\\]+$", RegexOptions.Compiled);
         string documentsOnlyIcon => EditorGUIUtility.isProSkin ? "d_Refresh@2x" : "Refresh@2x";
         string documentWithImagesIcon => EditorGUIUtility.isProSkin ? "d_RawImage Icon" : "RawImage Icon";
         string folderIcon => EditorGUIUtility.isProSkin ? "d_Project" : "Project";
+        string logOutIcon => EditorGUIUtility.isProSkin ? "d_Import" : "Import";
         #endregion
 
         #region Fields
@@ -43,6 +39,9 @@ namespace Figma.Inspectors
         SerializedProperty waitFrameBeforeRebuild;
         SerializedProperty fontsDirs;
         UIDocument document;
+
+        bool occupied;
+        string username;
         #endregion
 
         #region Properties
@@ -74,21 +73,34 @@ namespace Figma.Inspectors
 
         void DrawPersonalAccessTokenGUI()
         {
-            async void TryPasteToken(string personalAccessToken)
+            const string loggedInIcon = "TestPassed";
+
+            async void GetName(string personalAccessToken)
             {
+                occupied = true;
                 FigmaTokenTest test = new(personalAccessToken);
                 bool result = await test.TestAsync();
-                if (result) PersonalAccessToken = personalAccessToken;
+
+                if (!result)
+                    return;
+
+                username = test.me.handle;
+                PersonalAccessToken = personalAccessToken;
+                occupied = false;
             }
 
             using (new EditorGUILayout.HorizontalScope(GUI.skin.box))
             {
                 if (PersonalAccessToken.NotNullOrEmpty())
                 {
-                    EditorGUILayout.LabelField(EditorGUIUtility.IconContent(loggedInIcon), GUILayout.Width(20));
-                    EditorGUILayout.LabelField("Personal Access Token OK");
+                    if (username.NullOrEmpty() && !occupied) 
+                        GetName(PersonalAccessToken);
 
-                    if (GUILayout.Button(EditorGUIUtility.TrIconContent(deleteIcon, "Log out"), GUILayout.Width(36), GUILayout.Height(20)))
+                    EditorGUILayout.LabelField(EditorGUIUtility.IconContent(loggedInIcon), GUILayout.Width(20));
+                    EditorGUILayout.LabelField("You're logged in as", GUILayout.Width(108));
+                    EditorGUILayout.LabelField(username, EditorStyles.boldLabel);
+
+                    if (GUILayout.Button(new GUIContent(EditorGUIUtility.IconContent(logOutIcon).image, "Log Out"), GUILayout.Width(25), GUILayout.Height(25)))
                         PersonalAccessToken = string.Empty;
                 }
                 else
@@ -98,7 +110,7 @@ namespace Figma.Inspectors
                     string token = EditorGUILayout.TextField(PersonalAccessToken);
 
                     if (GUI.changed)
-                        TryPasteToken(token);
+                        GetName(token);
                 }
             }
 
@@ -131,9 +143,11 @@ namespace Figma.Inspectors
 
                 using (new EditorGUILayout.HorizontalScope())
                 {
+                    const string downloadTooltip = "Hold Ctrl to copy figma.json into your clipboard";
+
                     using EditorGUI.DisabledScope _ = new(!PersonalAccessToken.NotNullOrEmpty());
-                    bool updateUI = GUILayout.Button(new GUIContent("Update UI", EditorGUIUtility.IconContent(documentsOnlyIcon).image), GUILayout.Height(20));
-                    bool downloadImages = GUILayout.Button(new GUIContent("Update UI & Images", EditorGUIUtility.IconContent(documentWithImagesIcon).image), GUILayout.Width(184), GUILayout.Height(20));
+                    bool updateUI = GUILayout.Button(new GUIContent("Update UI", EditorGUIUtility.IconContent(documentsOnlyIcon).image, downloadTooltip), GUILayout.Height(20));
+                    bool downloadImages = GUILayout.Button(new GUIContent("Update UI & Images", EditorGUIUtility.IconContent(documentWithImagesIcon).image, downloadTooltip), GUILayout.Width(184), GUILayout.Height(20));
                     bool forceUpdate = GUILayout.Button(new GUIContent(EditorGUIUtility.FindTexture(folderIcon)), GUILayout.Width(36));
 
                     if (forceUpdate && EditorUtility.DisplayDialog("Figma Updater", "Do you want to update images as well?", "Yes", "No")) downloadImages = true;

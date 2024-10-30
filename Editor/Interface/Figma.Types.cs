@@ -11,55 +11,10 @@ using System.Collections.Generic;
 
 namespace Figma.Internals
 {
-    using boolean = Boolean;
-    using number = Double;
     using VariableAlias = Object;
+    using number = Double;
 
     #region Datatype
-    public struct Vector
-    {
-        public number x;
-        public number y;
-    }
-
-    public struct Rect
-    {
-        public number x;
-        public number y;
-        public number width;
-        public number height;
-
-        public number left => x;
-        public number right => x + width;
-        public number top => y;
-        public number bottom => y + height;
-        public number centerLeft => x - width / 2;
-        public number centerRight => x + width / 2;
-        public number centerTop => y - height / 2;
-        public number centerBottom => y + height / 2;
-        public number halfWidth => width / 2;
-        public number halfHeight => height / 2;
-
-        public Rect(number x, number y, number width, number height)
-        {
-            this.x = x;
-            this.y = y;
-            this.width = width;
-            this.height = height;
-        }
-
-        public static Rect operator +(Rect a, Rect b) => new(a.x + b.x, a.y + b.y, a.width + b.width, a.height + b.height);
-        public static Rect operator -(Rect a, Rect b) => new(a.x - b.x, a.y - b.y, a.width - b.width, a.height - b.height);
-    }
-
-    public struct RGBA
-    {
-        public number r;
-        public number g;
-        public number b;
-        public number a;
-    }
-
     public class ShadowEffect : Effect
     {
         public EffectType type;
@@ -67,16 +22,16 @@ namespace Figma.Internals
         public Vector offset;
         public number radius;
         public number? spread;
-        public boolean visible;
+        public bool visible;
         public BlendMode blendMode;
-        public boolean? showShadowBehindNode;
+        public bool? showShadowBehindNode;
     }
 
     public class BlurEffect : Effect
     {
         public EffectType type;
         public number radius;
-        public boolean visible;
+        public bool visible;
     }
 
     public class Effect { }
@@ -116,7 +71,7 @@ namespace Figma.Internals
     {
         public PaintType type;
         public RGBA color;
-        public boolean? visible;
+        public bool? visible;
         public number? opacity;
         public BlendMode? blendMode;
         public Dictionary<string, VariableAlias> boundVariables;
@@ -126,7 +81,7 @@ namespace Figma.Internals
     {
         public PaintType type;
         public ColorStop[] gradientStops;
-        public boolean? visible;
+        public bool? visible;
         public number? opacity;
         public BlendMode? blendMode;
         public Vector[] gradientHandlePositions;
@@ -137,7 +92,7 @@ namespace Figma.Internals
         public PaintType type;
         public ScaleMode scaleMode;
         public number[,] imageTransform;
-        public boolean? visible;
+        public bool? visible;
         public number? opacity;
         public BlendMode? blendMode;
         public string imageRef;
@@ -159,7 +114,7 @@ namespace Figma.Internals
         public number count;
         public number? sectionSize;
         public number? offset;
-        public boolean? visible;
+        public bool? visible;
         public RGBA? color;
     }
 
@@ -167,7 +122,7 @@ namespace Figma.Internals
     {
         public Pattern pattern;
         public number sectionSize;
-        public boolean? visible;
+        public bool? visible;
         public RGBA? color;
         public Alignment? alignment;
         public number? gutterSize;
@@ -186,7 +141,7 @@ namespace Figma.Internals
     public class ExportSettingsImage : ExportSettings
     {
         public Format format;
-        public boolean? contentsOnly;
+        public bool? contentsOnly;
         public string suffix;
         public ExportSettingsConstraints constraint;
     }
@@ -194,18 +149,18 @@ namespace Figma.Internals
     public class ExportSettingsSVG : ExportSettings
     {
         public Format format = Format.SVG;
-        public boolean? contentsOnly;
+        public bool? contentsOnly;
         public string suffix;
-        public boolean? svgOutlineText;
-        public boolean? svgIdAttribute;
-        public boolean? svgSimplifyStroke;
+        public bool? svgOutlineText;
+        public bool? svgIdAttribute;
+        public bool? svgSimplifyStroke;
         public ExportSettingsConstraints constraint;
     }
 
     public class ExportSettingsPDF : ExportSettings
     {
         public Format format = Format.PDF;
-        public boolean? contentsOnly;
+        public bool? contentsOnly;
         public string suffix;
         public ExportSettingsConstraints constraint;
     }
@@ -225,7 +180,7 @@ namespace Figma.Internals
         public string destinationId;
         public Navigation? navigation;
         public Transition transition;
-        public boolean? preserveScrollPosition;
+        public bool? preserveScrollPosition;
         public Vector? overlayRelativePosition;
         public bool resetVideoPosition;
         public bool resetScrollPosition;
@@ -237,7 +192,7 @@ namespace Figma.Internals
     public class DirectionalTransition : Transition
     {
         public TransitionDirection direction;
-        public boolean matchLayers;
+        public bool matchLayers;
     }
 
     public class Transition
@@ -295,7 +250,7 @@ namespace Figma.Internals
         public CanvasNode[] children;
     }
 
-    public class CanvasNode : BaseNode, ChildrenMixin, ExportMixin
+    public class CanvasNode : BaseNode, IChildrenMixin, IExportMixin
     {
         public RGBA backgroundColor;
         public string prototypeStartNodeID;
@@ -313,7 +268,7 @@ namespace Figma.Internals
 
     public class GroupNode : DefaultFrameNode { }
 
-    public class SliceNode : SceneNode, ConstraintMixin, LayoutMixin, ExportMixin
+    public class SliceNode : SceneNode, IConstraintMixin, ILayoutMixin, IExportMixin
     {
         #region Mixin
         public Constraints constraints { get; set; }
@@ -328,7 +283,7 @@ namespace Figma.Internals
         #endregion
     }
 
-    public class RectangleNode : DefaultShapeNode, CornerMixin, RectangleCornerMixin
+    public class RectangleNode : DefaultShapeNode, ICornerMixin, IRectangleCornerMixin
     {
         #region Mixin
         public number? cornerRadius { get; set; }
@@ -344,7 +299,7 @@ namespace Figma.Internals
         public ArcData arcData { get; set; }
     }
 
-    public class RegularPolygonNode : DefaultShapeNode, CornerMixin, RectangleCornerMixin
+    public class RegularPolygonNode : DefaultShapeNode, ICornerMixin, IRectangleCornerMixin
     {
         #region Mixin
         public number? cornerRadius { get; set; }
@@ -352,7 +307,7 @@ namespace Figma.Internals
         #endregion
     }
 
-    public class StarNode : DefaultShapeNode, CornerMixin, RectangleCornerMixin
+    public class StarNode : DefaultShapeNode, ICornerMixin, IRectangleCornerMixin
     {
         #region Mixin
         public number? cornerRadius { get; set; }
@@ -361,7 +316,7 @@ namespace Figma.Internals
         #endregion
     }
 
-    public class VectorNode : DefaultShapeNode, CornerMixin, RectangleCornerMixin
+    public class VectorNode : DefaultShapeNode, ICornerMixin, IRectangleCornerMixin
     {
         #region Mixin
         public number? cornerRadius { get; set; }
@@ -377,7 +332,7 @@ namespace Figma.Internals
             public string fontFamily;
             public string fontPostScriptName;
             public number? paragraphSpacing;
-            public boolean? italic;
+            public bool? italic;
             public number? fontWeight;
             public number? fontSize;
             public TextCase? textCase;
@@ -387,7 +342,7 @@ namespace Figma.Internals
             public TextAutoResize? textAutoResize;
             public number? letterSpacing;
             public Paint[] fills;
-            public Dictionary<string, double> opentypeFlags;
+            public Dictionary<string, number> opentypeFlags;
             public number? lineHeightPx;
             public number? listSpacing;
             public number? lineHeightPercent;
@@ -403,8 +358,8 @@ namespace Figma.Internals
 
         public string characters;
         public Style style;
-        public double[] characterStyleOverrides;
-        public Dictionary<double, Style> styleOverrideTable;
+        public number[] characterStyleOverrides;
+        public Dictionary<number, Style> styleOverrideTable;
         public number? layoutVersion;
         public string[] lineTypes;
         public int[] lineIndentations;
@@ -460,7 +415,7 @@ namespace Figma.Internals
         public BooleanOperation booleanOperation;
     }
 
-    public class DefaultShapeNode : SceneNode, DefaultShapeMixin, TransitionMixin
+    public class DefaultShapeNode : SceneNode, IDefaultShapeMixin, ITransitionMixin
     {
         public number[] strokeDashes;
         public number? rotation;
@@ -479,11 +434,11 @@ namespace Figma.Internals
 
         public number? opacity { get; set; }
         public BlendMode blendMode { get; set; }
-        public boolean? isMask { get; set; }
-        public boolean? isMaskOutline { get; set; }
+        public bool? isMask { get; set; }
+        public bool? isMaskOutline { get; set; }
         public Effect[] effects { get; set; }
         public Dictionary<string, string> styles { get; set; }
-        public boolean? preserveRatio { get; set; }
+        public bool? preserveRatio { get; set; }
 
         public Paint[] fills { get; set; }
         public object[] fillGeometry { get; set; }
@@ -513,8 +468,9 @@ namespace Figma.Internals
         #endregion
     }
 
-    public class DefaultFrameNode : DefaultShapeNode, DefaultFrameMixin
+    public class DefaultFrameNode : DefaultShapeNode, IDefaultFrameMixin
     {
+        #region Mixin
         public LayoutMode? layoutMode { get; set; }
         public PrimaryAxisSizingMode? primaryAxisSizingMode { get; set; }
         public CounterAxisSizingMode? counterAxisSizingMode { get; set; }
@@ -530,13 +486,12 @@ namespace Figma.Internals
         public number? paddingBottom { get; set; }
         public number? itemSpacing { get; set; }
         public LayoutGrid[] layoutGrids { get; set; }
-        public boolean? clipsContent { get; set; }
+        public bool? clipsContent { get; set; }
         public OverflowDirection? overflowDirection { get; set; }
-        public boolean itemReverseZIndex { get; set; }
+        public bool itemReverseZIndex { get; set; }
         public LayoutWrap? layoutWrap { get; set; }
-        public boolean strokesIncludedInLayout { get; set; }
-
-        #region Mixin
+        public bool strokesIncludedInLayout { get; set; }
+        
         public Paint[] background { get; set; }
         public RGBA? backgroundColor { get; set; }
 
@@ -548,7 +503,7 @@ namespace Figma.Internals
         #endregion
     }
 
-    public class BaseNode : BaseNodeMixin
+    public class BaseNode : IBaseNodeMixin
     {
         #region Mixin
         public NodeType type { get; set; }
@@ -561,11 +516,11 @@ namespace Figma.Internals
         public override string ToString() => name;
     }
 
-    public class SceneNode : BaseNode, SceneNodeMixin
+    public class SceneNode : BaseNode, ISceneNodeMixin
     {
         #region Properties
-        public boolean? visible { get; set; }
-        public boolean? locked { get; set; }
+        public bool? visible { get; set; }
+        public bool? locked { get; set; }
         public Dictionary<string, VariableAlias> boundVariables { get; set; }
         #endregion
     }
@@ -659,8 +614,7 @@ namespace Figma.Internals
         public string editorType;
         public string linkAccess;
     }
-
-
+    
     public class Interactions
     {
         public Trigger trigger;

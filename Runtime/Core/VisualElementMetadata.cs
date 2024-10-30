@@ -11,15 +11,10 @@ using Debug = UnityEngine.Debug;
 // ReSharper disable MemberCanBePrivate.Global
 // ReSharper disable UnusedMember.Global
 
-namespace System.Runtime.CompilerServices
-{
-    public class IsExternalInit { }
-}
-
 namespace Figma
 {
     using Attributes;
-    using InternalsExtensions;
+    using Internals;
 
     public static class VisualElementMetadata
     {
@@ -237,7 +232,6 @@ namespace Figma
             }
             catch (Exception exception)
             {
-                Debug.LogException(exception);
                 throw new ArgumentException(Extensions.BuildTargetMessage($"Cannot clone {typeof(T).Name}", value.name), exception);
             }
             finally
@@ -560,7 +554,7 @@ namespace Figma
             float spacing = parent.customStyle.GetItemSpacing();
             if (spacing.Invalid()) return;
 
-            IEnumerable<VisualElement> children = parent.Children().Where(x => x.resolvedStyle.display == DisplayStyle.Flex).ToArray();
+            IEnumerable<VisualElement> children = parent.Children().Where(x => x.resolvedStyle.display == DisplayStyle.Flex);
             if (!children.Any()) return;
 
             bool horizontalDirection = parent.resolvedStyle.flexDirection == FlexDirection.Row;

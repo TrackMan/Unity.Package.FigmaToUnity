@@ -5,7 +5,7 @@ using UnityEngine.UIElements;
 
 namespace Figma
 {
-    using InternalsExtensions;
+    using Internals;
 
     public abstract class Element : MonoBehaviour, IRootElement
     {

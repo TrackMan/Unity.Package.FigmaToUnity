@@ -13,14 +13,14 @@ namespace Figma
 {
     using Core;
     using Internals;
-    using InternalsExtensions;
 
     internal class FigmaParser
     {
         const int initialCollectionCapacity = 128;
-
-        internal const string images = "Images";
-        internal const string elements = "Elements";
+        
+        internal const string imagesDirectoryName = "Images";
+        internal const string elementsDirectoryName = "Elements";
+        internal const string componentsDirectoryName = "Components";
 
         static readonly Regex multipleDashesRegex = new("-{2,}", RegexOptions.Compiled);
         static readonly Regex invalidCharsRegex = new($"[^a-zA-Z0-9]", RegexOptions.Compiled);
@@ -68,11 +68,6 @@ namespace Figma
         #endregion
 
         #region Methods
-        internal void AddMissingComponent(ComponentNode component, Dictionary<string, Style> componentStyles)
-        {
-            components.Add(component);
-            componentsStyles.Add(componentStyles);
-        }
         internal void Run(Func<string, string, (bool valid, string path)> getAssetPath, Func<string, string, (bool valid, int width, int height)> getAssetSize)
         {
             AddStylesRecursively(document, documentStyles, false, getAssetPath, getAssetSize);
@@ -113,7 +108,7 @@ namespace Figma
 
                     if (number > 0)
                     {
-                        if (words != "") words += "and-";
+                        if (words != string.Empty) words += "and-";
                         if (number < 20) words += unitsMap[number];
                         else
                         {
@@ -137,7 +132,7 @@ namespace Figma
 
                 foreach (BaseNode node in nodes)
                 {
-                    if (node.parent is not ChildrenMixin parent) continue;
+                    if (node.parent is not IChildrenMixin parent) continue;
 
                     foreach (SceneNode child in parent.children)
                         if (IsStateNode(child) && IsStateNode(child, node))
@@ -162,13 +157,18 @@ namespace Figma
             UssWriter __ = new(stylesFiltered, componentStyleFiltered, nodeStyleFiltered.Select(x => x.Value), uss);
 #pragma warning restore S1481
         }
-
+        internal void AddMissingComponent(ComponentNode component, Dictionary<string, Style> componentStyles)
+        {
+            components.Add(component);
+            componentsStyles.Add(componentStyles);
+        }
+        
         void AddMissingNodesRecursively(BaseNode node)
         {
             if (node is InstanceNode instance && FindNode(instance.componentId) is null)
                 MissingComponents.Add(instance.componentId);
 
-            if (node is ChildrenMixin children)
+            if (node is IChildrenMixin children)
                 foreach (SceneNode child in children.children)
                     AddMissingNodesRecursively(child);
         }
@@ -178,7 +178,7 @@ namespace Figma
 
             if (!IsSvgNode(node) && HasImageFill(node)) ImageFillNodes.Add(node);
 
-            if (node is ChildrenMixin children)
+            if (node is IChildrenMixin children)
                 foreach (SceneNode child in children.children)
                     AddImageFillsRecursively(child, enabledInHierarchy);
         }
@@ -189,7 +189,7 @@ namespace Figma
             if (IsSvgNode(node) && HasImageFill(node)) PngNodes.Add(node);
             if (node is BooleanOperationNode) return;
 
-            if (node is ChildrenMixin children)
+            if (node is IChildrenMixin children)
                 foreach (SceneNode child in children.children)
                     AddPngNodesRecursively(child, enabledInHierarchy);
         }
@@ -204,7 +204,7 @@ namespace Figma
                 case BooleanOperationNode:
                     return;
 
-                case ChildrenMixin children:
+                case IChildrenMixin children:
                 {
                     foreach (SceneNode child in children.children)
                         AddSvgNodesRecursively(child, enabledInHierarchy);
@@ -221,7 +221,7 @@ namespace Figma
                 case BooleanOperationNode:
                     return;
 
-                case GeometryMixin geometry:
+                case IGeometryMixin geometry:
                 {
                     foreach (GradientPaint gradient in geometry.fills.OfType<GradientPaint>())
                         Gradients.TryAdd(gradient.GetHash(), gradient);
@@ -229,7 +229,7 @@ namespace Figma
                 }
             }
 
-            if (node is not ChildrenMixin children) return;
+            if (node is not IChildrenMixin children) return;
 
             foreach (SceneNode child in children.children)
                 AddGradientsRecursively(child, enabledInHierarchy);
@@ -259,7 +259,7 @@ namespace Figma
             if (insideComponent) componentStyleMap[node] = new UssStyle(GetClassName(node.name, IsStateNode(node)), getAssetPath, getAssetSize, node);
             else nodeStyleMap[node] = new UssStyle(GetClassName(node.name, IsStateNode(node)), getAssetPath, getAssetSize, node);
 
-            if (node is BlendMixin { styles: not null } blend)
+            if (node is IBlendMixin { styles: not null } blend)
             {
                 foreach (KeyValuePair<string, string> keyValue in blend.styles)
                 {
@@ -280,7 +280,7 @@ namespace Figma
                 case BooleanOperationNode:
                     return;
 
-                case ChildrenMixin children:
+                case IChildrenMixin children:
                 {
                     foreach (SceneNode child in children.children)
                         AddStylesRecursively(child, styles, insideComponent, getAssetPath, getAssetSize);
@@ -293,7 +293,7 @@ namespace Figma
         {
             BaseNode Find(BaseNode root)
             {
-                if (root is ChildrenMixin children)
+                if (root is IChildrenMixin children)
                     foreach (SceneNode child in children.children)
                     {
                         if (child.id == id) return child;
@@ -329,7 +329,7 @@ namespace Figma
             UssStyle component = default;
             List<UssStyle> styles = new();
 
-            if (IsStateNode(node) && node.parent is ChildrenMixin parent)
+            if (IsStateNode(node) && node.parent is IChildrenMixin parent)
             {
                 BaseNode normalNode = Array.Find(parent.children, x => IsStateNode(node, x));
                 if (normalNode is not null) component = GetStyle(normalNode);
@@ -351,7 +351,7 @@ namespace Figma
                 }
             }
 
-            if (node is BlendMixin { styles: not null } blend)
+            if (node is IBlendMixin { styles: not null } blend)
                 foreach (KeyValuePair<string, string> keyValue in blend.styles)
                 {
                     bool text = node.type == NodeType.TEXT;
@@ -375,7 +375,7 @@ namespace Figma
 
             if (node is BooleanOperationNode) return;
 
-            if (node is ChildrenMixin children)
+            if (node is IChildrenMixin children)
                 foreach (SceneNode child in children.children)
                     InheritStylesRecursively(child);
         }
@@ -388,7 +388,7 @@ namespace Figma
             string component = string.Empty;
             List<string> styles = new();
 
-            if (IsStateNode(node) && node.parent is ChildrenMixin parent)
+            if (IsStateNode(node) && node.parent is IChildrenMixin parent)
             {
                 BaseNode normalNode = Array.Find(parent.children, x => IsStateNode(node, x));
                 if (normalNode is not null) component = GetStyle(normalNode).Name;
@@ -410,7 +410,7 @@ namespace Figma
                 }
             }
 
-            if (node is BlendMixin { styles: not null } blend)
+            if (node is IBlendMixin { styles: not null } blend)
             {
                 foreach (KeyValuePair<string, string> keyValue in blend.styles)
                 {
@@ -449,18 +449,18 @@ namespace Figma
         #endregion
 
         #region Support Methods
-        internal static bool IsRootNode(BaseNodeMixin mixin) => mixin is DocumentNode || mixin is CanvasNode || mixin.parent is CanvasNode || mixin is ComponentNode || mixin.parent is ComponentNode;
-        internal static bool IsVisible(BaseNodeMixin mixin)
+        internal static bool IsRootNode(IBaseNodeMixin mixin) => mixin is DocumentNode || mixin is CanvasNode || mixin.parent is CanvasNode || mixin is ComponentNode || mixin.parent is ComponentNode;
+        internal static bool IsVisible(IBaseNodeMixin mixin)
         {
-            if (mixin is SceneNodeMixin scene && scene.visible.HasValueAndFalse()) return false;
+            if (mixin is ISceneNodeMixin scene && scene.visible.HasValueAndFalse()) return false;
 
             return mixin.parent is null || IsVisible(mixin.parent);
         }
-        internal static bool HasImageFill(BaseNodeMixin mixin) => mixin is GeometryMixin geometry && geometry.fills.Any(x => x is ImagePaint);
-        internal static bool IsSvgNode(BaseNodeMixin mixin) => mixin is LineNode || mixin is EllipseNode || mixin is RegularPolygonNode || mixin is StarNode || mixin is VectorNode || (mixin is BooleanOperationNode && IsBooleanOperationVisible(mixin));
-        internal static bool IsBooleanOperationVisible(BaseNodeMixin node)
+        internal static bool HasImageFill(IBaseNodeMixin mixin) => mixin is IGeometryMixin geometry && geometry.fills.Any(x => x is ImagePaint);
+        internal static bool IsSvgNode(IBaseNodeMixin mixin) => mixin is LineNode || mixin is EllipseNode || mixin is RegularPolygonNode || mixin is StarNode || mixin is VectorNode || (mixin is BooleanOperationNode && IsBooleanOperationVisible(mixin));
+        internal static bool IsBooleanOperationVisible(IBaseNodeMixin node)
         {
-            if (node is not ChildrenMixin children) return false;
+            if (node is not IChildrenMixin children) return false;
 
             foreach (SceneNode child in children.children)
             {
@@ -470,8 +470,8 @@ namespace Figma
 
             return false;
         }
-        internal static bool IsStateNode(BaseNodeMixin mixin) => ussStates.Any(suffix => mixin.name.EndsWith(suffix));
-        internal static bool IsStateNode(BaseNodeMixin mixin, BaseNodeMixin normal) => mixin.name[..mixin.name.LastIndexOf(":", StringComparison.Ordinal)] == normal.name;
+        internal static bool IsStateNode(IBaseNodeMixin mixin) => ussStates.Any(suffix => mixin.name.EndsWith(suffix));
+        internal static bool IsStateNode(IBaseNodeMixin mixin, IBaseNodeMixin normal) => mixin.name[..mixin.name.LastIndexOf(":", StringComparison.Ordinal)] == normal.name;
         #endregion
     }
 }

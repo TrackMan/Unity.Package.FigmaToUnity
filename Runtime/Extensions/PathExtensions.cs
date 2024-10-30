@@ -2,11 +2,11 @@ using System.IO;
 
 namespace Figma
 {
-    public static class PathExtensions
+    internal static class PathExtensions
     {
         #region Methods
-        public static bool IsSeparator(this char ch) => ch == Path.DirectorySeparatorChar || ch == Path.AltDirectorySeparatorChar;
-        public static bool EqualsTo(this string path, string value, int startIndex = 0)
+        internal static bool IsSeparator(this char ch) => ch == Path.DirectorySeparatorChar || ch == Path.AltDirectorySeparatorChar;
+        internal static bool EqualsTo(this string path, string value, int startIndex = 0)
         {
             if (path.Length - startIndex != value.Length) return false;
 
@@ -21,7 +21,7 @@ namespace Figma
 
             return i == length;
         }
-        public static bool BeginsWith(this string path, string value, int startIndex = 0)
+        internal static bool BeginsWith(this string path, string value, int startIndex = 0)
         {
             if (path.Length - startIndex < value.Length) return false;
 
@@ -34,7 +34,7 @@ namespace Figma
                 return false;
             }
 
-            return (startIndex + i) == path.Length || path[startIndex + i].IsSeparator();
+            return startIndex + i == path.Length || path[startIndex + i].IsSeparator();
         }
         #endregion
     }

@@ -1,3 +1,4 @@
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Figma.Inspectors
@@ -6,6 +7,10 @@ namespace Figma.Inspectors
 
     internal class FigmaTokenTest : FigmaApi
     {
+        #region Properties
+        public Me me { get; private set; }
+        #endregion
+        
         #region Constructors
         internal FigmaTokenTest(string personalAccessToken = default) : base(personalAccessToken) { }
         #endregion
@@ -13,7 +18,7 @@ namespace Figma.Inspectors
         #region Methods
         internal async Task<bool> TestAsync()
         {
-            Me me = await GetAsync<Me>("me");
+            me = await GetAsync<Me>("me", CancellationToken.None);
             return string.IsNullOrEmpty(me.err) && me.email.Contains("@");
         }
         #endregion

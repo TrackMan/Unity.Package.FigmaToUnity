@@ -8,14 +8,14 @@ using Newtonsoft.Json;
 // ReSharper disable CollectionNeverUpdated.Global
 // ReSharper disable UnassignedField.Global
 // ReSharper disable FieldCanBeMadeReadOnly.Global
+
 #pragma warning disable S101, S4004
 
 namespace Figma.Internals
-{    
-    using boolean = Boolean;
+{
     using number = Double;
     
-    public interface BaseNodeMixin
+    public interface IBaseNodeMixin
     {
         NodeType type { get; set; }
         string id { get; set; }
@@ -24,23 +24,23 @@ namespace Figma.Internals
         string name { get; set; }
     }
 
-    public interface SceneNodeMixin
+    public interface ISceneNodeMixin
     {
-        boolean? visible { get; set; }
-        boolean? locked { get; set; }
+        bool? visible { get; set; }
+        bool? locked { get; set; }
     }
 
-    public interface ChildrenMixin
+    public interface IChildrenMixin
     {
         SceneNode[] children { get; set; }
     }
 
-    public interface ConstraintMixin
+    public interface IConstraintMixin
     {
         Constraints constraints { get; set; }
     }
 
-    public interface LayoutMixin
+    public interface ILayoutMixin
     {
         LayoutAlign layoutAlign { get; set; }
         number? layoutGrow { get; set; }
@@ -49,24 +49,24 @@ namespace Figma.Internals
         Vector? size { get; set; }
     }
 
-    public interface BlendMixin
+    public interface IBlendMixin
     {
         number? opacity { get; set; }
         BlendMode blendMode { get; set; }
-        boolean? isMask { get; set; }
-        boolean? isMaskOutline { get; set; }
+        bool? isMask { get; set; }
+        bool? isMaskOutline { get; set; }
         Effect[] effects { get; set; }
         Dictionary<string, string> styles { get; set; }
-        boolean? preserveRatio { get; set; }
+        bool? preserveRatio { get; set; }
     }
 
-    public interface ContainerMixin
+    public interface IContainerMixin
     {
         Paint[] background { get; set; }
         RGBA? backgroundColor { get; set; }
     }
 
-    public interface GeometryMixin
+    public interface IGeometryMixin
     {
         Paint[] fills { get; set; }
         object[] fillGeometry { get; set; }
@@ -79,38 +79,37 @@ namespace Figma.Internals
         IndividualStrokeWeights individualStrokeWeights { get; set; }
     }
 
-    public interface CornerMixin
+    public interface ICornerMixin
     {
         number? cornerRadius { get; set; }
     }
 
-    public interface RectangleCornerMixin
+    public interface IRectangleCornerMixin
     {
         number[] rectangleCornerRadii { get; set; }
     }
 
-    public interface ExportMixin
+    public interface IExportMixin
     {
         ExportSettings[] exportSettings { get; set; }
     }
 
-    public interface ReactionMixin
+    public interface IReactionMixin
     {
         Reaction[] reactions { get; set; }
     }
 
-    public interface TransitionMixin
+    public interface ITransitionMixin
     {
         string transitionNodeID { get; set; }
         number? transitionDuration { get; set; }
         EasingType? transitionEasing { get; set; }
     }
 
-    public interface DefaultShapeMixin :
-        BaseNodeMixin, SceneNodeMixin, ConstraintMixin, LayoutMixin, BlendMixin, GeometryMixin,
-        ReactionMixin, ExportMixin { }
+    public interface IDefaultShapeMixin : IBaseNodeMixin, ISceneNodeMixin, IConstraintMixin, ILayoutMixin, IBlendMixin, IGeometryMixin,
+                                          IReactionMixin, IExportMixin { }
 
-    public interface DefaultFrameMixin : DefaultShapeMixin, ContainerMixin, CornerMixin, RectangleCornerMixin, ChildrenMixin
+    public interface IDefaultFrameMixin : IDefaultShapeMixin, IContainerMixin, ICornerMixin, IRectangleCornerMixin, IChildrenMixin
     {
         LayoutMode? layoutMode { get; set; }
         PrimaryAxisSizingMode? primaryAxisSizingMode { get; set; }
@@ -123,7 +122,7 @@ namespace Figma.Internals
         number? paddingBottom { get; set; }
         number? itemSpacing { get; set; }
         LayoutGrid[] layoutGrids { get; set; }
-        boolean? clipsContent { get; set; }
+        bool? clipsContent { get; set; }
         OverflowDirection? overflowDirection { get; set; }
         LayoutWrap? layoutWrap { get; set; }
     }

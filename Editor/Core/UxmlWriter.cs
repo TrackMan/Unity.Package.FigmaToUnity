@@ -5,7 +5,6 @@ using System.Xml;
 namespace Figma.Core
 {
     using Internals;
-    using InternalsExtensions;
     using static Internals.Const;
     using static FigmaParser;
 
@@ -88,7 +87,7 @@ namespace Figma.Core
                 if (getTemplate(defaultFrameNode) is (var hash, { } template) && template.NotNullOrEmpty())
                 {
                     if (hash) tooltip = template;
-                    using (XmlWriter elementUxml = CreateXml(Path.Combine(documentFolder, elements), template))
+                    using (XmlWriter elementUxml = CreateXml(Path.Combine(documentFolder, elementsDirectoryName), template))
                     {
                         elementUxml.WriteStartElement(prefix, "UXML", uxmlNamespace);
                         WriteStart(defaultFrameNode, elementUxml);
@@ -99,7 +98,7 @@ namespace Figma.Core
 
                     writer.WriteStartElement(prefix, "Template", uxmlNamespace);
                     writer.WriteAttributeString("name", template);
-                    writer.WriteAttributeString("src", writer == documentXml ? Path.Combine(elements, $"{template}.uxml") : $"{template}.uxml");
+                    writer.WriteAttributeString("src", writer == documentXml ? $"{elementsDirectoryName}\\{template}.uxml" : $"{template}.uxml");
                     writer.WriteEndElement();
                 }
 
@@ -114,12 +113,12 @@ namespace Figma.Core
                 if (getTemplate(defaultShapeNode) is (var hash, { } template) && template.NotNullOrEmpty())
                 {
                     if (hash) tooltip = template;
-                    using (XmlWriter elementUxml = CreateXml(Path.Combine(documentFolder, "Elements"), template))
+                    using (XmlWriter xmlWriter = CreateXml(Path.Combine(documentFolder, elementsDirectoryName), template))
                     {
-                        elementUxml.WriteStartElement(prefix, "UXML", uxmlNamespace);
-                        WriteStart(defaultShapeNode, elementUxml);
-                        WriteEnd(elementUxml);
-                        elementUxml.WriteEndElement();
+                        xmlWriter.WriteStartElement(prefix, "UXML", uxmlNamespace);
+                        WriteStart(defaultShapeNode, xmlWriter);
+                        WriteEnd(xmlWriter);
+                        xmlWriter.WriteEndElement();
                     }
 
                     writer.WriteStartElement(prefix, "Template", uxmlNamespace);
@@ -131,6 +130,24 @@ namespace Figma.Core
                 WriteStart(defaultShapeNode, writer);
                 if (tooltip.NotNullOrEmpty()) writer.WriteAttributeString("tooltip", tooltip!); // Use tooltip as a storage for hash template name
                 WriteEnd(writer);
+            }
+            void WriteComponentSetNode(ComponentSetNode componentSetNode)
+            {
+                string directory = Path.Combine(documentFolder, componentsDirectoryName);
+                using (XmlWriter xmlWriter = CreateXml(directory, componentSetNode.name))
+                {
+                    xmlWriter.WriteStartElement(prefix, "UXML", uxmlNamespace);
+                    WriteStart(componentSetNode, xmlWriter);
+                    foreach (SceneNode child in componentSetNode.children) WriteRecursively(child, xmlWriter);
+                    WriteEnd(xmlWriter);
+                    xmlWriter.WriteEndElement();
+                }
+            }
+            void WriteComponentNode(ComponentNode componentNode, XmlWriter xmlWriter)
+            {
+                WriteStart(componentNode, xmlWriter);
+                foreach (SceneNode child in componentNode.children) WriteRecursively(child, xmlWriter);
+                WriteEnd(xmlWriter);
             }
 
             if (!IsVisible(node) || !enabledInHierarchy(node) || IsStateNode(node)) return;
@@ -147,8 +164,8 @@ namespace Figma.Core
             if (node is StarNode star) WriteDefaultShapeNode(star, uxml);
             if (node is VectorNode vector) WriteDefaultShapeNode(vector, uxml);
             if (node is TextNode text) WriteTextNode(text, uxml);
-            if (node is ComponentSetNode componentSet) WriteDefaultFrameNode(componentSet, uxml); // Should be included in Elements/ directory, not in the .uxml document
-            if (node is ComponentNode component) WriteDefaultFrameNode(component, uxml); // Should be included in Elements/ directory, not in the .uxml document
+            if (node is ComponentSetNode componentSet) WriteComponentSetNode(componentSet);
+            if (node is ComponentNode component) WriteComponentNode(component, uxml);
             if (node is InstanceNode instance) WriteDefaultFrameNode(instance, uxml);
             if (node is BooleanOperationNode booleanOperation) WriteDefaultFrameNode(booleanOperation, uxml);
         }
