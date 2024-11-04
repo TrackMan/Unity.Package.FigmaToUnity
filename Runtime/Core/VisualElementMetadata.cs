@@ -715,9 +715,11 @@ namespace Figma
                 {
                     VisualElement FindIn(VisualElement root)
                     {
-                        if (queryRoot is not null && !ReferenceEquals(queryRoot, query)) return root.Find(queryRoot.Path, queryRoot.ClassName, throwException, silent)?.Find(query.Path, query.ClassName, throwException, silent);
+                        if (queryRoot is not null && !ReferenceEquals(queryRoot, query))
+                            return root.Find(queryRoot.Path, queryRoot.ClassName, throwException, silent || queryRoot.Nullable)?.
+                                        Find(query.Path, query.ClassName, throwException, silent || query.Nullable);
 
-                        return root.Find(query.Path, query.ClassName, throwException);
+                        return root.Find(query.Path, query.ClassName, throwException, silent || query.Nullable);
                     }
 
                     VisualElement value = FindIn(targetRoot);
