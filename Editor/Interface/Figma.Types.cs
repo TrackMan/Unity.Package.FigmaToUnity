@@ -276,6 +276,7 @@ namespace Figma.Internals
         public LayoutAlign layoutAlign { get; set; }
         public number? layoutGrow { get; set; }
         public Rect absoluteBoundingBox { get; set; }
+        public Rect absoluteRenderBounds { get; set; }
         public number?[][] relativeTransform { get; set; }
         public Vector? size { get; set; }
 
