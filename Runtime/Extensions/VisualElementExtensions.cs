@@ -111,6 +111,7 @@ namespace Figma
 
             for (int j = i; j < elements.Count; ++j) elements[j].As<TVisualElement>().Hide();
         }
+        public static T As<T>(this object value) => (T)value;
         #endregion
     }
 }

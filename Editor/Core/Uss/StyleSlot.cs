@@ -1,4 +1,4 @@
-namespace Figma.Core
+namespace Figma.Core.Uss
 {
     using Internals;
 

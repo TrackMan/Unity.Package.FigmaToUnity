@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace Figma
+namespace Figma.Core.Uss
 {
     internal struct ShadowProperty
     {

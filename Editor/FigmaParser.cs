@@ -12,6 +12,7 @@ using System.Text.RegularExpressions;
 namespace Figma
 {
     using Core;
+    using Core.Uss;
     using Internals;
 
     internal class FigmaParser
@@ -37,8 +38,6 @@ namespace Figma
         readonly Dictionary<BaseNode, UssStyle> componentStyleMap = new(initialCollectionCapacity);
         readonly Dictionary<BaseNode, UssStyle> nodeStyleMap = new(initialCollectionCapacity);
 
-        static readonly string[] unitsMap = { "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen" };
-        static readonly string[] tensMap = { "zero", "ten", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety" };
         static readonly string[] ussStates = { ":hover", ":active", ":inactive", ":focus", ":selected", ":disabled", ":enabled", ":checked", ":root" };
         #endregion
 
@@ -81,49 +80,10 @@ namespace Figma
         {
             void GroupRenameStyles(IEnumerable<UssStyle> styles)
             {
-                string NumberToWords(int number)
-                {
-                    if (number == 0) return "zero";
-                    if (number < 0) return $"minus-{NumberToWords(Math.Abs(number))}";
-
-                    string words = string.Empty;
-
-                    if (number / 1000000 > 0)
-                    {
-                        words += $"{NumberToWords(number / 1000000)}-million ";
-                        number %= 1000000;
-                    }
-
-                    if (number / 1000 > 0)
-                    {
-                        words += $"{NumberToWords(number / 1000)}-thousand ";
-                        number %= 1000;
-                    }
-
-                    if (number / 100 > 0)
-                    {
-                        words += $"{NumberToWords(number / 100)}-hundred ";
-                        number %= 100;
-                    }
-
-                    if (number > 0)
-                    {
-                        if (words != string.Empty) words += "and-";
-                        if (number < 20) words += unitsMap[number];
-                        else
-                        {
-                            words += tensMap[number / 10];
-                            if (number % 10 > 0) words += $"-{unitsMap[number % 10]}";
-                        }
-                    }
-
-                    return words;
-                }
-
                 foreach (IGrouping<string, UssStyle> group in styles.GroupBy(x => x.Name).Where(y => y.Count() > 1))
                 {
                     int i = 0;
-                    foreach (UssStyle style in group) style.Name += $"-{NumberToWords(i++ + 1)}";
+                    foreach (UssStyle style in group) style.Name += $"-{(i++ + 1).NumberToWords()}";
                 }
             }
             void FixStateStyles(IEnumerable<BaseNode> nodes)
@@ -152,9 +112,16 @@ namespace Figma
             FixStateStyles(nodeStyleFiltered.Select(x => x.Key));
 
 #pragma warning disable S1481
+            // Writing UXML file
             UxmlWriter _ = new(document, folder, name, GetClassList, enabledInHierarchy, getTemplate, getElementType);
-            using StreamWriter uss = new(Path.Combine(folder, $"{name}.uss"));
-            UssWriter __ = new(stylesFiltered, componentStyleFiltered, nodeStyleFiltered.Select(x => x.Value), uss);
+            
+            // Writing USS styles
+            using UssWriter writer = new(Path.Combine(folder, $"{name}.uss"));
+            writer.Write(UssStyle.overrideClass);
+            writer.Write(UssStyle.viewportClass);
+            writer.Write(stylesFiltered);
+            writer.Write(componentStyleFiltered); 
+            writer.Write(nodeStyleFiltered.Select(x => x.Value));
 #pragma warning restore S1481
         }
         internal void AddMissingComponent(ComponentNode component, Dictionary<string, Style> componentStyles)
@@ -174,9 +141,11 @@ namespace Figma
         }
         void AddImageFillsRecursively(BaseNode node, Func<BaseNode, bool> enabledInHierarchy)
         {
-            if (!IsVisible(node) || !enabledInHierarchy(node) || node is BooleanOperationNode) return;
+            if (!IsVisible(node) || !enabledInHierarchy(node) || node is BooleanOperationNode)
+                return;
 
-            if (!IsSvgNode(node) && HasImageFill(node)) ImageFillNodes.Add(node);
+            if (!IsSvgNode(node) && HasImageFill(node)) 
+                ImageFillNodes.Add(node);
 
             if (node is IChildrenMixin children)
                 foreach (SceneNode child in children.children)
@@ -184,10 +153,14 @@ namespace Figma
         }
         void AddPngNodesRecursively(BaseNode node, Func<BaseNode, bool> enabledInHierarchy)
         {
-            if (!IsVisible(node) || !enabledInHierarchy(node)) return;
+            if (!IsVisible(node) || !enabledInHierarchy(node)) 
+                return;
 
-            if (IsSvgNode(node) && HasImageFill(node)) PngNodes.Add(node);
-            if (node is BooleanOperationNode) return;
+            if (IsSvgNode(node) && HasImageFill(node)) 
+                PngNodes.Add(node);
+            
+            if (node is BooleanOperationNode) 
+                return;
 
             if (node is IChildrenMixin children)
                 foreach (SceneNode child in children.children)
@@ -195,7 +168,8 @@ namespace Figma
         }
         void AddSvgNodesRecursively(BaseNode node, Func<BaseNode, bool> enabledInHierarchy)
         {
-            if (!IsVisible(node) || !enabledInHierarchy(node)) return;
+            if (!IsVisible(node) || !enabledInHierarchy(node)) 
+                return;
 
             if (IsSvgNode(node) && !HasImageFill(node)) SvgNodes.Add(node);
 
@@ -261,16 +235,15 @@ namespace Figma
 
             if (node is IBlendMixin { styles: not null } blend)
             {
-                foreach (KeyValuePair<string, string> keyValue in blend.styles)
+                foreach ((string key, string value) in blend.styles)
                 {
                     bool text = node.type == NodeType.TEXT;
-                    string slot = keyValue.Key;
+                    string slot = key;
                     if (slot.EndsWith('s')) slot = slot[..^1];
-                    string id = keyValue.Value;
-                    string key = styles[id].key;
+                    string styleKey = styles[value].key;
 
-                    StyleSlot style = new(text, slot, styles[id]);
-                    if (!this.styles.Any(x => x.slot.Text == text && x.slot.Slot == slot && x.slot.key == key))
+                    StyleSlot style = new(text, slot, styles[value]);
+                    if (!this.styles.Any(x => x.slot.Text == text && x.slot.Slot == slot && x.slot.key == styleKey))
                         this.styles.Add((style, new UssStyle(GetClassName(style.name, false, "s"), getAssetPath, getAssetSize, style.Slot, style.styleType, node)));
                 }
             }
@@ -383,7 +356,9 @@ namespace Figma
         {
             string classList = string.Empty;
             UssStyle style = GetStyle(node);
-            if (style is null) return classList;
+            
+            if (style is null) 
+                return classList;
 
             string component = string.Empty;
             List<string> styles = new();
@@ -391,13 +366,17 @@ namespace Figma
             if (IsStateNode(node) && node.parent is IChildrenMixin parent)
             {
                 BaseNode normalNode = Array.Find(parent.children, x => IsStateNode(node, x));
-                if (normalNode is not null) component = GetStyle(normalNode).Name;
+                
+                if (normalNode is not null) 
+                    component = GetStyle(normalNode).Name;
             }
 
             if (node is InstanceNode instance)
             {
                 BaseNode componentNode = FindNode(instance.componentId);
-                if (componentNode is not null) component = GetStyle(componentNode).Name;
+                
+                if (componentNode is not null) 
+                    component = GetStyle(componentNode).Name;
             }
             else if (node.id.Contains(';'))
             {
@@ -406,7 +385,9 @@ namespace Figma
                 {
                     string componentId = splits[^1];
                     BaseNode componentNode = FindNode(componentId);
-                    if (componentNode is not null) component = GetStyle(componentNode).Name;
+                    
+                    if (componentNode is not null) 
+                        component = GetStyle(componentNode).Name;
                 }
             }
 
@@ -416,17 +397,21 @@ namespace Figma
                 {
                     bool text = node.type == NodeType.TEXT;
                     string slot = keyValue.Key;
-                    if (slot.EndsWith('s')) slot = slot[..^1];
+                    
+                    if (slot.EndsWith('s')) 
+                        slot = slot[..^1];
                     string id = keyValue.Value;
                     string key = default;
 
-                    if (documentStyles.TryGetValue(id, out Style documentStyle)) key = documentStyle.key;
+                    if (documentStyles.TryGetValue(id, out Style documentStyle)) 
+                        key = documentStyle.key;
 
                     foreach (Dictionary<string, Style> componentStyle in componentsStyles)
                         if (componentStyle.TryGetValue(id, out Style value))
                             key = value.key;
 
                     int index;
+                    
                     if (key.NotNullOrEmpty() && (index = this.styles.FindIndex(x => x.slot.Text == text && x.slot.Slot == slot && x.slot.key == key)) >= 0)
                         styles.Add(this.styles[index].style.Name);
                 }
@@ -443,8 +428,8 @@ namespace Figma
             else if (styles.Count > 0) classList = style.ResolveClassList(styles);
             else classList = style.ResolveClassList();
 
-            if (IsRootNode(node)) classList += $"{(classList == string.Empty ? string.Empty : " ")}{UssStyle.viewportClass}";
-            return $"{UssStyle.overrideClass} {classList}";
+            if (IsRootNode(node)) classList += $"{(classList == string.Empty ? string.Empty : " ")}{UssStyle.viewportClass.Name}";
+            return $"{UssStyle.overrideClass.Name} {classList}";
         }
         #endregion
 

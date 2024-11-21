@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
 
-namespace Figma
+namespace Figma.Core.Uss
 {
     internal readonly struct Length4Property
     {

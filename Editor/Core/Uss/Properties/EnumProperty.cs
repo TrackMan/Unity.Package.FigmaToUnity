@@ -1,7 +1,7 @@
 using System;
 using System.Text.RegularExpressions;
 
-namespace Figma
+namespace Figma.Core.Uss
 {
 #pragma warning disable CS0660, CS0661
     internal struct EnumProperty<T> where T : struct, Enum

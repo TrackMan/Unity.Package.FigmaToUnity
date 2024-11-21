@@ -1,35 +1,40 @@
-using Figma.Internals;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Figma
+namespace Figma.Core.Uss
 {
     using Internals;
     using static FigmaParser;
 
-    internal class UssStyle
+    internal class UssStyle : BaseUssStyle
     {
-        internal const string viewportClass = "unity-viewport";
-        internal const string overrideClass = "unity-base-override";
-        readonly string[] fontWeights = { "Thin", "ExtraLight", "Light", "Regular", "Medium", "SemiBold", "Bold", "ExtraBold", "Black" };
-
+        #region Const
+        internal static UssStyle overrideClass = new("unity-base-override")
+        {
+            backgroundColor = Unit.Initial,
+            borderWidth = Unit.Initial,
+            overflow = Unit.Initial,
+            padding = Unit.Initial,
+            margin = Unit.Initial,
+            unityFontDefinition = Unit.Initial,
+            justifyContent = JustifyContent.Center,
+            alignItems = Align.Center,
+            unityBackgroundPositionX = BackgroundPositionKeyword.Center,
+            unityBackgroundPositionY = BackgroundPositionKeyword.Center,
+            unityBackgroundRepeat = Repeat.NoRepeat
+        };
+        internal static UssStyle viewportClass = new("unity-viewport") { position = Position.Absolute, width = "100%", height = "100%", };
+        #endregion
+        
         #region Fields
         readonly Func<string, string, (bool valid, string path)> getAssetPath;
         readonly Func<string, string, (bool valid, int width, int height)> getAssetSize;
-
-        readonly List<UssStyle> inherited = new();
-        readonly Dictionary<string, string> defaults = new();
-        readonly Dictionary<string, string> attributes = new();
         #endregion
 
         #region Properties
-        public string Name { get; set; }
-        public bool HasAttributes => attributes.Count > 0;
-
         // Box model
         // Dimensions
         LengthProperty width { get => Get("width"); set => Set("width", value); }
@@ -126,38 +131,14 @@ namespace Figma
         #endregion
 
         #region Constructors
-        public UssStyle(string name)
+        protected UssStyle(string name) : base(name) { }
+        public UssStyle(string name, Func<string, string, (bool valid, string path)> getAssetPath, Func<string, string, (bool valid, int width, int height)> getAssetSize) : this(name)
         {
-            Name = name;
-            switch (name)
-            {
-                case overrideClass:
-                    backgroundColor = Unit.Initial;
-                    borderWidth = Unit.Initial;
-                    overflow = Unit.Initial;
-                    padding = Unit.Initial;
-                    margin = Unit.Initial;
-                    unityFontDefinition = Unit.Initial;
-                    justifyContent = JustifyContent.Center;
-                    alignItems = Align.Center;
-                    unityBackgroundPositionX = BackgroundPositionKeyword.Center;
-                    unityBackgroundPositionY = BackgroundPositionKeyword.Center;
-                    unityBackgroundRepeat = Repeat.NoRepeat;
-                    break;
-
-                case viewportClass:
-                    position = Position.Absolute;
-                    width = "100%";
-                    height = "100%";
-                    break;
-            }
-        }
-        public UssStyle(string name, Func<string, string, (bool valid, string path)> getAssetPath, Func<string, string, (bool valid, int width, int height)> getAssetSize, string slot, StyleType type, BaseNode node)
-        {
-            Name = name;
             this.getAssetPath = getAssetPath;
             this.getAssetSize = getAssetSize;
-
+        }
+        public UssStyle(string name, Func<string, string, (bool valid, string path)> getAssetPath, Func<string, string, (bool valid, int width, int height)> getAssetSize, string slot, StyleType type, BaseNode node) : this(name, getAssetPath, getAssetSize)
+        {
             if (type == StyleType.FILL && node is IGeometryMixin geometry)
             {
                 if (slot == "fill")
@@ -182,12 +163,8 @@ namespace Figma
             else if (type == StyleType.EFFECT && node is IBlendMixin blend)
                 AddNodeEffects(blend.effects);
         }
-        public UssStyle(string name, Func<string, string, (bool valid, string path)> getAssetPath, Func<string, string, (bool valid, int width, int height)> getAssetSize, BaseNode node)
+        public UssStyle(string name, Func<string, string, (bool valid, string path)> getAssetPath, Func<string, string, (bool valid, int width, int height)> getAssetSize, BaseNode node) : this(name, getAssetPath, getAssetSize)
         {
-            Name = name;
-            this.getAssetPath = getAssetPath;
-            this.getAssetSize = getAssetSize;
-
             if (node is FrameNode frame) AddFrameNode(frame);
             if (node is GroupNode group) AddGroupNode(group);
             if (node is SliceNode slice) AddSliceNode(slice);
@@ -206,71 +183,6 @@ namespace Figma
         #endregion
 
         #region Methods
-        public bool DoesInherit(UssStyle style) => inherited.Contains(style);
-        public void Inherit(UssStyle component)
-        {
-            inherited.Add(component);
-
-            foreach (KeyValuePair<string, string> keyValue in component.attributes)
-            {
-                if (attributes.ContainsKey(keyValue.Key) && attributes[keyValue.Key] == component.attributes[keyValue.Key])
-                    attributes.Remove(keyValue.Key);
-
-                if (!attributes.ContainsKey(keyValue.Key) && defaults.TryGetValue(keyValue.Key, out string @default))
-                    attributes.Add(keyValue.Key, @default);
-            }
-        }
-        public void Inherit(IReadOnlyCollection<UssStyle> styles)
-        {
-            inherited.AddRange(styles);
-
-            foreach (UssStyle style in styles)
-            {
-                foreach (KeyValuePair<string, string> keyValue in style.attributes.Where(keyValue => attributes.ContainsKey(keyValue.Key) &&
-                                                                                                     attributes[keyValue.Key] == style.attributes[keyValue.Key]))
-                    attributes.Remove(keyValue.Key);
-            }
-        }
-        public void Inherit(UssStyle component, IReadOnlyCollection<UssStyle> styles)
-        {
-            inherited.Add(component);
-            inherited.AddRange(styles);
-
-            List<string> preserve = (from keyValue in component.attributes
-                                     from style in styles
-                                     where style.attributes.ContainsKey(keyValue.Key) && style.attributes[keyValue.Key] != keyValue.Value
-                                     select keyValue.Key).ToList();
-
-            foreach (KeyValuePair<string, string> keyValue in component.attributes)
-            {
-                if (attributes.ContainsKey(keyValue.Key) && attributes[keyValue.Key] == component.attributes[keyValue.Key])
-                    attributes.Remove(keyValue.Key);
-
-                if (!attributes.ContainsKey(keyValue.Key) && defaults.TryGetValue(keyValue.Key, out string @default))
-                    attributes.Add(keyValue.Key, @default);
-            }
-
-            foreach (UssStyle style in styles)
-            {
-                foreach (KeyValuePair<string, string> keyValue in style.attributes.Where(keyValue => attributes.ContainsKey(keyValue.Key) && attributes[keyValue.Key] == style.attributes[keyValue.Key] && !preserve.Contains(keyValue.Key)))
-                    attributes.Remove(keyValue.Key);
-            }
-        }
-        public string ResolveClassList(string component) => attributes.Count > 0 ? $"{Name} {component}" : component;
-        public string ResolveClassList(IEnumerable<string> styles) => attributes.Count > 0 ? $"{Name} {string.Join(" ", styles)}" : $"{string.Join(" ", styles)}";
-        public string ResolveClassList(string component, IEnumerable<string> styles) => attributes.Count > 0 ? $"{Name} {component} {string.Join(" ", styles)}" : $"{component} {string.Join(" ", styles)}";
-        public string ResolveClassList() => attributes.Count > 0 ? $"{Name}" : string.Empty;
-        public void Write(StreamWriter stream)
-        {
-            stream.WriteLine($".{Name} {{");
-
-            if (Has("--unity-font-missing")) attributes.Remove("--unity-font-missing");
-
-            foreach (KeyValuePair<string, string> keyValue in attributes) stream.WriteLine($"    {keyValue.Key}: {keyValue.Value};");
-
-            stream.Write("}");
-        }
-
         void AddDefaultFrameNode(DefaultFrameNode node)
         {
             AddCorner(node, node);
@@ -426,12 +338,12 @@ namespace Figma
                 if (HasImageFill(@base))
                 {
                     (bool valid, string url) = getAssetPath(@base.id, KnownFormats.png);
-                    if (valid) backgroundImage = $"url('{url}')";
+                    if (valid) backgroundImage = Url(url);
                 }
                 else
                 {
                     (bool valid, string url) = getAssetPath(@base.id, KnownFormats.svg);
-                    if (valid) backgroundImage = $"url('{url}')";
+                    if (valid) backgroundImage = Url(url);
                 }
             }
             void AddBorderWidth()
@@ -452,7 +364,7 @@ namespace Figma
                 {
                     if (rectangleCornerMixin.rectangleCornerRadii is null)
                     {
-                        if (cornerMixin.cornerRadius.HasPositive()) 
+                        if (cornerMixin.cornerRadius.HasPositive())
                             borderRadius = Math.Min(minValue, cornerMixin!.cornerRadius!.Value) + value;
                     }
                     else
@@ -505,22 +417,22 @@ namespace Figma
             if (mixin is TextNode)
             {
                 AddTextFillStyle(mixin.fills);
+                return;
             }
-            else
-            {
-                AddFillStyle(mixin.fills);
 
-                if (mixin.strokes.Length == 0) return;
+            AddFillStyle(mixin.fills);
 
-                AddStrokeFillStyle(mixin.strokes);
+            if (mixin.strokes.Length == 0) return;
 
-                if (!mixin.strokeWeight.HasValue) return;
+            AddStrokeFillStyle(mixin.strokes);
 
-                AddBorderWidth();
+            if (!mixin.strokeWeight.HasValue) return;
 
-                if (mixin.strokeAlign.HasValue) AddBorderRadius(mixin as IRectangleCornerMixin, mixin as ICornerMixin);
-            }
+            AddBorderWidth();
+
+            if (mixin.strokeAlign.HasValue) AddBorderRadius(mixin as IRectangleCornerMixin, mixin as ICornerMixin);
         }
+
         void AddCorner(ICornerMixin cornerMixin, IRectangleCornerMixin rectangleCornerMixin)
         {
             if (rectangleCornerMixin.rectangleCornerRadii is not null) borderRadius = rectangleCornerMixin.rectangleCornerRadii;
@@ -693,8 +605,8 @@ namespace Figma
                             }
                             else
                             {
-                                left = "0%";
-                                right = "0%";
+                                left = new LengthProperty(0, Unit.Percent);
+                                right = new LengthProperty(0, Unit.Percent);
                             }
 
                             break;
@@ -757,8 +669,8 @@ namespace Figma
                             }
                             else
                             {
-                                top = "0%";
-                                bottom = "0%";
+                                top = new LengthProperty(0, Unit.Percent);
+                                bottom = new LengthProperty(0, Unit.Percent);
                             }
 
                             break;
@@ -858,13 +770,13 @@ namespace Figma
                 if (fill is GradientPaint gradient && gradient.visible.IsEmptyOrTrue())
                 {
                     (bool valid, string url) = getAssetPath(gradient.GetHash(), KnownFormats.svg);
-                    if (valid) backgroundImage = $"url('{url}')";
+                    if (valid) backgroundImage = Url(url);
                 }
 
                 if (fill is ImagePaint image && image.visible.IsEmptyOrTrue())
                 {
                     (bool valid, string url) = getAssetPath(image.imageRef, KnownFormats.png);
-                    if (valid) backgroundImage = $"url('{url}')";
+                    if (valid) backgroundImage = Url(url);
 
                     switch (image.scaleMode)
                     {
@@ -899,7 +811,7 @@ namespace Figma
 
                 if (ttf)
                 {
-                    resource = $"url('{ttfPath}')";
+                    resource = Url(ttfPath);
                     url = ttfPath;
                     return true;
                 }
@@ -907,7 +819,7 @@ namespace Figma
                 (bool otf, string otfPath) = getAssetPath(font, KnownFormats.otf);
                 if (otf)
                 {
-                    resource = $"url('{otfPath}')";
+                    resource = Url(otfPath);
                     url = otfPath;
                     return true;
                 }
@@ -920,7 +832,7 @@ namespace Figma
             void AddUnityFont()
             {
                 string weightPostfix = style.fontWeight.HasValue
-                    ? fontWeights[(int)(style.fontWeight / 100) - 1]
+                    ? Enum.GetValues(typeof(FontWeight)).GetValue((int)(style.fontWeight / 100) - 1).ToString()
                     : style.fontPostScriptName.Contains('-')
                         ? style.fontPostScriptName.Split('-')[1].Replace("Index", string.Empty)
                         : string.Empty;
@@ -929,13 +841,13 @@ namespace Figma
                 bool valid;
                 if (!TryGetFontWithExtension($"{style.fontFamily}-{weightPostfix}{italicPostfix}", out string resource, out string url) && !TryGetFontWithExtension(style.fontPostScriptName, out resource, out url))
                 {
-                    unityFontMissing = $"url('{url}')";
+                    unityFontMissing = Url(url);
                     Debug.LogWarning(Extensions.BuildTargetMessage($"Cannot find Font", $"{style.fontFamily}-{weightPostfix}{italicPostfix}", string.Empty));
                 }
 
                 unityFont = resource;
                 (valid, url) = getAssetPath($"{style.fontFamily}-{weightPostfix}{italicPostfix}", KnownFormats.asset);
-                if (valid) unityFontDefinition = $"url('{url}')";
+                if (valid) unityFontDefinition = Url(url);
             }
             void AddTextAlign()
             {
@@ -977,56 +889,6 @@ namespace Figma
         #endregion
 
         #region Support Methods
-        bool Has(string name) => attributes.ContainsKey(name);
-        string Get(string name) => attributes[name];
-        string Get1(string name, string group, int index)
-        {
-            if (Has(group))
-            {
-                Length4Property length4 = attributes[group];
-                return length4[index];
-            }
-
-            if (Has(name)) return attributes[name];
-
-            throw new NotSupportedException();
-        }
-        string Get4(string name, params string[] names)
-        {
-            if (Has(name)) return attributes[name];
-
-            LengthProperty[] properties = new LengthProperty[4];
-            for (int i = 0; i < 4; ++i)
-                if (Has(names[i]))
-                    properties[i] = attributes[names[i]];
-                else
-                    properties[i] = new LengthProperty(Unit.Pixel);
-
-            return new Length4Property(properties);
-        }
-        void Set(string name, string value) => attributes[name] = value;
-        void Set1(string name, string value, params string[] names)
-        {
-            attributes[name] = value;
-
-            for (int i = 0; i < 4; ++i)
-                if (Has(names[i]))
-                    attributes.Remove(names[i]);
-        }
-        void Set4(string name, string value, string group, int index)
-        {
-            if (Has(group))
-            {
-                Length4Property length4 = Get(group);
-                length4[index] = value;
-                Set(group, length4);
-            }
-            else
-            {
-                Set(name, value);
-            }
-        }
-
         static bool HasMixedCenterChildren(IDefaultFrameMixin mixin)
         {
             (int horizontalCenterCount, int verticalCenterCount) = CenterChildrenCount(mixin);
