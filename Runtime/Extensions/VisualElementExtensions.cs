@@ -35,7 +35,7 @@ namespace Figma
         }
         public static void Disable(this VisualElement element) => element.pickingMode = PickingMode.Ignore;
         public static void Enable(this VisualElement element) => element.pickingMode = PickingMode.Position;
-
+        public static bool IsEnabled(this VisualElement element) => element.pickingMode == PickingMode.Position;
         public static IList EnsureList<TVisualElement>(TVisualElement prefab, VisualElement parent) where TVisualElement : VisualElement
         {
             (TVisualElement prefab, VisualElement parent) identifier = (prefab, parent);
