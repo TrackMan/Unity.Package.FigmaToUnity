@@ -14,7 +14,7 @@ using Newtonsoft.Json;
 namespace Figma.Internals
 {
     using number = Double;
-    
+
     public interface IBaseNodeMixin
     {
         NodeType type { get; set; }
@@ -47,6 +47,10 @@ namespace Figma.Internals
         Rect absoluteBoundingBox { get; set; }
         number?[][] relativeTransform { get; set; }
         Vector? size { get; set; }
+        number? minWidth { get; set; }
+        number? minHeight { get; set; }
+        number? maxWidth { get; set; }
+        number? maxHeight { get; set; }
     }
 
     public interface IBlendMixin

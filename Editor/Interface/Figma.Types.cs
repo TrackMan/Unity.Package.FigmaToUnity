@@ -279,7 +279,10 @@ namespace Figma.Internals
         public Rect absoluteRenderBounds { get; set; }
         public number?[][] relativeTransform { get; set; }
         public Vector? size { get; set; }
-
+        public number? minWidth { get; set; }
+        public number? minHeight { get; set; }
+        public number? maxWidth { get; set; }
+        public number? maxHeight { get; set; }
         public ExportSettings[] exportSettings { get; set; }
         #endregion
     }
@@ -466,6 +469,10 @@ namespace Figma.Internals
 
         public LayoutPositioning? layoutPositioning { get; set; }
         public MaskType? maskType { get; set; }
+        public number? minWidth { get; set; }
+        public number? minHeight { get; set; }
+        public number? maxWidth { get; set; }
+        public number? maxHeight { get; set; }
         #endregion
     }
 
@@ -492,7 +499,7 @@ namespace Figma.Internals
         public bool itemReverseZIndex { get; set; }
         public LayoutWrap? layoutWrap { get; set; }
         public bool strokesIncludedInLayout { get; set; }
-        
+
         public Paint[] background { get; set; }
         public RGBA? backgroundColor { get; set; }
 
@@ -615,7 +622,7 @@ namespace Figma.Internals
         public string editorType;
         public string linkAccess;
     }
-    
+
     public class Interactions
     {
         public Trigger trigger;

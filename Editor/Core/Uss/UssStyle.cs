@@ -28,7 +28,7 @@ namespace Figma.Core.Uss
         };
         internal static UssStyle viewportClass = new("unity-viewport") { position = Position.Absolute, width = "100%", height = "100%", };
         #endregion
-        
+
         #region Fields
         readonly Func<string, string, (bool valid, string path)> getAssetPath;
         readonly Func<string, string, (bool valid, int width, int height)> getAssetSize;
@@ -262,7 +262,7 @@ namespace Figma.Core.Uss
                         flexDirection = FlexDirection.Row;
                         justifyContent = JustifyContent.FlexStart;
                         alignItems = Align.FlexStart;
-                        if (mixin.layoutAlign != LayoutAlign.STRETCH && mixin.primaryAxisSizingMode.IsValue(PrimaryAxisSizingMode.FIXED)) flexWrap = FlexWrap.Wrap;
+                        if (mixin.layoutWrap is LayoutWrap.WRAP || (mixin.layoutAlign != LayoutAlign.STRETCH && mixin.primaryAxisSizingMode.IsValue(PrimaryAxisSizingMode.FIXED))) flexWrap = FlexWrap.Wrap;
                         break;
 
                     case LayoutMode.VERTICAL:
@@ -724,6 +724,10 @@ namespace Figma.Core.Uss
                     margin += GetStrokeWeight(geometry.strokeAlign.Value, geometry.strokeWeight.Value);
             }
 
+            if (layout.minWidth.HasValue) minWidth = layout.minWidth.Value;
+            if (layout.minHeight.HasValue) minHeight = layout.minHeight.Value;
+            if (layout.maxWidth.HasValue) maxWidth = layout.maxWidth.Value;
+            if (layout.maxHeight.HasValue) maxHeight = layout.maxHeight.Value;
             if (IsSvgNode(baseNode)) AdjustSvgSize();
 
             IDefaultFrameMixin parent = baseNode.parent as IDefaultFrameMixin;
