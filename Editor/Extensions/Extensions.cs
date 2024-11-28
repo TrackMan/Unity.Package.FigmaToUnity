@@ -4,9 +4,12 @@ namespace Figma.Core
 {
     internal static class Extensions
     {
+        #region Const
         static readonly string[] unitsMap = { "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen" };
         static readonly string[] tensMap = { "zero", "ten", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety" };
-        
+        #endregion
+
+        #region Methods
         internal static string NumberToWords(this int number)
         {
             if (number == 0) return "zero";
@@ -45,5 +48,6 @@ namespace Figma.Core
 
             return words;
         }
+        #endregion
     }
 }

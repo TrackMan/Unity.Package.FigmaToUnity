@@ -132,7 +132,7 @@ namespace Figma.Inspectors
 
             Files files = await GetFilesAsync();
             nodeMetadata = new NodeMetadata(files.document, elements, filter);
-            parser = new FigmaParser(files.document, files.styles, nodeMetadata.EnabledInHierarchy);
+            parser = new FigmaParser(files, nodeMetadata.EnabledInHierarchy);
             await DownloadMissingComponentsAsync();
             if (downloadImages)
                 await DownloadImagesAsync();

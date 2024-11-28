@@ -55,6 +55,7 @@ namespace Figma
                 root.Add(element.Root);
             }
         }
+        void OnDestroy() => VisualElementMetadata.Dispose();
         #endregion
     }
 }

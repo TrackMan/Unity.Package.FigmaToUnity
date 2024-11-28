@@ -36,6 +36,8 @@ namespace Figma.Core.Uss
             stream.Write("}");
 
             count++;
+
+            Write(style.Substyles);
         }
         public void Write(IEnumerable<UssStyle> styles)
         {

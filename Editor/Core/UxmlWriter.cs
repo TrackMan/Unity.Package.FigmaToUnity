@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Xml;
+using UnityEngine;
 
 namespace Figma.Core
 {
@@ -11,9 +12,11 @@ namespace Figma.Core
     internal class UxmlWriter
     {
         const string prefix = "unity";
-        static readonly XmlWriterSettings xmlWriterSettings = new() { OmitXmlDeclaration = true, Indent = true, IndentChars = indentCharacters, NewLineOnAttributes = true };
+        static readonly XmlWriterSettings xmlWriterSettings = new() { OmitXmlDeclaration = true, Indent = true, IndentChars = indentCharacters, NewLineOnAttributes = false };
 
         #region Fields
+        readonly Files files;
+
         readonly Func<BaseNode, string> getClassList;
         readonly Func<BaseNode, bool> enabledInHierarchy;
         readonly Func<BaseNode, (bool hash, string value)> getTemplate;
@@ -25,8 +28,9 @@ namespace Figma.Core
         #endregion
 
         #region Constructors
-        public UxmlWriter(DocumentNode document, string folder, string name, Func<BaseNode, string> getClassList, Func<BaseNode, bool> enabledInHierarchy, Func<BaseNode, (bool hash, string value)> getTemplate, Func<BaseNode, (ElementType type, string typeFullName)> getElementType)
+        public UxmlWriter(Files files, string folder, string name, Func<BaseNode, string> getClassList, Func<BaseNode, bool> enabledInHierarchy, Func<BaseNode, (bool hash, string value)> getTemplate, Func<BaseNode, (ElementType type, string typeFullName)> getElementType)
         {
+            this.files = files;
             this.getClassList = getClassList;
             this.enabledInHierarchy = enabledInHierarchy;
             this.getTemplate = getTemplate;
@@ -34,12 +38,13 @@ namespace Figma.Core
 
             documentFolder = folder;
             documentName = name;
-            using (documentXml = CreateXml(documentFolder, documentName)) WriteRecursively(document, documentXml);
+            using (documentXml = CreateXml(documentFolder, documentName)) 
+                WriteRecursively(files.document, documentXml);
         }
         #endregion
 
         #region Methods
-        void WriteRecursively(BaseNode node, XmlWriter uxml)
+        void WriteRecursively(BaseNode node, XmlWriter uxml, bool isComponent = false)
         {
             void WriteDocumentNode(DocumentNode documentNode, XmlWriter writer)
             {
@@ -50,7 +55,21 @@ namespace Figma.Core
                 writer.WriteAttributeString("src", $"{documentName}.uss");
                 writer.WriteEndElement();
 
-                foreach (CanvasNode canvasNode in documentNode.children) WriteRecursively(canvasNode, writer);
+                foreach ((string _, Component component) in files.componentSets)
+                {
+                    if (component.remote)
+                    {
+                        Debug.LogWarning(Internals.Extensions.BuildTargetMessage($"Target {nameof(Component)} is remote", component.name, "and cannot be imported"));
+                        continue;
+                    }
+
+                    writer.WriteStartElement(prefix, "Template", uxmlNamespace);
+                    writer.WriteAttributeString("src", Path.Combine(componentsDirectoryName, $"{component.name}.uxml"));
+                    writer.WriteAttributeString("name", component.name);
+                    writer.WriteEndElement();
+                }
+
+                documentNode.children.ForEach(child => WriteRecursively(child, writer, isComponent));
 
                 WriteEnd(writer);
                 writer.WriteEndElement();
@@ -58,7 +77,7 @@ namespace Figma.Core
             void WriteCanvasNode(CanvasNode canvasNode, XmlWriter writer)
             {
                 WriteStart(canvasNode, writer);
-                foreach (SceneNode child in canvasNode.children) WriteRecursively(child, writer);
+                canvasNode.children.ForEach(child => WriteRecursively(child, writer, isComponent));
                 WriteEnd(writer);
             }
             void WriteSliceNode(SliceNode sliceNode, XmlWriter writer)
@@ -91,7 +110,7 @@ namespace Figma.Core
                     {
                         elementUxml.WriteStartElement(prefix, "UXML", uxmlNamespace);
                         WriteStart(defaultFrameNode, elementUxml);
-                        foreach (SceneNode child in defaultFrameNode.children) WriteRecursively(child, elementUxml);
+                        defaultFrameNode.children.ForEach(child => WriteRecursively(child, elementUxml, isComponent));
                         WriteEnd(elementUxml);
                         elementUxml.WriteEndElement();
                     }
@@ -104,7 +123,7 @@ namespace Figma.Core
 
                 WriteStart(defaultFrameNode, writer);
                 if (tooltip.NotNullOrEmpty()) writer.WriteAttributeString("tooltip", tooltip!); // Use tooltip as a storage for hash template name
-                foreach (SceneNode child in defaultFrameNode.children) WriteRecursively(child, writer);
+                defaultFrameNode.children.ForEach(child => WriteRecursively(child, writer, isComponent));
                 WriteEnd(writer);
             }
             void WriteDefaultShapeNode(DefaultShapeNode defaultShapeNode, XmlWriter writer)
@@ -123,7 +142,7 @@ namespace Figma.Core
 
                     writer.WriteStartElement(prefix, "Template", uxmlNamespace);
                     writer.WriteAttributeString("name", template);
-                    writer.WriteAttributeString("src", writer == documentXml ? Path.Combine("Elements", $"{template}.uxml") : $"{template}.uxml");
+                    writer.WriteAttributeString("src", writer == documentXml ? Path.Combine(elementsDirectoryName, $"{template}.uxml") : $"{template}.uxml");
                     writer.WriteEndElement();
                 }
 
@@ -133,24 +152,44 @@ namespace Figma.Core
             }
             void WriteComponentSetNode(ComponentSetNode componentSetNode)
             {
-                string directory = Path.Combine(documentFolder, componentsDirectoryName);
-                using (XmlWriter xmlWriter = CreateXml(directory, componentSetNode.name))
+                using XmlWriter xmlWriter = CreateXml(Path.Combine(documentFolder, componentsDirectoryName), componentSetNode.name);
+                xmlWriter.WriteStartElement(prefix, "UXML", uxmlNamespace);
+
+                xmlWriter.WriteStartElement("Style");
+                xmlWriter.WriteAttributeString("src", $"../{documentName}.uss"); // NOTE: Temporarly we are using directory back
+                xmlWriter.WriteEndElement();
+
+                WriteStart(componentSetNode, xmlWriter);
+                componentSetNode.children.ForEach(child => WriteRecursively(child, xmlWriter, true));
+                WriteEnd(xmlWriter);
+                xmlWriter.WriteEndElement();
+            }
+            void WriteInstanceNode(InstanceNode instanceNode, XmlWriter xmlWriter)
+            {
+                if (files.components.TryGetValue(instanceNode.componentId, out Component component) && !component.remote && 
+                    !string.IsNullOrEmpty(component.componentSetId) &&
+                    files.componentSets.TryGetValue(component.componentSetId, out Component target) && !target.remote)
                 {
-                    xmlWriter.WriteStartElement(prefix, "UXML", uxmlNamespace);
-                    WriteStart(componentSetNode, xmlWriter);
-                    foreach (SceneNode child in componentSetNode.children) WriteRecursively(child, xmlWriter);
-                    WriteEnd(xmlWriter);
+                    string componentSetName = target.name;
+                    string classList = getClassList(node);
+
+                    xmlWriter.WriteStartElement(prefix, "Instance", uxmlNamespace);
+                    xmlWriter.WriteAttributeString("template", componentSetName);
+                    xmlWriter.WriteAttributeString("name", instanceNode.name);
+
+                    if (classList.NotNullOrEmpty())
+                        uxml.WriteAttributeString("class", classList);
+
                     xmlWriter.WriteEndElement();
                 }
-            }
-            void WriteComponentNode(ComponentNode componentNode, XmlWriter xmlWriter)
-            {
-                WriteStart(componentNode, xmlWriter);
-                foreach (SceneNode child in componentNode.children) WriteRecursively(child, xmlWriter);
-                WriteEnd(xmlWriter);
+                else
+                {
+                    Debug.LogWarning(Internals.Extensions.BuildTargetMessage($"Target {nameof(Component)} for node", instanceNode.name, "is not found"));
+                    WriteDefaultFrameNode(instanceNode, uxml);
+                }
             }
 
-            if (!IsVisible(node) || !enabledInHierarchy(node) || IsStateNode(node)) return;
+            if (!IsVisible(node) || (!enabledInHierarchy(node) && node is not ComponentSetNode && !isComponent) || IsStateNode(node)) return;
 
             if (node is DocumentNode document) WriteDocumentNode(document, uxml);
             if (node is CanvasNode canvas) WriteCanvasNode(canvas, uxml);
@@ -165,8 +204,8 @@ namespace Figma.Core
             if (node is VectorNode vector) WriteDefaultShapeNode(vector, uxml);
             if (node is TextNode text) WriteTextNode(text, uxml);
             if (node is ComponentSetNode componentSet) WriteComponentSetNode(componentSet);
-            if (node is ComponentNode component) WriteComponentNode(component, uxml);
-            if (node is InstanceNode instance) WriteDefaultFrameNode(instance, uxml);
+            if (node is ComponentNode component) WriteDefaultFrameNode(component, uxml);
+            if (node is InstanceNode instance) WriteInstanceNode(instance, uxml);
             if (node is BooleanOperationNode booleanOperation) WriteDefaultFrameNode(booleanOperation, uxml);
         }
         #endregion
@@ -205,7 +244,7 @@ namespace Figma.Core
 
                     switch (node)
                     {
-                        case DefaultFrameNode or TextNode:
+                        case DefaultFrameNode or TextNode or ComponentSetNode:
                             if (node.name.StartsWith("Buttons"))
                             {
                                 elementName = "Button";

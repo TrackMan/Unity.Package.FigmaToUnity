@@ -542,7 +542,7 @@ namespace Figma.Internals
         public string description;
         public DocumentationLink[] documentationLinks;
         public string componentSetId;
-        public string remote;
+        public bool remote;
     }
 
     public class Style

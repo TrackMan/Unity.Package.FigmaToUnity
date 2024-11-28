@@ -89,6 +89,16 @@ namespace Figma
         LowerRight
     }
 
+    enum EasingFunction
+    {
+        EaseIn,
+        EaseOut,
+        EaseInAndOut,
+        Linear,
+        Slow,
+        CustomSpring
+    }
+
     enum Wrap
     {
         Normal,
@@ -176,14 +186,14 @@ namespace Figma
 
         IElement
     }
-    
+
     enum TimeUnit
     {
         Default,
         Millisecond,
         Second
     }
-    
+
     enum FontWeight
     {
         Thin = 0,

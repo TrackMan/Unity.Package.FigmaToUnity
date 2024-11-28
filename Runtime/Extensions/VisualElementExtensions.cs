@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using Trackman;
 using UnityEngine.UIElements;
 
 namespace Figma
@@ -9,11 +8,7 @@ namespace Figma
     public static class VisualElementExtensions
     {
         #region Fields
-        static Dictionary<(VisualElement prefab, VisualElement parent), IList> cloneDictionary = new();
-        #endregion
-
-        #region Constructors
-        static VisualElementExtensions() => DisposeStatic.OnDisposeStatic += () => cloneDictionary.Clear();
+        internal static readonly Dictionary<(VisualElement prefab, VisualElement parent), IList> cloneDictionary = new();
         #endregion
 
         #region Methods

@@ -26,6 +26,7 @@ namespace Figma.Core.Uss
             unityBackgroundPositionY = BackgroundPositionKeyword.Center,
             unityBackgroundRepeat = Repeat.NoRepeat
         };
+
         internal static UssStyle viewportClass = new("unity-viewport") { position = Position.Absolute, width = "100%", height = "100%", };
         #endregion
 
@@ -128,10 +129,14 @@ namespace Figma.Core.Uss
 
         // Effects
         ShadowProperty boxShadow { get => Get("--box-shadow"); set => Set("--box-shadow", value); }
+
+        // Transitions
+        internal DurationProperty transitionDuration { get => Get("transition-duration"); set => Set("transition-duration", value); }
+        internal EnumProperty<EasingFunction> transitionEasing { get => Get("transition-timing-function"); set => Set("transition-timing-function", value); }
         #endregion
 
         #region Constructors
-        protected UssStyle(string name) : base(name) { }
+        public UssStyle(string name) : base(name) { }
         public UssStyle(string name, Func<string, string, (bool valid, string path)> getAssetPath, Func<string, string, (bool valid, int width, int height)> getAssetSize) : this(name)
         {
             this.getAssetPath = getAssetPath;
@@ -199,7 +204,6 @@ namespace Figma.Core.Uss
             AddBlend(node);
             AddGeometry(node, node, node);
         }
-
         void AddFrameNode(FrameNode node) => AddDefaultFrameNode(node);
         void AddGroupNode(GroupNode node) => AddDefaultFrameNode(node);
         void AddSliceNode(SliceNode node)
@@ -210,7 +214,6 @@ namespace Figma.Core.Uss
         void AddRectangleNode(RectangleNode node)
         {
             AddCorner(node, node);
-
             AddDefaultShapeNode(node);
         }
         void AddLineNode(LineNode node) => AddDefaultShapeNode(node);
@@ -218,13 +221,11 @@ namespace Figma.Core.Uss
         void AddRegularPolygonNode(RegularPolygonNode node)
         {
             AddCorner(node, node);
-
             AddDefaultShapeNode(node);
         }
         void AddStarNode(StarNode node)
         {
             AddCorner(node, node);
-
             AddDefaultShapeNode(node);
         }
         void AddVectorNode(VectorNode node)
@@ -251,7 +252,7 @@ namespace Figma.Core.Uss
         {
             void AddPadding()
             {
-                Double[] padding = { mixin.paddingTop ?? 0, mixin.paddingRight ?? 0, mixin.paddingBottom ?? 0, mixin.paddingLeft ?? 0 };
+                double[] padding = { mixin.paddingTop ?? 0, mixin.paddingRight ?? 0, mixin.paddingBottom ?? 0, mixin.paddingLeft ?? 0 };
                 if (padding.Any(x => x != 0)) this.padding = padding;
             }
             void AddAutoLayout()
@@ -303,48 +304,37 @@ namespace Figma.Core.Uss
             AddPadding();
             if (mixin.layoutMode.HasValue) AddAutoLayout();
         }
-        void AddScene(IBaseNodeMixin @base)
-        {
-            void HandleVisibility()
-            {
-                if (IsVisible(@base) || IsStateNode(@base)) defaults.Add("display", "flex");
-                else display = Display.None;
-            }
-
-            HandleVisibility();
-        }
         void AddLayout(ILayoutMixin mixin, IBaseNodeMixin @base)
         {
-            if (@base is IDefaultFrameMixin frame && IsMostlyHorizontal(frame)) flexDirection = FlexDirection.Row;
-            if (@base.parent is IDefaultFrameMixin { layoutMode: not null } && mixin.layoutAlign == LayoutAlign.STRETCH) alignSelf = Align.Stretch;
+            if (@base is IDefaultFrameMixin frame && IsMostlyHorizontal(frame))
+                flexDirection = FlexDirection.Row;
+            if (@base.parent is IDefaultFrameMixin { layoutMode: not null } && mixin.layoutAlign == LayoutAlign.STRETCH)
+                alignSelf = Align.Stretch;
         }
         void AddBlend(IBlendMixin mixin)
         {
             void AddOpacity()
             {
                 if (mixin.opacity.HasValue)
-                    if (mixin.opacity == 1) defaults.Add("opacity", "1");
-                    else opacity = mixin.opacity;
+                    if (mixin.opacity == 1)
+                        defaults.Add("opacity", "1");
+                    else
+                        opacity = mixin.opacity;
             }
 
             AddOpacity();
-            if (mixin is TextNode) AddTextNodeEffects(mixin.effects);
-            else AddNodeEffects(mixin.effects);
+
+            if (mixin is TextNode)
+                AddTextNodeEffects(mixin.effects);
+            else
+                AddNodeEffects(mixin.effects);
         }
         void AddGeometry(IGeometryMixin mixin, ILayoutMixin layout, IBaseNodeMixin @base)
         {
             void AddBackgroundImageForVectorNode()
             {
-                if (HasImageFill(@base))
-                {
-                    (bool valid, string url) = getAssetPath(@base.id, KnownFormats.png);
-                    if (valid) backgroundImage = Url(url);
-                }
-                else
-                {
-                    (bool valid, string url) = getAssetPath(@base.id, KnownFormats.svg);
-                    if (valid) backgroundImage = Url(url);
-                }
+                (bool valid, string url) = HasImageFill(@base) ? getAssetPath(@base.id, KnownFormats.png) : getAssetPath(@base.id, KnownFormats.svg);
+                if (valid) backgroundImage = Url(url);
             }
             void AddBorderWidth()
             {
@@ -360,7 +350,7 @@ namespace Figma.Core.Uss
             }
             void AddBorderRadius(IRectangleCornerMixin rectangleCornerMixin, ICornerMixin cornerMixin)
             {
-                void AddRadius(Double minValue, Double value)
+                void AddRadius(double minValue, double value)
                 {
                     if (rectangleCornerMixin.rectangleCornerRadii is null)
                     {
@@ -374,7 +364,7 @@ namespace Figma.Core.Uss
                     }
                 }
 
-                Double value = Double.NaN;
+                double value = double.NaN;
                 switch (mixin.strokeAlign.Value)
                 {
                     case StrokeAlign.INSIDE:
@@ -389,7 +379,7 @@ namespace Figma.Core.Uss
                         break;
                 }
 
-                Double minBorderRadius = Math.Min(layout.absoluteBoundingBox.width / 2, layout.absoluteBoundingBox.height / 2);
+                double minBorderRadius = Math.Min(layout.absoluteBoundingBox.width / 2, layout.absoluteBoundingBox.height / 2);
                 AddRadius(minBorderRadius, value);
 
                 if (borderRadius == new Length4Property(Unit.Pixel)) attributes.Remove("border-radius");
@@ -422,22 +412,22 @@ namespace Figma.Core.Uss
 
             AddFillStyle(mixin.fills);
 
-            if (mixin.strokes.Length == 0) return;
+            if (mixin.strokes.Length == 0)
+                return;
 
             AddStrokeFillStyle(mixin.strokes);
 
-            if (!mixin.strokeWeight.HasValue) return;
+            if (!mixin.strokeWeight.HasValue)
+                return;
 
             AddBorderWidth();
 
-            if (mixin.strokeAlign.HasValue) AddBorderRadius(mixin as IRectangleCornerMixin, mixin as ICornerMixin);
+            if (mixin.strokeAlign.HasValue)
+                AddBorderRadius(mixin as IRectangleCornerMixin, mixin as ICornerMixin);
         }
 
-        void AddCorner(ICornerMixin cornerMixin, IRectangleCornerMixin rectangleCornerMixin)
-        {
-            if (rectangleCornerMixin.rectangleCornerRadii is not null) borderRadius = rectangleCornerMixin.rectangleCornerRadii;
-            else if (cornerMixin.cornerRadius.HasPositive()) borderRadius = cornerMixin.cornerRadius;
-        }
+        void AddCorner(ICornerMixin cornerMixin, IRectangleCornerMixin rectangleCornerMixin) =>
+            borderRadius = rectangleCornerMixin.rectangleCornerRadii is not null ? rectangleCornerMixin.rectangleCornerRadii : cornerMixin.cornerRadius.HasPositive() ? cornerMixin.cornerRadius : borderRadius;
 
         void AddBoxModel(ILayoutMixin layout, IConstraintMixin constraint, IGeometryMixin geometry, IBaseNodeMixin baseNode)
         {
@@ -448,11 +438,13 @@ namespace Figma.Core.Uss
                 if (valid && width > 0 && height > 0)
                     layout.absoluteBoundingBox = new Rect(layout.absoluteBoundingBox.x, layout.absoluteBoundingBox.y, width, height);
 
-                if (geometry.strokes.Length == 0 || geometry.strokeWeight is not > 0) return;
+                if (geometry.strokes.Length == 0 || geometry.strokeWeight is not > 0)
+                    return;
 
                 layout.absoluteBoundingBox = new Rect(layout.absoluteBoundingBox.x - geometry.strokeWeight.Value / 2, layout.absoluteBoundingBox.y, layout.absoluteBoundingBox.width, layout.absoluteBoundingBox.height);
 
-                if (geometry.strokeCap is null or StrokeCap.NONE) return;
+                if (geometry.strokeCap is null or StrokeCap.NONE)
+                    return;
 
                 layout.absoluteBoundingBox = new Rect(layout.absoluteBoundingBox.x, layout.absoluteBoundingBox.y - geometry.strokeWeight.Value / 2, layout.absoluteBoundingBox.width, layout.absoluteBoundingBox.height);
             }
@@ -678,7 +670,7 @@ namespace Figma.Core.Uss
                 }
             }
 
-            void AddItemSpacing(IDefaultFrameMixin parent, Double itemSpacing)
+            void AddItemSpacing(IDefaultFrameMixin parent, double itemSpacing)
             {
                 if (baseNode == parent.children.LastOrDefault(IsVisible)) return;
 
@@ -706,7 +698,7 @@ namespace Figma.Core.Uss
             }
             void AddNonInsideBorder()
             {
-                Double GetStrokeWeight(StrokeAlign strokeAlign, Double strokeWeight)
+                double GetStrokeWeight(StrokeAlign strokeAlign, double strokeWeight)
                 {
                     return strokeAlign switch
                     {
@@ -740,7 +732,7 @@ namespace Figma.Core.Uss
                     else
                         AddSizeByParentAutoLayoutFromLayout(parent);
 
-                    Double? itemSpacing = parent.itemSpacing;
+                    double? itemSpacing = parent.itemSpacing;
                     if (itemSpacing.HasPositive()) AddItemSpacing(parent, itemSpacing!.Value);
                 }
                 else
@@ -840,7 +832,7 @@ namespace Figma.Core.Uss
                     : style.fontPostScriptName.Contains('-')
                         ? style.fontPostScriptName.Split('-')[1].Replace("Index", string.Empty)
                         : string.Empty;
-                string italicPostfix = style.italic.HasValue && style.italic.Value || style.fontPostScriptName.Contains("Italic") ? "Italic" : string.Empty;
+                string italicPostfix = style.italic.HasValue && style.italic.Value || style.fontPostScriptName.Contains(FontStyle.Italic.ToString()) ? FontStyle.Italic.ToString() : string.Empty;
 
                 bool valid;
                 if (!TryGetFontWithExtension($"{style.fontFamily}-{weightPostfix}{italicPostfix}", out string resource, out string url) && !TryGetFontWithExtension(style.fontPostScriptName, out resource, out url))
@@ -893,6 +885,30 @@ namespace Figma.Core.Uss
         #endregion
 
         #region Support Methods
+        internal static List<UssStyle> MakeTransitionStyles(UssStyle root, UssStyle idle, UssStyle hover = null, UssStyle active = null)
+        {
+            List<UssStyle> transitions = new();
+
+            transitions.Add(new UssStyle($"{root.Name} .{idle.Name}") { opacity = 1 });
+            if (hover is not null) transitions.Add(new UssStyle($"{root.Name}:hover .{idle.Name}") { opacity = 0 });
+            if (active is not null) transitions.Add(new UssStyle($"{root.Name}:active .{idle.Name}") { opacity = 0 });
+
+            if (hover is not null)
+            {
+                transitions.Add(new UssStyle($"{root.Name} .{hover.Name}") { opacity = 0 });
+                transitions.Add(new UssStyle($"{root.Name}:hover .{hover.Name}") { opacity = 1 });
+                if (active is not null) transitions.Add(new UssStyle($"{root.Name}:active .{hover.Name}") { opacity = 0 });
+            }
+
+            if (active is not null)
+            {
+                transitions.Add(new UssStyle($"{root.Name} .{active.Name}") { opacity = 0 });
+                if (hover is not null) transitions.Add(new UssStyle($"{root.Name}:hover .{active.Name}") { opacity = 0 });
+                transitions.Add(new UssStyle($"{root.Name}:active .{active.Name}") { opacity = 1 });
+            }
+
+            return transitions;
+        }
         static bool HasMixedCenterChildren(IDefaultFrameMixin mixin)
         {
             (int horizontalCenterCount, int verticalCenterCount) = CenterChildrenCount(mixin);

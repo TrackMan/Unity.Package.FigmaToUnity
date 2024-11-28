@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using Trackman;
 using UnityEngine;
 using UnityEngine.UIElements;
 using Debug = UnityEngine.Debug;
@@ -36,16 +35,6 @@ namespace Figma
         public static Action<VisualElement, UIDocument, UxmlAttribute> OnInitializeRoot { get; set; }
         public static Action<VisualElement, object, Type, FieldInfo, QueryAttribute, QueryAttribute> OnInitializeElement { get; set; }
         public static Action<VisualElement> OnRebuildElement { get; set; }
-        #endregion
-
-        #region Constructors
-        static VisualElementMetadata() => DisposeStatic.OnDisposeStatic += () =>
-        {
-            rootMetadata.Clear();
-            cloneMap.Clear();
-            search.Clear();
-            hide.Clear();
-        };
         #endregion
 
         #region Methods
@@ -167,6 +156,14 @@ namespace Figma
             }
 
             foreach (T result in search.OfType<T>()) yield return result;
+        }
+        public static void Dispose()
+        {
+            VisualElementExtensions.cloneDictionary.Clear();
+            rootMetadata.Clear();
+            cloneMap.Clear();
+            search.Clear();
+            hide.Clear();
         }
         public static T Find<T>(this VisualElement value, string path, string className = default, bool throwException = true, bool silent = false) where T : VisualElement
         {

@@ -10,12 +10,13 @@ namespace Figma.Core.Uss
         protected readonly List<UssStyle> inherited = new();
         protected readonly Dictionary<string, string> defaults = new();
         protected readonly Dictionary<string, string> attributes = new();
+        protected List<UssStyle> substyles = new();
         #endregion
 
         #region Properties
         public string Name { get; set; }
         public bool HasAttributes => attributes.Count > 0;
-        
+        public List<UssStyle> Substyles => substyles;
         public Dictionary<string, string> Attributes => attributes;
         #endregion
 
