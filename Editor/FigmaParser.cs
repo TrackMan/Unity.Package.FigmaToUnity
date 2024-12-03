@@ -13,6 +13,7 @@ namespace Figma
 {
     using Core;
     using Core.Uss;
+    using Core.Uxml;
     using Internals;
 
     internal class FigmaParser
@@ -183,7 +184,7 @@ namespace Figma
             AddTransitionStyles();
 
             // Writing UXML file
-            UxmlWriter _ = new(files, folder, name, GetClassList, enabledInHierarchy, getTemplate, getElementType);
+            UxmlBuilder _ = new(files, folder, name, GetClassList, enabledInHierarchy, getTemplate, getElementType);
 
             // Writing USS styles
             using UssWriter writer = new(Path.Combine(folder, $"{name}.uss"));
