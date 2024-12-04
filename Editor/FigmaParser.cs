@@ -30,8 +30,7 @@ namespace Figma
 
         #region Fields
         readonly Files files;
-        readonly DocumentNode document;
-        readonly Dictionary<string, Style> documentStyles;
+        readonly NodeMetadata nodeMetadata;
 
         readonly List<ComponentNode> components = new(initialCollectionCapacity);
         readonly List<Dictionary<string, Style>> componentsStyles = new(initialCollectionCapacity);
@@ -49,23 +48,24 @@ namespace Figma
         internal List<BaseNode> PngNodes { get; } = new(initialCollectionCapacity);
         internal List<BaseNode> SvgNodes { get; } = new(initialCollectionCapacity);
         internal Dictionary<string, GradientPaint> Gradients { get; } = new(initialCollectionCapacity);
+        
+        protected DocumentNode Document => files.document;
+        protected Dictionary<string, Style> documentStyles => files.styles;
         #endregion
 
         #region Constructors
-        internal FigmaParser(Files files, Func<BaseNode, bool> enabledInHierarchy)
+        internal FigmaParser(Files files, NodeMetadata nodeMetadata)
         {
             this.files = files;
-
-            document = files.document;
-            documentStyles = files.styles;
-
+            this.nodeMetadata = nodeMetadata;
+            
             foreach (CanvasNode canvas in files.document.children)
             {
                 AddMissingNodesRecursively(canvas);
-                AddImageFillsRecursively(canvas, enabledInHierarchy);
-                AddPngNodesRecursively(canvas, enabledInHierarchy);
-                AddSvgNodesRecursively(canvas, enabledInHierarchy);
-                AddGradientsRecursively(canvas, enabledInHierarchy);
+                AddImageFillsRecursively(canvas);
+                AddPngNodesRecursively(canvas);
+                AddSvgNodesRecursively(canvas);
+                AddGradientsRecursively(canvas);
             }
         }
         #endregion
@@ -73,16 +73,16 @@ namespace Figma
         #region Methods
         internal void Run(Func<string, string, (bool valid, string path)> getAssetPath, Func<string, string, (bool valid, int width, int height)> getAssetSize)
         {
-            AddStylesRecursively(document, documentStyles, false, getAssetPath, getAssetSize);
-            document.children.ForEach(x => AddStylesRecursively(x, documentStyles, false, getAssetPath, getAssetSize));
+            AddStylesRecursively(Document, documentStyles, false, getAssetPath, getAssetSize);
+            Document.children.ForEach(x => AddStylesRecursively(x, documentStyles, false, getAssetPath, getAssetSize));
 
             foreach ((ComponentNode component, int index) in components.Select((x, i) => (x, i)))
                 AddStylesRecursively(component, componentsStyles[index], true, getAssetPath, getAssetSize);
 
-            InheritStylesRecursively(document);
-            document.children.ForEach(InheritStylesRecursively);
+            InheritStylesRecursively(Document);
+            Document.children.ForEach(InheritStylesRecursively);
         }
-        internal void Write(string folder, string name, Func<BaseNode, bool> enabledInHierarchy, Func<BaseNode, (bool hash, string value)> getTemplate, Func<BaseNode, (ElementType type, string typeFullName)> getElementType)
+        internal void Write(string directory, string name, NodeMetadata metadata)
         {
             void GroupRenameStyles(IEnumerable<UssStyle> styles)
             {
@@ -174,7 +174,7 @@ namespace Figma
                 }
             }
 
-            KeyValuePair<BaseNode, UssStyle>[] nodeStyleFiltered = nodeStyleMap.Where(x => IsVisible(x.Key) && (enabledInHierarchy(x.Key) || x.Key is ComponentSetNode)).ToArray();
+            KeyValuePair<BaseNode, UssStyle>[] nodeStyleFiltered = nodeStyleMap.Where(x => IsVisible(x.Key) && (nodeMetadata.EnabledInHierarchy(x.Key) || x.Key is ComponentSetNode)).ToArray();
             UssStyle[] nodeStyleStatelessFiltered = nodeStyleFiltered.Where(x => !IsStateNode(x.Key)).Select(x => x.Value).ToArray();
             UssStyle[] stylesFiltered = styles.Select(x => x.style).Where(x => nodeStyleStatelessFiltered.Any(y => y.DoesInherit(x))).ToArray();
             UssStyle[] componentStyleFiltered = componentStyleMap.Values.ToArray(); //.Where(x => nodeStyleStatelessFiltered.Any(y => y.DoesInherit(x))).ToArray();
@@ -184,10 +184,10 @@ namespace Figma
             AddTransitionStyles();
 
             // Writing UXML file
-            UxmlBuilder _ = new(files, folder, name, GetClassList, enabledInHierarchy, getTemplate, getElementType);
+            UxmlBuilder _ = new(directory, name, files, nodeMetadata, GetClassList);
 
             // Writing USS styles
-            using UssWriter writer = new(Path.Combine(folder, $"{name}.uss"));
+            using UssWriter writer = new(Path.Combine(directory, $"{name}.uss"));
             writer.Write(UssStyle.overrideClass);
             writer.Write(UssStyle.viewportClass);
             writer.Write(stylesFiltered);
@@ -208,20 +208,20 @@ namespace Figma
             if (node is IChildrenMixin children)
                 children.children.ForEach(AddMissingNodesRecursively);
         }
-        void AddImageFillsRecursively(BaseNode node, Func<BaseNode, bool> enabledInHierarchy)
+        void AddImageFillsRecursively(BaseNode node)
         {
-            if (!IsVisible(node) || !enabledInHierarchy(node) || node is BooleanOperationNode)
+            if (!IsVisible(node) || !nodeMetadata.EnabledInHierarchy(node) || node is BooleanOperationNode)
                 return;
 
             if (!IsSvgNode(node) && HasImageFill(node))
                 ImageFillNodes.Add(node);
 
             if (node is IChildrenMixin children)
-                children.children.ForEach(x => AddImageFillsRecursively(x, enabledInHierarchy));
+                children.children.ForEach(x => AddImageFillsRecursively(x));
         }
-        void AddPngNodesRecursively(BaseNode node, Func<BaseNode, bool> enabledInHierarchy)
+        void AddPngNodesRecursively(BaseNode node)
         {
-            if (!IsVisible(node) || !enabledInHierarchy(node))
+            if (!IsVisible(node) || !nodeMetadata.EnabledInHierarchy(node))
                 return;
 
             if (IsSvgNode(node) && HasImageFill(node))
@@ -231,11 +231,11 @@ namespace Figma
                 return;
 
             if (node is IChildrenMixin children)
-                children.children.ForEach(x => AddPngNodesRecursively(x, enabledInHierarchy));
+                children.children.ForEach(x => AddPngNodesRecursively(x));
         }
-        void AddSvgNodesRecursively(BaseNode node, Func<BaseNode, bool> enabledInHierarchy)
+        void AddSvgNodesRecursively(BaseNode node)
         {
-            if (!IsVisible(node) || !enabledInHierarchy(node))
+            if (!IsVisible(node) || !nodeMetadata.EnabledInHierarchy(node))
                 return;
 
             if (IsSvgNode(node) && !HasImageFill(node)) SvgNodes.Add(node);
@@ -247,14 +247,14 @@ namespace Figma
 
                 case IChildrenMixin children:
                 {
-                    children.children.ForEach(child => AddSvgNodesRecursively(child, enabledInHierarchy));
+                    children.children.ForEach(child => AddSvgNodesRecursively(child));
                     return;
                 }
             }
         }
-        void AddGradientsRecursively(BaseNode node, Func<BaseNode, bool> enabledInHierarchy)
+        void AddGradientsRecursively(BaseNode node)
         {
-            if (!IsVisible(node) || !enabledInHierarchy(node)) return;
+            if (!IsVisible(node) || !nodeMetadata.EnabledInHierarchy(node)) return;
 
             switch (node)
             {
@@ -271,7 +271,7 @@ namespace Figma
 
             if (node is not IChildrenMixin children) return;
 
-            children.children.ForEach(child => AddGradientsRecursively(child, enabledInHierarchy));
+            children.children.ForEach(child => AddGradientsRecursively(child));
         }
         void AddStylesRecursively(BaseNode node, Dictionary<string, Style> styles, bool insideComponent, Func<string, string, (bool valid, string path)> getAssetPath, Func<string, string, (bool valid, int width, int height)> getAssetSize)
         {
@@ -360,9 +360,9 @@ namespace Figma
                 return default;
             }
 
-            if (document.id == id) return document;
+            if (Document.id == id) return Document;
 
-            foreach (CanvasNode canvas in document.children)
+            foreach (CanvasNode canvas in Document.children)
             {
                 if (canvas.id == id) return canvas;
 
@@ -371,12 +371,6 @@ namespace Figma
             }
 
             return default;
-        }
-        UssStyle GetStyle(BaseNode node)
-        {
-            if (componentStyleMap.TryGetValue(node, out UssStyle style)) return style;
-
-            return nodeStyleMap.TryGetValue(node, out style) ? style : default;
         }
         void InheritStylesRecursively(BaseNode node)
         {
@@ -432,6 +426,12 @@ namespace Figma
 
             if (node is IChildrenMixin children)
                 children.children.ForEach(InheritStylesRecursively);
+        }
+        UssStyle GetStyle(BaseNode node)
+        {
+            if (componentStyleMap.TryGetValue(node, out UssStyle style)) return style;
+
+            return nodeStyleMap.TryGetValue(node, out style) ? style : default;
         }
         string GetClassList(BaseNode node)
         {

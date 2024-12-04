@@ -11,11 +11,9 @@ namespace Figma.Core.Uxml
     {
         #region Fields
         readonly Files files;
+        readonly NodeMetadata nodeMetadata;
 
         readonly Func<BaseNode, string> getClassList;
-        readonly Func<BaseNode, bool> enabledInHierarchy;
-        readonly Func<BaseNode, (bool hash, string value)> getTemplate;
-        readonly Func<BaseNode, (ElementType type, string typeFullName)> getElementType;
 
         readonly string documentDirectory;
         readonly string documentName;
@@ -23,27 +21,26 @@ namespace Figma.Core.Uxml
         #endregion
 
         #region Constructors
-        public UxmlBuilder(Files files, string directory, string name, Func<BaseNode, string> getClassList, Func<BaseNode, bool> enabledInHierarchy, Func<BaseNode, (bool hash, string value)> getTemplate, Func<BaseNode, (ElementType type, string typeFullName)> getElementType)
+        public UxmlBuilder(string directory, string name, Files files, NodeMetadata nodeMetadata, Func<BaseNode, string> getClassList)
         {
             this.files = files;
+            this.nodeMetadata = nodeMetadata;
             this.getClassList = getClassList;
-            this.enabledInHierarchy = enabledInHierarchy;
-            this.getTemplate = getTemplate;
-            this.getElementType = getElementType;
 
             documentDirectory = directory;
             documentName = name;
+
             using (documentXml = new UxmlWriter(documentDirectory, documentName))
-                WriteRecursively(files.document, documentXml);
+                WriteNodesRecursively(files.document, documentXml);
         }
         #endregion
 
         #region Methods
-        void WriteRecursively(BaseNode node, UxmlWriter uxml, bool isComponent = false)
+        void WriteNodesRecursively(BaseNode node, UxmlWriter uxml, bool isComponent = false)
         {
             void WriteDocumentNode(DocumentNode documentNode, UxmlWriter writer)
             {
-                using (writer.ElementScope(documentNode, getClassList(node), getElementType(node)))
+                using (writer.ElementScope(documentNode, getClassList(documentNode), nodeMetadata.GetElementType(documentNode)))
                 {
                     writer.WriteUssStyleReference($"{documentName}.uss");
 
@@ -58,21 +55,21 @@ namespace Figma.Core.Uxml
                         writer.WriteTemplate(component.name, Path.Combine(componentsDirectoryName, $"{component.name}.uxml"));
                     }
 
-                    documentNode.children.ForEach(child => WriteRecursively(child, writer, isComponent));
+                    documentNode.children.ForEach(child => WriteNodesRecursively(child, writer));
                 }
             }
             void WriteCanvasNode(CanvasNode canvasNode, UxmlWriter writer)
             {
-                using UxmlWriter.UxmlElementScope scope = writer.ElementScope(canvasNode, getClassList(node), getElementType(node));
-                canvasNode.children.ForEach(child => WriteRecursively(child, writer, isComponent));
+                using UxmlWriter.UxmlElementScope scope = writer.ElementScope(canvasNode, getClassList(canvasNode), nodeMetadata.GetElementType(canvasNode));
+                canvasNode.children.ForEach(child => WriteNodesRecursively(child, writer));
             }
             void WriteSliceNode(SliceNode sliceNode, UxmlWriter writer)
             {
-                using UxmlWriter.UxmlElementScope elementScope = writer.ElementScope(sliceNode, getClassList(node), getElementType(node));
+                using UxmlWriter.UxmlElementScope elementScope = writer.ElementScope(sliceNode, getClassList(sliceNode), nodeMetadata.GetElementType(sliceNode));
             }
             void WriteTextNode(TextNode textNode, UxmlWriter writer)
             {
-                using (writer.ElementScope(node, getClassList(node), getElementType(node)))
+                using (writer.ElementScope(textNode, getClassList(textNode), nodeMetadata.GetElementType(textNode)))
                 {
                     string text = textNode.style.textCase switch
                     {
@@ -87,50 +84,53 @@ namespace Figma.Core.Uxml
             {
                 string tooltip = default;
 
-                if (getTemplate(defaultFrameNode) is (var hash, { } template) && template.NotNullOrEmpty())
+                if (nodeMetadata.GetTemplate(defaultFrameNode) is (var hash, { } template) && template.NotNullOrEmpty())
                 {
                     tooltip = hash ? template : default;
                     {
                         using UxmlWriter childWriter = new(Path.Combine(documentDirectory, elementsDirectoryName), template);
-                        using UxmlWriter.UxmlElementScope scope = childWriter.ElementScope(defaultFrameNode, getClassList(defaultFrameNode), getElementType(defaultFrameNode));
-                        defaultFrameNode.children.ForEach(child => WriteRecursively(child, childWriter, isComponent));
+                        using UxmlWriter.UxmlElementScope scope = childWriter.ElementScope(defaultFrameNode, getClassList(defaultFrameNode), nodeMetadata.GetElementType(defaultFrameNode));
+
+                        foreach (BaseNode child in defaultFrameNode.children)
+                            WriteNodesRecursively(child, childWriter, isComponent);
                     }
 
                     writer.WriteTemplate(template, writer == documentXml ? Path.Combine(elementsDirectoryName, $"{template}.uxml") : $"{template}.uxml");
                 }
 
-                using UxmlWriter.UxmlElementScope frameScope = writer.ElementScope(defaultFrameNode, getClassList(defaultFrameNode), getElementType(defaultFrameNode));
+                using UxmlWriter.UxmlElementScope frameScope = writer.ElementScope(defaultFrameNode, getClassList(defaultFrameNode), nodeMetadata.GetElementType(defaultFrameNode));
                 if (tooltip.NotNullOrEmpty())
                     writer.XmlWriter.WriteAttributeString("tooltip", tooltip!); // Use tooltip as a storage for hash template name
-                defaultFrameNode.children.ForEach(child => WriteRecursively(child, writer, isComponent));
+                defaultFrameNode.children.ForEach(child => WriteNodesRecursively(child, writer, isComponent));
             }
             void WriteDefaultShapeNode(DefaultShapeNode defaultShapeNode, UxmlWriter writer)
             {
                 string tooltip = default;
-                if (getTemplate(defaultShapeNode) is (var hash, { } template) && template.NotNullOrEmpty())
+                if (nodeMetadata.GetTemplate(defaultShapeNode) is (var hash, { } template) && template.NotNullOrEmpty())
                 {
                     tooltip = hash ? template : default;
                     {
                         using UxmlWriter childWriter = new(Path.Combine(documentDirectory, elementsDirectoryName), template);
-                        using UxmlWriter.UxmlElementScope uxmlElementScope = childWriter.ElementScope(defaultShapeNode, getClassList(node), getElementType(node));
+                        using UxmlWriter.UxmlElementScope uxmlElementScope = childWriter.ElementScope(defaultShapeNode, getClassList(defaultShapeNode), nodeMetadata.GetElementType(defaultShapeNode));
                     }
 
                     writer.WriteTemplate(template, writer == documentXml ? Path.Combine(elementsDirectoryName, $"{template}.uxml") : $"{template}.uxml");
                 }
 
-                using UxmlWriter.UxmlElementScope elementScope = writer.ElementScope(defaultShapeNode, getClassList(defaultShapeNode), getElementType(defaultShapeNode));
+                using UxmlWriter.UxmlElementScope elementScope = writer.ElementScope(defaultShapeNode, getClassList(defaultShapeNode), nodeMetadata.GetElementType(defaultShapeNode));
 
                 if (tooltip.NotNullOrEmpty())
                     writer.XmlWriter.WriteAttributeString("tooltip", tooltip!); // Use tooltip as a storage for hash template name
             }
             void WriteComponentSetNode(ComponentSetNode componentSetNode)
             {
-                using UxmlWriter writer = new(Path.Combine(documentDirectory, componentsDirectoryName), componentSetNode.name);
+                using UxmlWriter childWriter = new(Path.Combine(documentDirectory, componentsDirectoryName), componentSetNode.name);
 
-                writer.WriteUssStyleReference($"../{documentName}.uss"); // NOTE: Temporarly we are using directory back
+                childWriter.WriteUssStyleReference($"../{documentName}.uss"); // NOTE: Temporarly we are using directory back
 
-                using UxmlWriter.UxmlElementScope scope = writer.ElementScope(componentSetNode, getClassList(node), getElementType(node));
-                componentSetNode.children.ForEach(child => WriteRecursively(child, writer, true));
+                using UxmlWriter.UxmlElementScope scope = childWriter.ElementScope(componentSetNode, getClassList(componentSetNode), nodeMetadata.GetElementType(componentSetNode));
+                foreach (BaseNode child in componentSetNode.children)
+                    WriteNodesRecursively(child, childWriter, isComponent);
             }
             void WriteInstanceNode(InstanceNode instanceNode, UxmlWriter writer)
             {
@@ -139,18 +139,19 @@ namespace Figma.Core.Uxml
                     files.componentSets.TryGetValue(component.componentSetId, out Component target) && !target.remote)
                 {
                     string componentSetName = target.name;
-                    string classList = getClassList(node);
+                    string classList = getClassList(instanceNode);
 
                     writer.WriteInstance(componentSetName, instanceNode.name, classList);
                 }
                 else
                 {
                     Debug.LogWarning(Extensions.BuildTargetMessage($"Target {nameof(Component)} for node", instanceNode.name, "is not found"));
-                    WriteDefaultFrameNode(instanceNode, uxml);
+                    WriteDefaultFrameNode(instanceNode, writer);
                 }
             }
 
-            if (!IsVisible(node) || (!enabledInHierarchy(node) && node is not ComponentSetNode && !isComponent) || IsStateNode(node)) return;
+            if (!IsVisible(node) || (!nodeMetadata.EnabledInHierarchy(node) && node is not ComponentSetNode && !isComponent) || IsStateNode(node))
+                return;
 
             if (node is DocumentNode document) WriteDocumentNode(document, uxml);
             if (node is CanvasNode canvas) WriteCanvasNode(canvas, uxml);

@@ -132,7 +132,7 @@ namespace Figma.Inspectors
 
             Files files = await GetFilesAsync();
             nodeMetadata = new NodeMetadata(files.document, elements, filter);
-            parser = new FigmaParser(files, nodeMetadata.EnabledInHierarchy);
+            parser = new FigmaParser(files, nodeMetadata);
             await DownloadMissingComponentsAsync();
             if (downloadImages)
                 await DownloadImagesAsync();
@@ -142,7 +142,7 @@ namespace Figma.Inspectors
             Progress.Report(progress, 5, 5, "Updating *.uss/*.uxml files");
 
             parser.Run(GetAssetPath, GetAssetSize);
-            parser.Write(folder, name, nodeMetadata.EnabledInHierarchy, nodeMetadata.GetTemplate, nodeMetadata.GetElementType);
+            parser.Write(folder, name, nodeMetadata);
         }
         internal void Cleanup(string name)
         {

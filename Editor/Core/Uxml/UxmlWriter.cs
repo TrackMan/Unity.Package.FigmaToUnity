@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Xml;
+using UnityEngine.UIElements;
 
 namespace Figma.Core.Uxml
 {
@@ -55,74 +56,49 @@ namespace Figma.Core.Uxml
             (string prefix, string elementName, string pickingMode) GetElementData(BaseNode node)
             {
                 string prefix = UxmlWriter.prefix;
-                string elementName = "VisualElement";
-                string pickingMode = "Ignore";
+                string elementName = nameof(VisualElement);
+                PickingMode pickingMode = PickingMode.Ignore;
 
                 if (elementTypeInfo.type == ElementType.IElement)
                 {
                     prefix = default;
                     elementName = elementTypeInfo.typeFullName;
-                    pickingMode = "Position";
+                    pickingMode = PickingMode.Position;
                 }
                 else if (elementTypeInfo.type == ElementType.None)
                 {
-                    switch (node)
-                    {
-                        case TextNode when node.name.StartsWith("Inputs"):
-                            elementName = "TextField";
-                            pickingMode = "Position";
-                            break;
+                    if (node is not (DefaultFrameNode or TextNode or ComponentSetNode)) 
+                        return (prefix, elementName, pickingMode.ToString());
+                    
+                    const string buttonsPrefix = "Buttons";
+                    const string inputsPrefix = "Inputs";
+                    const string togglesPrefix = "Toggles";
+                    const string scrollViewsPrefix = "ScrollViews";
+                        
+                    if (node is TextNode) elementName = node.name.StartsWith(inputsPrefix) ? nameof(TextField) : nameof(Label);
 
-                        case TextNode:
-                            elementName = "Label";
-                            break;
-                    }
+                    if (node.name.StartsWith(buttonsPrefix)) elementName = nameof(Button);
+                    else if (node.name.StartsWith(togglesPrefix)) elementName = nameof(Toggle);
+                    else if (node.name.StartsWith(scrollViewsPrefix)) elementName = nameof(ScrollView);
 
-                    switch (node)
-                    {
-                        case DefaultFrameNode or TextNode or ComponentSetNode:
-                            if (node.name.StartsWith("Buttons"))
-                            {
-                                elementName = "Button";
-                                pickingMode = "Position";
-                            }
-
-                            if (node.name.StartsWith("Toggles"))
-                            {
-                                elementName = "Toggle";
-                                pickingMode = "Position";
-                            }
-
-                            if (node.name.StartsWith("ScrollViews"))
-                            {
-                                elementName = "ScrollView";
-                                pickingMode = "Position";
-                            }
-
-                            break;
-                    }
+                    pickingMode = node.name.StartsWith(buttonsPrefix) || 
+                                  node.name.StartsWith(togglesPrefix) || 
+                                  node.name.StartsWith(scrollViewsPrefix) || 
+                                  (node is TextNode && node.name.StartsWith(inputsPrefix)) ? PickingMode.Position : pickingMode;
                 }
                 else
                 {
                     elementName = elementTypeInfo.type.ToString();
-                    switch (elementTypeInfo.type)
-                    {
-                        case ElementType.VisualElement or
-                             ElementType.BindableElement or
-                             ElementType.Box or
-                             ElementType.TextElement or
-                             ElementType.Label or
-                             ElementType.Image:
-                            pickingMode = "Ignore";
-                            break;
-
-                        default:
-                            pickingMode = "Position";
-                            break;
-                    }
+                    pickingMode = elementTypeInfo.type is ElementType.VisualElement or
+                                                          ElementType.BindableElement or
+                                                          ElementType.Box or
+                                                          ElementType.TextElement or
+                                                          ElementType.Label or
+                                                          ElementType.Image
+                        ? PickingMode.Ignore : PickingMode.Position;
                 }
 
-                return (prefix, elementName, pickingMode);
+                return (prefix, elementName, pickingMode.ToString());
             }
 
             (string prefix, string elementName, string pickingMode) = GetElementData(node);
@@ -134,11 +110,11 @@ namespace Figma.Core.Uxml
             XmlWriter.WriteAttributeString("name", node.name);
 
             if (ussClasses.NotNullOrEmpty()) XmlWriter.WriteAttributeString("class", ussClasses);
-            if (pickingMode != "Position") XmlWriter.WriteAttributeString("picking-mode", pickingMode);
+            if (pickingMode != PickingMode.Position.ToString()) XmlWriter.WriteAttributeString("picking-mode", pickingMode);
         }
         public void EndElement() => XmlWriter.WriteEndElement();
         public UxmlElementScope ElementScope(BaseNode node, string ussClasses, (ElementType type, string typeFullName) elementTypeInfo) => new(this, node, ussClasses, elementTypeInfo);
-        
+
         public void WriteUssStyleReference(string path)
         {
             XmlWriter.WriteStartElement("Style");
