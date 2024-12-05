@@ -124,15 +124,15 @@ namespace Figma.Core.Uxml
         public void WriteTemplate(string templateName, string templatePath)
         {
             XmlWriter.WriteStartElement(prefix, "Template", uxmlNamespace);
-            XmlWriter.WriteAttributeString("src", templatePath);
             XmlWriter.WriteAttributeString("name", templateName);
+            XmlWriter.WriteAttributeString("src", templatePath);
             XmlWriter.WriteEndElement();
         }
         public void WriteInstance(string templateName, string instanceName, string classList)
         {
             XmlWriter.WriteStartElement(prefix, "Instance", uxmlNamespace);
-            XmlWriter.WriteAttributeString("template", templateName);
             XmlWriter.WriteAttributeString("name", instanceName);
+            XmlWriter.WriteAttributeString("template", templateName);
 
             if (classList.NotNullOrEmpty())
                 XmlWriter.WriteAttributeString("class", classList);
