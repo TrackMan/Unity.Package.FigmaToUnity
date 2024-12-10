@@ -194,6 +194,20 @@ namespace Figma
         Second
     }
 
+    enum PseudoClass
+    {
+        None = 0,
+        Hover,
+        Active,
+        Inactive,
+        Focus,
+        Selected,
+        Disabled,
+        Enabled,
+        Checked,
+        Root
+    }
+
     enum FontWeight
     {
         Thin = 0,

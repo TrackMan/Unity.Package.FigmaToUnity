@@ -17,7 +17,7 @@ namespace Figma.Core.Uss
         #endregion
 
         #region Methods
-        public void Write(UssStyle style)
+        public void Write(BaseUssStyle style)
         {
             if (!style.HasAttributes) return;
 
@@ -27,28 +27,34 @@ namespace Figma.Core.Uss
                 stream.WriteLine();
             }
 
-            stream.WriteLine($".{style.Name} {{");
-            style.Attributes.Remove("--unity-font-missing");
-
+            stream.Write(style.BuildName());
+            stream.WriteLine(" {");
+            
             foreach ((string key, string value) in style.Attributes)
+            {
+                if (key == "--unity-font-missing")
+                    continue;
+                
                 stream.WriteLine($"\t{key}: {value};");
+            }
 
             stream.Write("}");
 
             count++;
 
-            Write(style.Substyles);
+            Write(style.SubStyles);
         }
-        public void Write(IEnumerable<UssStyle> styles)
+        public void Write(IEnumerable<BaseUssStyle> styles)
         {
-            foreach (UssStyle style in styles)
+            foreach (BaseUssStyle style in styles)
                 Write(style);
         }
 
         void IDisposable.Dispose() => stream?.Dispose();
         async ValueTask IAsyncDisposable.DisposeAsync()
         {
-            if (stream != null) await stream.DisposeAsync();
+            if (stream != null) 
+                await stream.DisposeAsync();
         }
         #endregion
     }

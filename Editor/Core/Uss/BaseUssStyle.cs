@@ -7,16 +7,19 @@ namespace Figma.Core.Uss
     internal abstract class BaseUssStyle
     {
         #region Fields
-        protected readonly List<UssStyle> inherited = new();
+        protected readonly List<BaseUssStyle> subStyles = new();
+        protected readonly List<BaseUssStyle> inherited = new();
         protected readonly Dictionary<string, string> defaults = new();
         protected readonly Dictionary<string, string> attributes = new();
-        protected List<UssStyle> substyles = new();
         #endregion
 
         #region Properties
         public string Name { get; set; }
+        public PseudoClass PseudoClass { get; set; }
+        public BaseUssStyle Target { get; set; }
+
         public bool HasAttributes => attributes.Count > 0;
-        public List<UssStyle> Substyles => substyles;
+        public List<BaseUssStyle> SubStyles => subStyles;
         public Dictionary<string, string> Attributes => attributes;
         #endregion
 
@@ -25,12 +28,33 @@ namespace Figma.Core.Uss
         #endregion
 
         #region Methods
-        public bool DoesInherit(UssStyle style) => inherited.Contains(style);
-        public void Inherit(UssStyle component)
+        public string BuildName()
+        {
+            string result = $".{Name}";
+            
+            if (PseudoClass is not PseudoClass.None)
+                result += $":{PseudoClass.ToString().ToLower()}";
+
+            if (Target is not null)
+            {
+                result += " > ";
+
+                if (Target.Name is not (nameof(UnityEngine.UIElements.VisualElement) or 
+                                        nameof(UnityEngine.UIElements.Button)))
+                    result += ".";
+
+                result += Target.Name;
+            }
+
+            return result;
+        }
+
+        public bool DoesInherit(BaseUssStyle style) => inherited.Contains(style);
+        public void Inherit(BaseUssStyle component)
         {
             inherited.Add(component);
 
-            foreach ((string key, string _) in component.attributes)
+            foreach (string key in component.attributes.Keys)
             {
                 if (attributes.TryGetValue(key, out string value) && value == component.attributes[key])
                     attributes.Remove(key);
@@ -39,15 +63,15 @@ namespace Figma.Core.Uss
                     attributes.Add(key, defaultValue);
             }
         }
-        public void Inherit(IReadOnlyCollection<UssStyle> styles)
+        public void Inherit(IReadOnlyCollection<BaseUssStyle> styles)
         {
             inherited.AddRange(styles);
 
-            foreach (UssStyle style in styles)
+            foreach (BaseUssStyle style in styles)
                 foreach ((string key, string _) in style.attributes.Where(keyValue => attributes.TryGetValue(keyValue.Key, out string value) && value == style.attributes[keyValue.Key]))
                     attributes.Remove(key);
         }
-        public void Inherit(UssStyle component, IReadOnlyCollection<UssStyle> styles)
+        public void Inherit(BaseUssStyle component, IReadOnlyCollection<BaseUssStyle> styles)
         {
             inherited.Add(component);
             inherited.AddRange(styles);
@@ -66,7 +90,7 @@ namespace Figma.Core.Uss
                     attributes.Add(key, @default);
             }
 
-            foreach (UssStyle style in styles)
+            foreach (BaseUssStyle style in styles)
             {
                 foreach (KeyValuePair<string, string> keyValue in style.attributes.Where(keyValue => attributes.ContainsKey(keyValue.Key) && attributes[keyValue.Key] == style.attributes[keyValue.Key] && !preserve.Contains(keyValue.Key)))
                     attributes.Remove(keyValue.Key);

@@ -142,7 +142,7 @@ namespace Figma.Inspectors
             Progress.Report(progress, 5, 5, "Updating *.uss/*.uxml files");
 
             parser.Run(GetAssetPath, GetAssetSize);
-            parser.Write(folder, name, nodeMetadata);
+            parser.Write(folder, name);
         }
         internal void Cleanup(string name)
         {

@@ -188,6 +188,12 @@ namespace Figma.Core.Uss
         #endregion
 
         #region Methods
+        internal UssStyle CopyFrom(UssStyle style)
+        {
+            foreach ((string key, string value) in style.Attributes)
+                Attributes[key] = value;
+            return this;
+        }
         void AddDefaultFrameNode(DefaultFrameNode node)
         {
             AddCorner(node, node);
@@ -889,22 +895,22 @@ namespace Figma.Core.Uss
         {
             List<UssStyle> transitions = new();
 
-            transitions.Add(new UssStyle($"{root.Name} .{idle.Name}") { opacity = 1 });
-            if (hover is not null) transitions.Add(new UssStyle($"{root.Name}:hover .{idle.Name}") { opacity = 0 });
-            if (active is not null) transitions.Add(new UssStyle($"{root.Name}:active .{idle.Name}") { opacity = 0 });
+            transitions.Add(new UssStyle(root.Name) { Target = idle, opacity = 1 });
+            if (hover is not null) transitions.Add(new UssStyle(root.Name) { Target = idle, PseudoClass = PseudoClass.Hover, opacity = 0 });
+            if (active is not null) transitions.Add(new UssStyle(root.Name) { Target = idle, PseudoClass = PseudoClass.Active, opacity = 0 });
 
             if (hover is not null)
             {
-                transitions.Add(new UssStyle($"{root.Name} .{hover.Name}") { opacity = 0 });
-                transitions.Add(new UssStyle($"{root.Name}:hover .{hover.Name}") { opacity = 1 });
-                if (active is not null) transitions.Add(new UssStyle($"{root.Name}:active .{hover.Name}") { opacity = 0 });
+                transitions.Add(new UssStyle(root.Name) { Target = hover, opacity = 0 });
+                transitions.Add(new UssStyle(root.Name) { Target = hover, PseudoClass = PseudoClass.Hover, opacity = 1 });
+                if (active is not null) transitions.Add(new UssStyle(root.Name) { Target = hover, PseudoClass = PseudoClass.Active, opacity = 0 });
             }
 
             if (active is not null)
             {
-                transitions.Add(new UssStyle($"{root.Name} .{active.Name}") { opacity = 0 });
-                if (hover is not null) transitions.Add(new UssStyle($"{root.Name}:hover .{active.Name}") { opacity = 0 });
-                transitions.Add(new UssStyle($"{root.Name}:active .{active.Name}") { opacity = 1 });
+                transitions.Add(new UssStyle(root.Name) { Target = active, opacity = 0 });
+                if (hover is not null) transitions.Add(new UssStyle(root.Name) { Target = active, PseudoClass = PseudoClass.Hover, opacity = 0 });
+                transitions.Add(new UssStyle(root.Name) { Target = active, PseudoClass = PseudoClass.Active, opacity = 1 });
             }
 
             return transitions;

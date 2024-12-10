@@ -13,7 +13,7 @@ namespace Figma.Internals
 
         public static readonly CultureInfo culture = CultureInfo.GetCultureInfo("en-US");
         
-        public static readonly byte[] invalidPng = new byte[] {
+        public static readonly byte[] invalidPng = {
             137, 80, 78, 71, 13, 10, 26, 10, // PNG signature
             // IHDR chunk
             0, 0, 0, 13, 73, 72, 68, 82, 
