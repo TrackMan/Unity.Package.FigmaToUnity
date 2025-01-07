@@ -524,9 +524,12 @@ namespace Figma
             static int GetLines(VisualElement value, VisualElement parent, float spacing, bool horizontalDirection)
             {
                 float valueSize = horizontalDirection ? value.resolvedStyle.width : value.resolvedStyle.height;
-                float parentSize = horizontalDirection ? parent.resolvedStyle.width : parent.resolvedStyle.height;
 
-                return (valueSize.Invalid() || valueSize == 0) ? parent.childCount : (int)(parentSize / ((2 * valueSize + (spacing.Invalid() ? 0 : spacing)) / 2));
+                if (valueSize.Invalid() || valueSize == 0)
+                    return parent.childCount;
+
+                float parentSize = horizontalDirection ? Mathf.Max(parent.resolvedStyle.width, parent.resolvedStyle.maxWidth.value) : Mathf.Max(parent.resolvedStyle.height, parent.resolvedStyle.maxHeight.value);
+                return (int)((parentSize + spacing) / (valueSize + spacing));
             }
             static int FindIndex(VisualElement value, IEnumerable<VisualElement> children)
             {
