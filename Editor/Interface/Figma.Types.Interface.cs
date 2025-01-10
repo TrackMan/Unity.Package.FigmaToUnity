@@ -111,7 +111,11 @@ namespace Figma.Internals
     }
 
     public interface IDefaultShapeMixin : IBaseNodeMixin, ISceneNodeMixin, IConstraintMixin, ILayoutMixin, IBlendMixin, IGeometryMixin,
-                                          IReactionMixin, IExportMixin { }
+                                          IReactionMixin, IExportMixin
+    {
+        LayoutSizing layoutSizingHorizontal { get; set; }
+        LayoutSizing layoutSizingVertical { get; set; }
+    }
 
     public interface IDefaultFrameMixin : IDefaultShapeMixin, IContainerMixin, ICornerMixin, IRectangleCornerMixin, IChildrenMixin
     {
@@ -120,6 +124,7 @@ namespace Figma.Internals
         PrimaryAxisAlignItems? primaryAxisAlignItems { get; set; }
         CounterAxisSizingMode? counterAxisSizingMode { get; set; }
         CounterAxisAlignItems? counterAxisAlignItems { get; set; }
+        CounterAxisAlignContent counterAxisAlignContent { get; set; }
         number? paddingLeft { get; set; }
         number? paddingTop { get; set; }
         number? paddingRight { get; set; }

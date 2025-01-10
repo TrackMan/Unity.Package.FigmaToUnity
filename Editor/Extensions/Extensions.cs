@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 
 namespace Figma.Core
 {
+    using Internals;
     internal static class Extensions
     {
         #region Const
@@ -47,6 +49,26 @@ namespace Figma.Core
             }
 
             return words;
+        }
+        internal static RGBA GetAverageColor(this IEnumerable<RGBA> colors)
+        {
+            RGBA avgColor = new();
+            int count = 0;
+
+            foreach (RGBA color in colors)
+            {
+                avgColor.r += color.r;
+                avgColor.g += color.g;
+                avgColor.b += color.b;
+                count++;
+            }
+
+            if (count == 0) return avgColor;
+
+            avgColor.r /= count;
+            avgColor.g /= count;
+            avgColor.b /= count;
+            return avgColor;
         }
         #endregion
     }

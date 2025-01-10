@@ -424,10 +424,10 @@ namespace Figma.Internals
         public number[] strokeDashes;
         public number? rotation;
         public Rect absoluteRenderBounds;
-        public string layoutSizingHorizontal;
-        public string layoutSizingVertical;
 
         #region Mixin
+        public LayoutSizing layoutSizingHorizontal { get; set; }
+        public LayoutSizing layoutSizingVertical { get; set; }
         public Constraints constraints { get; set; }
 
         public LayoutAlign layoutAlign { get; set; }
@@ -487,7 +487,7 @@ namespace Figma.Internals
         public PrimaryAxisAlignItems? primaryAxisAlignItems { get; set; }
         public CounterAxisAlignItems? counterAxisAlignItems { get; set; }
         public object primaryAxisAlignContent { get; set; }
-        public object counterAxisAlignContent { get; set; }
+        public CounterAxisAlignContent counterAxisAlignContent { get; set; }
         public number? paddingLeft { get; set; }
         public number? paddingTop { get; set; }
         public number? paddingRight { get; set; }

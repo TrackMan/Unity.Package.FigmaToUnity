@@ -77,4 +77,8 @@ namespace Figma.Internals
     public enum LayoutWrap { NO_WRAP, WRAP }
 
     public enum MaskType { ALPHA, VECTOR, LUMINANCE }
+
+    public enum LayoutSizing { FIXED, HUG, FILL }
+
+    public enum CounterAxisAlignContent { AUTO, SPACE_BETWEEN }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -261,6 +262,10 @@ namespace Figma.Core.Uss
                 double[] padding = { mixin.paddingTop ?? 0, mixin.paddingRight ?? 0, mixin.paddingBottom ?? 0, mixin.paddingLeft ?? 0 };
                 if (padding.Any(x => x != 0)) this.padding = padding;
             }
+            static string GetNodeFullPath(BaseNode node)
+            {
+                return node is null ? string.Empty : Path.Combine(GetNodeFullPath(node.parent), node.name);
+            }
             void AddAutoLayout()
             {
                 switch (mixin.layoutMode)
@@ -269,14 +274,29 @@ namespace Figma.Core.Uss
                         flexDirection = FlexDirection.Row;
                         justifyContent = JustifyContent.FlexStart;
                         alignItems = Align.FlexStart;
-                        if (mixin.layoutWrap is LayoutWrap.WRAP || (mixin.layoutAlign != LayoutAlign.STRETCH && mixin.primaryAxisSizingMode.IsValue(PrimaryAxisSizingMode.FIXED))) flexWrap = FlexWrap.Wrap;
+
+                        if (mixin.layoutWrap is LayoutWrap.WRAP) flexWrap = FlexWrap.Wrap;
+                        if (mixin.layoutWrap is LayoutWrap.NO_WRAP)
+                        {
+                            flexWrap = FlexWrap.Nowrap;
+                            if (mixin.layoutAlign is LayoutAlign.STRETCH && mixin.primaryAxisSizingMode is PrimaryAxisSizingMode.FIXED)
+                            {
+                                flexWrap = FlexWrap.Wrap;
+                                string path = GetNodeFullPath(mixin as BaseNode);
+                                Debug.LogWarning($"Path could not be found: {path}");
+                            }
+                        }
                         break;
 
                     case LayoutMode.VERTICAL:
                         flexDirection = FlexDirection.Column;
                         justifyContent = JustifyContent.FlexStart;
                         alignItems = Align.FlexStart;
-                        if (mixin.layoutAlign != LayoutAlign.STRETCH && mixin.primaryAxisSizingMode.IsValue(PrimaryAxisSizingMode.FIXED)) flexWrap = FlexWrap.Wrap;
+                        if (mixin.layoutAlign != LayoutAlign.STRETCH && mixin.primaryAxisSizingMode.IsValue(PrimaryAxisSizingMode.FIXED))
+                        {
+                            // Figma doesn't support wrap at vertical layout, then we forcibly set it
+                            flexWrap = FlexWrap.Wrap;
+                        }
                         break;
                 }
 
@@ -678,6 +698,16 @@ namespace Figma.Core.Uss
 
             void AddItemSpacing(IDefaultFrameMixin parent, double itemSpacing)
             {
+                if (parent is not null && parent.counterAxisAlignContent is CounterAxisAlignContent.AUTO &&
+                    parent.layoutSizingHorizontal is LayoutSizing.HUG && parent.layoutSizingVertical is LayoutSizing.HUG)
+                {
+                    double halfSpacing = itemSpacing / 2;
+                    marginRight = halfSpacing;
+                    marginLeft = halfSpacing;
+                    marginTop = halfSpacing;
+                    marginBottom = halfSpacing;
+                }
+
                 if (baseNode == parent.children.LastOrDefault(IsVisible)) return;
 
                 if (parent!.layoutMode!.Value == LayoutMode.HORIZONTAL && parent.primaryAxisAlignItems is not PrimaryAxisAlignItems.SPACE_BETWEEN)
@@ -692,6 +722,7 @@ namespace Figma.Core.Uss
                 {
                     case TextAutoResize.WIDTH_AND_HEIGHT:
                         width = Unit.Auto;
+                        height = Unit.Auto;
                         break;
 
                     case TextAutoResize.HEIGHT:
@@ -719,6 +750,7 @@ namespace Figma.Core.Uss
                 if (!IsSvgNode(baseNode) && geometry is not null &&
                     geometry.strokes.Length > 0 && geometry.strokeWeight is > 0 &&
                     geometry.strokeAlign.HasValue && geometry.strokeAlign != StrokeAlign.INSIDE)
+
                     margin += GetStrokeWeight(geometry.strokeAlign.Value, geometry.strokeWeight.Value);
             }
 
@@ -739,7 +771,8 @@ namespace Figma.Core.Uss
                         AddSizeByParentAutoLayoutFromLayout(parent);
 
                     double? itemSpacing = parent.itemSpacing;
-                    if (itemSpacing.HasPositive()) AddItemSpacing(parent, itemSpacing!.Value);
+                    if(itemSpacing is not null)
+                        AddItemSpacing(parent, itemSpacing!.Value);
                 }
                 else
                 {
@@ -802,8 +835,17 @@ namespace Figma.Core.Uss
         void AddStrokeFillStyle(IEnumerable<Paint> strokes)
         {
             foreach (Paint stroke in strokes)
+            {
                 if (stroke is SolidPaint solid && solid.visible.IsEmptyOrTrue())
                     borderColor = new ColorProperty(solid.color, solid.opacity);
+
+                // Unity doesnt support gradient border color
+                if (stroke is GradientPaint gradient && gradient.visible.IsEmptyOrTrue())
+                {
+                    RGBA avgColor = gradient.gradientStops.Select(stop => stop.color).GetAverageColor();
+                    borderColor = new ColorProperty(avgColor, avgColor.a);
+                }
+            }
         }
         void AddTextStyle(TextNode.Style style)
         {
