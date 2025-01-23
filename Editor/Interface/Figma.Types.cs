@@ -358,6 +358,7 @@ namespace Figma.Internals
             public string leadingTrim;
             public string textTruncation;
             public int maxLines;
+            public string fontStyle;
         }
 
         public string characters;

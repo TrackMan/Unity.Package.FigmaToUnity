@@ -698,15 +698,6 @@ namespace Figma.Core.Uss
 
             void AddItemSpacing(IDefaultFrameMixin parent, double itemSpacing)
             {
-                if (parent is not null && parent.counterAxisAlignContent is CounterAxisAlignContent.AUTO &&
-                    parent.layoutSizingHorizontal is LayoutSizing.HUG && parent.layoutSizingVertical is LayoutSizing.HUG)
-                {
-                    double halfSpacing = itemSpacing / 2;
-                    marginRight = halfSpacing;
-                    marginLeft = halfSpacing;
-                    marginTop = halfSpacing;
-                    marginBottom = halfSpacing;
-                }
 
                 if (baseNode == parent.children.LastOrDefault(IsVisible)) return;
 
@@ -722,7 +713,6 @@ namespace Figma.Core.Uss
                 {
                     case TextAutoResize.WIDTH_AND_HEIGHT:
                         width = Unit.Auto;
-                        height = Unit.Auto;
                         break;
 
                     case TextAutoResize.HEIGHT:
@@ -771,7 +761,7 @@ namespace Figma.Core.Uss
                         AddSizeByParentAutoLayoutFromLayout(parent);
 
                     double? itemSpacing = parent.itemSpacing;
-                    if(itemSpacing is not null)
+                    if (itemSpacing is not null)
                         AddItemSpacing(parent, itemSpacing!.Value);
                 }
                 else
