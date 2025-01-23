@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
+using UnityEngine.Pool;
 using UnityEngine.UIElements;
 using Debug = UnityEngine.Debug;
 
@@ -520,16 +521,12 @@ namespace Figma
 
         public static float GetItemSpacing(this ICustomStyle style) => style.TryGetValue(new CustomStyleProperty<float>("--item-spacing"), out float spacing) ? spacing : float.NaN;
         public static async void MarginMe(this VisualElement value)
-        {
-            static int GetLines(VisualElement value, VisualElement parent, float spacing, bool horizontalDirection)
+        {            static int GetLines(VisualElement value, VisualElement parent, float spacing, bool horizontalDirection)
             {
                 float valueSize = horizontalDirection ? value.resolvedStyle.width : value.resolvedStyle.height;
+                float parentSize = horizontalDirection ? parent.resolvedStyle.width : parent.resolvedStyle.height;
 
-                if (valueSize.Invalid() || valueSize == 0)
-                    return parent.childCount;
-
-                float parentSize = horizontalDirection ? Mathf.Max(parent.resolvedStyle.width, parent.resolvedStyle.maxWidth.value) : Mathf.Max(parent.resolvedStyle.height, parent.resolvedStyle.maxHeight.value);
-                return (int)((parentSize + spacing) / (valueSize + spacing));
+                return valueSize.Invalid() || valueSize == 0 ? parent.childCount : (int)(parentSize / ((2 * valueSize + (spacing.Invalid() ? 0 : spacing)) / 2));
             }
             static int FindIndex(VisualElement value, IEnumerable<VisualElement> children)
             {
@@ -546,19 +543,23 @@ namespace Figma
 
             await Awaiters.EndOfFrame;
 
-            if (!value.IsShowing()) return;
+            if (!value.IsShowing() || value.parent is null) return;
 
             VisualElement parent = value.parent;
-            if (parent is null) return;
-
             float spacing = parent.customStyle.GetItemSpacing();
+
+
             if (spacing.Invalid()) return;
 
-            IEnumerable<VisualElement> children = parent.Children().Where(x => x.resolvedStyle.display == DisplayStyle.Flex);
-            if (!children.Any()) return;
+            using PooledObject<List<VisualElement>> pooledObject = ListPool<VisualElement>.Get(out List<VisualElement> children);
+
+            children.AddRange(parent.Children().Where(x => x.resolvedStyle.display == DisplayStyle.Flex));
+
+            if (children.Count == 0) return;
 
             bool horizontalDirection = parent.resolvedStyle.flexDirection == FlexDirection.Row;
             bool fixedSize = parent.resolvedStyle.flexWrap == Wrap.Wrap;
+
             if (fixedSize)
             {
                 for (float i = 0; i < 1; i += Time.deltaTime)
@@ -568,26 +569,26 @@ namespace Figma
                 }
             }
 
-            int lines = fixedSize ? GetLines(value, parent, spacing, horizontalDirection) : children.Count();
+            int lines = fixedSize ? GetLines(value, parent, spacing, horizontalDirection) : children.Count;
             int index = FindIndex(value, children);
-            float primaryMargin = (lines > 0 && (index - 1) % lines != lines - 1) ? spacing : 0;
-            float counterMargin = (index >= lines) ? spacing : 0;
+            float primaryMargin = lines > 0 && (index - 1) % lines != lines - 1 ? spacing : 0;
+            float counterMargin = index >= lines ? spacing : 0;
 
-            if (index == children.Count() - 1)
+            if (index == children.Count - 1)
             {
-                children.ElementAt(index).style.marginRight = 0;
-                children.ElementAt(index).style.marginBottom = 0;
+                children[index].style.marginRight = 0;
+                children[index].style.marginBottom = 0;
             }
 
             if (horizontalDirection)
             {
-                if (index > 0) children.ElementAt(index - 1).style.marginRight = primaryMargin;
-                if (index >= lines) children.ElementAt(index - lines).style.marginBottom = counterMargin;
+                if (index > 0) children[index - 1].style.marginRight = primaryMargin;
+                if (index >= lines) children[index - lines].style.marginBottom = counterMargin;
             }
             else
             {
-                if (index > 0) children.ElementAt(index - 1).style.marginBottom = primaryMargin;
-                if (index >= lines) children.ElementAt(index - lines).style.marginRight = counterMargin;
+                if (index > 0) children[index - 1].style.marginBottom = primaryMargin;
+                if (index >= lines) children[index - lines].style.marginRight = counterMargin;
             }
         }
         #endregion

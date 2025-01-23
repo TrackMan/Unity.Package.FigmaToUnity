@@ -22,7 +22,6 @@ namespace Figma
 
         internal const string imagesDirectoryName = "Images";
         internal const string elementsDirectoryName = "Elements";
-        internal const string componentsDirectoryName = "Components";
 
         static readonly Regex multipleDashesRegex = new("-{2,}", RegexOptions.Compiled);
         static readonly Regex invalidCharsRegex = new("[^a-zA-Z0-9]", RegexOptions.Compiled);

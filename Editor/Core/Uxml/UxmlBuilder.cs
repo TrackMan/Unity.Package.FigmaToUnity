@@ -43,18 +43,6 @@ namespace Figma.Core.Uxml
                 using (writer.ElementScope(documentNode, getClassList(documentNode), nodeMetadata.GetElementType(documentNode)))
                 {
                     writer.WriteUssStyleReference($"{documentName}.uss");
-
-                    foreach ((string _, Component component) in files.componentSets)
-                    {
-                        if (component.remote)
-                        {
-                            Debug.LogWarning(Extensions.BuildTargetMessage($"Target {nameof(Component)} is remote", component.name, "and cannot be imported"));
-                            continue;
-                        }
-
-                        writer.WriteTemplate(component.name, Path.Combine(componentsDirectoryName, $"{component.name}.uxml"));
-                    }
-
                     documentNode.children.ForEach(child => WriteNodesRecursively(child, writer));
                 }
             }
@@ -122,16 +110,6 @@ namespace Figma.Core.Uxml
                 if (tooltip.NotNullOrEmpty())
                     writer.XmlWriter.WriteAttributeString("tooltip", tooltip!); // Use tooltip as a storage for hash template name
             }
-            void WriteComponentSetNode(ComponentSetNode componentSetNode)
-            {
-                using UxmlWriter childWriter = new(Path.Combine(documentDirectory, componentsDirectoryName), componentSetNode.name);
-
-                childWriter.WriteUssStyleReference($"../{documentName}.uss"); // NOTE: Temporarly we are using directory back
-
-                using UxmlWriter.UxmlElementScope scope = childWriter.ElementScope(componentSetNode, getClassList(componentSetNode), nodeMetadata.GetElementType(componentSetNode));
-                foreach (BaseNode child in componentSetNode.children)
-                    WriteNodesRecursively(child, childWriter, isComponent);
-            }
             void WriteInstanceNode(InstanceNode instanceNode, UxmlWriter writer)
             {
                 if (files.components.TryGetValue(instanceNode.componentId, out Component component) && !component.remote &&
@@ -165,7 +143,7 @@ namespace Figma.Core.Uxml
             if (node is StarNode star) WriteDefaultShapeNode(star, uxml);
             if (node is VectorNode vector) WriteDefaultShapeNode(vector, uxml);
             if (node is TextNode text) WriteTextNode(text, uxml);
-            if (node is ComponentSetNode componentSet) WriteComponentSetNode(componentSet);
+            if (node is ComponentSetNode componentSet) WriteDefaultShapeNode(componentSet, uxml);
             if (node is ComponentNode component) WriteDefaultFrameNode(component, uxml);
             if (node is InstanceNode instance) WriteInstanceNode(instance, uxml);
             if (node is BooleanOperationNode booleanOperation) WriteDefaultFrameNode(booleanOperation, uxml);

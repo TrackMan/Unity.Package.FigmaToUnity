@@ -148,18 +148,6 @@ namespace Figma.Inspectors
         {
             void CleanElements(string uxmlContents)
             {
-                foreach (string path in Directory.GetFiles(Path.Combine(folder, componentsDirectoryName), "*.uxml"))
-                {
-                    string filename = Path.GetFileName(path);
-                    string relativePath = Path.Combine(relativeFolder, componentsDirectoryName, filename);
-                    if (uxmlContents.Contains(filename)) continue;
-
-                    Debug.LogWarning($"Removing obsolete uxml {relativePath}");
-                    FileUtil.DeleteFileOrDirectory(path);
-                }
-            }
-            void CleanComponents(string uxmlContents)
-            {
                 foreach (string path in Directory.GetFiles(Path.Combine(folder, elementsDirectoryName), "*.uxml"))
                 {
                     string filename = Path.GetFileName(path);
@@ -172,10 +160,10 @@ namespace Figma.Inspectors
             }
             void CleanReferencedItems(string ussContents, string extension)
             {
-                foreach (string path in Directory.GetFiles(Path.Combine(folder, elementsDirectoryName), extension))
+                foreach (string path in Directory.GetFiles(Path.Combine(folder, imagesDirectoryName), extension))
                 {
                     string filename = Path.GetFileName(path);
-                    string relativePath = Path.Combine(relativeFolder, elementsDirectoryName, filename);
+                    string relativePath = Path.Combine(relativeFolder, imagesDirectoryName, filename);
                     if (ussContents.Contains(filename)) continue;
 
                     Debug.LogWarning($"Removing obsolete item {relativePath}");
@@ -187,7 +175,6 @@ namespace Figma.Inspectors
             string ussContents = File.ReadAllText(Path.Combine(folder, $"{name}.uss"));
 
             CleanElements(uxmlContents);
-            CleanComponents(uxmlContents);
             CleanReferencedItems(ussContents, "*.png");
             CleanReferencedItems(ussContents, "*.svg");
         }
@@ -200,7 +187,6 @@ namespace Figma.Inspectors
 
             CreateDirectory(imagesDirectoryName);
             CreateDirectory(elementsDirectoryName);
-            CreateDirectory(componentsDirectoryName);
         }
 
         async Task LoadRemapsAsync(string name, CancellationToken token)
