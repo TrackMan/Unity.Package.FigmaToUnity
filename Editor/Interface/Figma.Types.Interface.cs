@@ -120,6 +120,7 @@ namespace Figma.Internals
     public interface IDefaultFrameMixin : IDefaultShapeMixin, IContainerMixin, ICornerMixin, IRectangleCornerMixin, IChildrenMixin
     {
         LayoutMode? layoutMode { get; set; }
+        LayoutPositioning? layoutPositioning { get; set; }
         PrimaryAxisSizingMode? primaryAxisSizingMode { get; set; }
         PrimaryAxisAlignItems? primaryAxisAlignItems { get; set; }
         CounterAxisSizingMode? counterAxisSizingMode { get; set; }

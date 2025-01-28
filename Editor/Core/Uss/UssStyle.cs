@@ -753,9 +753,9 @@ namespace Figma.Core.Uss
             IDefaultFrameMixin parent = baseNode.parent as IDefaultFrameMixin;
             if (!IsRootNode(baseNode))
             {
-                if (parent!.layoutMode.HasValue)
+                if (parent!.layoutMode.HasValue && baseNode is not IDefaultFrameMixin or IDefaultFrameMixin { layoutPositioning: null })
                 {
-                    if (baseNode is IDefaultFrameMixin { layoutMode: not null } frame)
+                    if (baseNode is IDefaultFrameMixin { layoutMode: not null, layoutPositioning: null } frame)
                         AddSizeByParentAutoLayoutFromAutoLayout(frame);
                     else
                         AddSizeByParentAutoLayoutFromLayout(parent);
@@ -766,7 +766,7 @@ namespace Figma.Core.Uss
                 }
                 else
                 {
-                    if (baseNode is IDefaultFrameMixin { layoutMode: not null } frame)
+                    if (baseNode is IDefaultFrameMixin { layoutMode: not null, layoutPositioning: null } frame)
                         AddSizeFromConstraint(parent, (frame.layoutMode == LayoutMode.HORIZONTAL
                                                   ? frame.primaryAxisSizingMode.IsValue(PrimaryAxisSizingMode.FIXED)
                                                   : frame.counterAxisSizingMode.IsValue(CounterAxisSizingMode.FIXED))
