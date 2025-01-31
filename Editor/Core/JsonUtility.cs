@@ -15,7 +15,11 @@ namespace Figma.Internals
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         public static void Initialize()
         {
-            JsonSerializerSettings settings = new() { NullValueHandling = NullValueHandling.Ignore };
+            JsonSerializerSettings settings = new()
+            {
+                NullValueHandling = NullValueHandling.Ignore,
+                MissingMemberHandling = MissingMemberHandling.Ignore
+            };
             settings.Converters.Add(new EffectArrayConverter());
             settings.Converters.Add(new PaintArrayConverter());
             settings.Converters.Add(new LayoutGridArrayConverter());
