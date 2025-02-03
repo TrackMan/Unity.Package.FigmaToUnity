@@ -533,6 +533,13 @@ namespace Figma.Internals
         public Dictionary<string, VariableAlias> boundVariables { get; set; }
         #endregion
     }
+
+    public class SectionNode : DefaultFrameNode, IChildrenMixin
+    {
+        #region Properties
+        public bool sectionContentsHidden { get; set; }
+        #endregion
+    }
     #endregion
 
     #region Api

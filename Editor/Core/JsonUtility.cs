@@ -18,16 +18,18 @@ namespace Figma.Internals
             JsonSerializerSettings settings = new()
             {
                 NullValueHandling = NullValueHandling.Ignore,
-                MissingMemberHandling = MissingMemberHandling.Ignore
+                MissingMemberHandling = MissingMemberHandling.Ignore,
+                Converters =
+                {
+                    new EffectArrayConverter(),
+                    new PaintArrayConverter(),
+                    new LayoutGridArrayConverter(),
+                    new ExportSettingsArrayConverter(),
+                    new TransitionConverter(),
+                    new BaseNodeArrayConverter(),
+                    new SceneNodeArrayConverter()
+                }
             };
-            settings.Converters.Add(new EffectArrayConverter());
-            settings.Converters.Add(new PaintArrayConverter());
-            settings.Converters.Add(new LayoutGridArrayConverter());
-            settings.Converters.Add(new ExportSettingsArrayConverter());
-            settings.Converters.Add(new TransitionConverter());
-            settings.Converters.Add(new BaseNodeArrayConverter());
-            settings.Converters.Add(new SceneNodeArrayConverter());
-            settings.MissingMemberHandling = MissingMemberHandling.Error;
             serializer = JsonSerializer.Create(settings);
         }
         #endregion
@@ -41,20 +43,20 @@ namespace Figma.Internals
         {
             JArray array = JArray.Load(reader);
             T[] result = new T[array.Count];
-            
-            for (int i = 0; i < array.Count; ++i) 
+
+            for (int i = 0; i < array.Count; ++i)
                 result[i] = ToObject((JObject)array[i], serializer);
-            
+
             return result;
         }
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
         {
             T[] array = (T[])value;
             writer.WriteStartArray();
-            
-            foreach (T node in array) 
+
+            foreach (T node in array)
                 serializer.Serialize(writer, node);
-            
+
             writer.WriteEndArray();
         }
         protected TEnum GetValue(JObject obj, string name = "type") => (TEnum)Enum.Parse(typeof(TEnum), obj[name].Value<string>());
@@ -180,6 +182,7 @@ namespace Figma.Internals
                 NodeType.REGULAR_POLYGON => obj.ToObject<RegularPolygonNode>(serializer),
                 NodeType.RECTANGLE => obj.ToObject<RectangleNode>(serializer),
                 NodeType.TEXT => obj.ToObject<TextNode>(serializer),
+                NodeType.SECTION => obj.ToObject<SectionNode>(serializer),
                 _ => throw new NotSupportedException()
             };
         #endregion

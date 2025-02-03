@@ -147,6 +147,7 @@ namespace Figma.Core.Uxml
             if (node is ComponentNode component) WriteDefaultFrameNode(component, uxml);
             if (node is InstanceNode instance) WriteInstanceNode(instance, uxml);
             if (node is BooleanOperationNode booleanOperation) WriteDefaultFrameNode(booleanOperation, uxml);
+            if (node is SectionNode sectionNode) WriteDefaultFrameNode(sectionNode, uxml);
         }
         #endregion
     }
