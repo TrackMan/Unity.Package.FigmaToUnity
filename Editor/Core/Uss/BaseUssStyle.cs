@@ -105,6 +105,7 @@ namespace Figma.Core.Uss
         #region Support Methods
         protected bool Has(string name) => attributes.ContainsKey(name);
         protected string Get(string name) => attributes[name];
+        protected string GetDefault(string name, string defaultValue) => attributes.ContainsKey(name) ? attributes[name] : defaultValue;
         protected string Get1(string name, string group, int index)
         {
             if (attributes.TryGetValue(group, out string groupValue))

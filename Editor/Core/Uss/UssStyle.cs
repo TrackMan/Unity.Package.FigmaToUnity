@@ -85,6 +85,7 @@ namespace Figma.Core.Uss
         LengthProperty right { get => Get("right"); set => Set("right", value); }
         LengthProperty bottom { get => Get("bottom"); set => Set("bottom", value); }
         LengthProperty rotate { get => Get("rotate"); set => Set("rotate", value); }
+        Length2Property translate { get => GetDefault("translate", "0 0"); set => Set("translate", value); }
 
         // Drawing
         // Background
@@ -524,178 +525,90 @@ namespace Figma.Core.Uss
             }
             void AddSizeFromConstraint(IDefaultFrameMixin parent, LengthProperty widthProperty, LengthProperty heightProperty)
             {
-                string GetFullPath(IBaseNodeMixin node) => node.parent is not null ? $"{GetFullPath(node.parent)}/{node.name}" : node.name;
-
                 ConstraintHorizontal horizontal = constraint.constraints.horizontal;
                 ConstraintVertical vertical = constraint.constraints.vertical;
                 Rect rect = layout.absoluteBoundingBox;
                 Rect parentRect = parent.absoluteBoundingBox;
-                bool hasMixedCenterChildren = HasMixedCenterChildren(parent);
-                bool hasAnyCenterChildren = HasAnyCenterChildren(parent);
-                bool hasManyCenterChildren = HasManyCenterChildren(parent);
-                bool isMostlyHorizontal = IsMostlyHorizontal(parent);
-                bool isMostlyVertical = !isMostlyHorizontal;
 
-                if (hasMixedCenterChildren && isMostlyHorizontal && horizontal != ConstraintHorizontal.CENTER && vertical == ConstraintVertical.CENTER)
+                position = Position.Absolute;
+                switch (horizontal)
                 {
-                    Debug.LogWarning(Extensions.BuildTargetMessage($"Vertical=Center is used in mostly horizontal layout at", GetFullPath(baseNode), "changing Horizontal=Center."));
-                    horizontal = ConstraintHorizontal.CENTER;
+                    case ConstraintHorizontal.LEFT:
+                        left = -(parentRect - rect).left;
+                        width = widthProperty;
+                        break;
+
+                    case ConstraintHorizontal.RIGHT:
+                        right = (parentRect - rect).right;
+                        width = widthProperty;
+                        break;
+
+                    case ConstraintHorizontal.LEFT_RIGHT:
+                        left = -(parentRect - rect).left;
+                        right = (parentRect - rect).right;
+                        break;
+
+                    case ConstraintHorizontal.CENTER:
+                        width = widthProperty;
+                        left = -(parentRect - rect).left + rect.halfWidth;
+                        Length2Property translateProperty = translate;
+                        translateProperty[0] = new LengthProperty(-50, Unit.Percent);
+                        translate = translateProperty;
+                        break;
+
+                    case ConstraintHorizontal.SCALE:
+                        if (parentRect.width != 0)
+                        {
+                            left = new LengthProperty(-(parentRect - rect).left / parentRect.width * 100, Unit.Percent);
+                            right = new LengthProperty((parentRect - rect).right / parentRect.width * 100, Unit.Percent);
+                        }
+                        else
+                        {
+                            left = new LengthProperty(0, Unit.Percent);
+                            right = new LengthProperty(0, Unit.Percent);
+                        }
+                        break;
                 }
 
-                if (hasMixedCenterChildren && isMostlyVertical && vertical != ConstraintVertical.CENTER && horizontal == ConstraintHorizontal.CENTER)
+                switch (vertical)
                 {
-                    Debug.LogWarning(Extensions.BuildTargetMessage($"Horizontal=Center is used in mostly vertical layout at", GetFullPath(baseNode), "changing Vertical=Center."));
-                    vertical = ConstraintVertical.CENTER;
-                }
+                    case ConstraintVertical.TOP:
+                        top = -(parentRect - rect).top;
+                        height = heightProperty;
+                        break;
 
-                if (horizontal == ConstraintHorizontal.CENTER && vertical == ConstraintVertical.CENTER)
-                {
-                    position = Position.Relative;
-                    alignSelf = Align.Center;
-                    left = -(parentRect - rect).centerRight - (hasMixedCenterChildren && isMostlyHorizontal ? rect.halfWidth : 0);
-                    top = -(parentRect - rect).centerBottom - (hasMixedCenterChildren && isMostlyVertical ? rect.halfHeight : 0);
-                    width = widthProperty;
-                    height = heightProperty;
+                    case ConstraintVertical.BOTTOM:
+                        bottom = (parentRect - rect).bottom;
+                        height = heightProperty;
+                        break;
 
-                    if (hasAnyCenterChildren)
-                    {
-                        if (isMostlyHorizontal) marginRight = widthProperty == Unit.Auto ? -rect.width : -widthProperty;
-                        else marginBottom = heightProperty == Unit.Auto ? -rect.height : -heightProperty;
-                    }
-                }
-                else
-                {
-                    position = Position.Absolute;
-                    switch (horizontal)
-                    {
-                        case ConstraintHorizontal.LEFT:
-                            left = -(parentRect - rect).left;
-                            width = widthProperty;
-                            break;
+                    case ConstraintVertical.TOP_BOTTOM:
+                        top = -(parentRect - rect).top;
+                        bottom = (parentRect - rect).bottom;
+                        break;
 
-                        case ConstraintHorizontal.RIGHT:
-                            right = (parentRect - rect).right;
-                            width = widthProperty;
-                            break;
+                    case ConstraintVertical.CENTER:
+                        height = heightProperty;
+                        top = -(parentRect - rect).top + rect.halfHeight;
+                        Length2Property translateProperty = translate;
+                        translateProperty[1] = new LengthProperty(-50, Unit.Percent);
+                        translate = translateProperty;
+                        break;
 
-                        case ConstraintHorizontal.LEFT_RIGHT:
-                            left = -(parentRect - rect).left;
-                            right = (parentRect - rect).right;
-                            break;
-
-                        case ConstraintHorizontal.CENTER:
-                            position = Position.Relative;
-                            left = -(parentRect - rect).centerRight - (hasManyCenterChildren && isMostlyHorizontal ? rect.halfWidth : 0);
-                            width = widthProperty;
-                            if (hasManyCenterChildren) marginRight = widthProperty == Unit.Auto ? -rect.width : -widthProperty;
-
-                            switch (constraint.constraints.vertical)
-                            {
-                                case ConstraintVertical.TOP:
-                                    alignSelf = Align.FlexStart;
-                                    break;
-
-                                case ConstraintVertical.BOTTOM:
-                                    alignSelf = Align.FlexEnd;
-                                    break;
-
-                                case ConstraintVertical.TOP_BOTTOM:
-                                    alignSelf = Align.Stretch;
-                                    marginBottom = (parentRect - rect).height;
-                                    break;
-
-                                case ConstraintVertical.CENTER:
-                                    throw new NotSupportedException();
-
-                                case ConstraintVertical.SCALE:
-                                    alignSelf = Align.FlexStart;
-                                    height = new LengthProperty(rect.height / parentRect.height * 100, Unit.Percent);
-                                    break;
-                            }
-
-                            break;
-
-                        case ConstraintHorizontal.SCALE:
-                            if (parentRect.width != 0)
-                            {
-                                left = new LengthProperty(-(parentRect - rect).left / parentRect.width * 100, Unit.Percent);
-                                right = new LengthProperty((parentRect - rect).right / parentRect.width * 100, Unit.Percent);
-                            }
-                            else
-                            {
-                                left = new LengthProperty(0, Unit.Percent);
-                                right = new LengthProperty(0, Unit.Percent);
-                            }
-
-                            break;
-                    }
-
-                    switch (vertical)
-                    {
-                        case ConstraintVertical.TOP:
-                            top = -(parentRect - rect).top;
-                            height = heightProperty;
-                            break;
-
-                        case ConstraintVertical.BOTTOM:
-                            bottom = (parentRect - rect).bottom;
-                            height = heightProperty;
-                            break;
-
-                        case ConstraintVertical.TOP_BOTTOM:
-                            top = -(parentRect - rect).top;
-                            bottom = (parentRect - rect).bottom;
-                            break;
-
-                        case ConstraintVertical.CENTER:
-                            position = Position.Relative;
-                            top = -(parentRect - rect).centerBottom - (hasManyCenterChildren && isMostlyVertical ? rect.halfHeight : 0);
-                            height = heightProperty;
-                            if (hasManyCenterChildren) marginBottom = heightProperty == Unit.Auto ? -rect.height : -heightProperty;
-
-                            switch (constraint.constraints.horizontal)
-                            {
-                                case ConstraintHorizontal.LEFT:
-                                    alignSelf = Align.FlexStart;
-                                    break;
-
-                                case ConstraintHorizontal.RIGHT:
-                                    alignSelf = Align.FlexEnd;
-                                    break;
-
-                                case ConstraintHorizontal.LEFT_RIGHT:
-                                    alignSelf = Align.Stretch;
-                                    marginRight = (parentRect - rect).width;
-                                    break;
-
-                                case ConstraintHorizontal.CENTER:
-                                    throw new NotSupportedException();
-
-                                case ConstraintHorizontal.SCALE:
-                                    alignSelf = Align.FlexStart;
-                                    width = new LengthProperty(rect.width / parentRect.width * 100, Unit.Percent);
-                                    break;
-                            }
-
-                            break;
-
-                        case ConstraintVertical.SCALE:
-                            if (parentRect.height != 0)
-                            {
-                                top = new LengthProperty(-(parentRect - rect).top / parentRect.height * 100, Unit.Percent);
-                                bottom = new LengthProperty((parentRect - rect).bottom / parentRect.height * 100, Unit.Percent);
-                            }
-                            else
-                            {
-                                top = new LengthProperty(0, Unit.Percent);
-                                bottom = new LengthProperty(0, Unit.Percent);
-                            }
-
-                            break;
-                    }
+                    case ConstraintVertical.SCALE:
+                        if (parentRect.height != 0)
+                        {
+                            top = new LengthProperty(-(parentRect - rect).top / parentRect.height * 100, Unit.Percent);
+                            bottom = new LengthProperty((parentRect - rect).bottom / parentRect.height * 100, Unit.Percent);
+                        }
+                        else
+                        {
+                            top = new LengthProperty(0, Unit.Percent);
+                            bottom = new LengthProperty(0, Unit.Percent);
+                        }
+                        break;
                 }
             }
-
             void AddItemSpacing(IDefaultFrameMixin parent, double itemSpacing)
             {
 
