@@ -115,7 +115,14 @@ namespace Figma.Inspectors
             }
 
             if (!PersonalAccessToken.NotNullOrEmpty())
-                EditorGUILayout.HelpBox("You have to enter your personal access token in order to update.\n\nYou can get your token at https://figma.com/", MessageType.Warning);
+            {
+                GUIStyle richTextHelpBox = new(EditorStyles.helpBox) { richText = true };
+                string message = "You have to enter your personal access token in order to update.\n\nYou can get your token at <a href=https://figma.com>https://figma.com</a>";
+                if (GUILayout.Button(EditorGUIUtility.TrTextContentWithIcon(message, "console.warnicon"), richTextHelpBox))
+                {
+                    Application.OpenURL("https://www.figma.com");
+                }
+            }
         }
         void DrawAssetGUI()
         {
