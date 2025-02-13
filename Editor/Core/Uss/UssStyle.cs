@@ -530,27 +530,37 @@ namespace Figma.Core.Uss
                 Rect rect = layout.absoluteBoundingBox;
                 Rect parentRect = parent.absoluteBoundingBox;
 
+                double borderDelta = 0;
+
+                // unity doesn't support internal borders
+                if (parent.strokeWeight is not null && parent.strokeAlign is not StrokeAlign.OUTSIDE)
+                {
+                    borderDelta = parent.strokeWeight.Value;
+                    if (parent.strokeAlign is StrokeAlign.CENTER)
+                        borderDelta /= 2;
+                }
+
                 position = Position.Absolute;
                 switch (horizontal)
                 {
                     case ConstraintHorizontal.LEFT:
-                        left = -(parentRect - rect).left;
+                        left = -(parentRect - rect).left - borderDelta;
                         width = widthProperty;
                         break;
 
                     case ConstraintHorizontal.RIGHT:
-                        right = (parentRect - rect).right;
+                        right = (parentRect - rect).right - borderDelta;
                         width = widthProperty;
                         break;
 
                     case ConstraintHorizontal.LEFT_RIGHT:
-                        left = -(parentRect - rect).left;
-                        right = (parentRect - rect).right;
+                        left = -(parentRect - rect).left - borderDelta;
+                        right = (parentRect - rect).right - borderDelta;
                         break;
 
                     case ConstraintHorizontal.CENTER:
                         width = widthProperty;
-                        left = -(parentRect - rect).left + rect.halfWidth;
+                        left = -(parentRect - rect).left + rect.halfWidth - borderDelta;
                         Length2Property translateProperty = translate;
                         translateProperty[0] = new LengthProperty(-50, Unit.Percent);
                         translate = translateProperty;
@@ -559,8 +569,8 @@ namespace Figma.Core.Uss
                     case ConstraintHorizontal.SCALE:
                         if (parentRect.width != 0)
                         {
-                            left = new LengthProperty(-(parentRect - rect).left / parentRect.width * 100, Unit.Percent);
-                            right = new LengthProperty((parentRect - rect).right / parentRect.width * 100, Unit.Percent);
+                            left = new LengthProperty(-((parentRect - rect).left + borderDelta) / parentRect.width * 100, Unit.Percent);
+                            right = new LengthProperty(((parentRect - rect).right - borderDelta) / parentRect.width * 100, Unit.Percent);
                         }
                         else
                         {
@@ -573,23 +583,23 @@ namespace Figma.Core.Uss
                 switch (vertical)
                 {
                     case ConstraintVertical.TOP:
-                        top = -(parentRect - rect).top;
+                        top = -(parentRect - rect).top - borderDelta;
                         height = heightProperty;
                         break;
 
                     case ConstraintVertical.BOTTOM:
-                        bottom = (parentRect - rect).bottom;
+                        bottom = (parentRect - rect).bottom - borderDelta;
                         height = heightProperty;
                         break;
 
                     case ConstraintVertical.TOP_BOTTOM:
-                        top = -(parentRect - rect).top;
-                        bottom = (parentRect - rect).bottom;
+                        top = -(parentRect - rect).top - borderDelta;
+                        bottom = (parentRect - rect).bottom - borderDelta;
                         break;
 
                     case ConstraintVertical.CENTER:
                         height = heightProperty;
-                        top = -(parentRect - rect).top + rect.halfHeight;
+                        top = -(parentRect - rect).top + rect.halfHeight - borderDelta;
                         Length2Property translateProperty = translate;
                         translateProperty[1] = new LengthProperty(-50, Unit.Percent);
                         translate = translateProperty;
@@ -598,8 +608,8 @@ namespace Figma.Core.Uss
                     case ConstraintVertical.SCALE:
                         if (parentRect.height != 0)
                         {
-                            top = new LengthProperty(-(parentRect - rect).top / parentRect.height * 100, Unit.Percent);
-                            bottom = new LengthProperty((parentRect - rect).bottom / parentRect.height * 100, Unit.Percent);
+                            top = new LengthProperty(-((parentRect - rect).top + borderDelta) / parentRect.height * 100, Unit.Percent);
+                            bottom = new LengthProperty(((parentRect - rect).bottom - borderDelta) / parentRect.height * 100, Unit.Percent);
                         }
                         else
                         {
