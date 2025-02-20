@@ -569,8 +569,8 @@ namespace Figma.Core.Uss
                     case ConstraintHorizontal.SCALE:
                         if (parentRect.width != 0)
                         {
-                            left = new LengthProperty(-((parentRect - rect).left + borderDelta) / parentRect.width * 100, Unit.Percent);
-                            right = new LengthProperty(((parentRect - rect).right - borderDelta) / parentRect.width * 100, Unit.Percent);
+                            left = new LengthProperty(-(parentRect - rect).left / parentRect.width * 100, Unit.Percent);
+                            right = new LengthProperty((parentRect - rect).right / parentRect.width * 100, Unit.Percent);
                         }
                         else
                         {
@@ -608,8 +608,8 @@ namespace Figma.Core.Uss
                     case ConstraintVertical.SCALE:
                         if (parentRect.height != 0)
                         {
-                            top = new LengthProperty(-((parentRect - rect).top + borderDelta) / parentRect.height * 100, Unit.Percent);
-                            bottom = new LengthProperty(((parentRect - rect).bottom - borderDelta) / parentRect.height * 100, Unit.Percent);
+                            top = new LengthProperty(-(parentRect - rect).top / parentRect.height * 100, Unit.Percent);
+                            bottom = new LengthProperty((parentRect - rect).bottom / parentRect.height * 100, Unit.Percent);
                         }
                         else
                         {
