@@ -5,14 +5,14 @@ namespace Figma.Inspectors
 {
     using Internals;
 
-    internal class FigmaTokenTest : FigmaApi
+    internal class TokenTest : Api
     {
         #region Properties
         public Me me { get; private set; }
         #endregion
         
         #region Constructors
-        internal FigmaTokenTest(string personalAccessToken = default) : base(personalAccessToken) { }
+        internal TokenTest(string personalAccessToken = null) : base(personalAccessToken, null) { }
         #endregion
 
         #region Methods

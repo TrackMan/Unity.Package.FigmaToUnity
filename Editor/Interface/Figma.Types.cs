@@ -576,7 +576,7 @@ namespace Figma.Internals
         public string img_url;
     }
 
-    public class Files : Failure
+    public class Data : Failure
     {
         public class Images
         {

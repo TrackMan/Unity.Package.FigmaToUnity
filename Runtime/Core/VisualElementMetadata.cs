@@ -15,16 +15,19 @@ namespace Figma
 {
     using Attributes;
     using Internals;
+    using static Internals.PathExtensions;
 
     public static class VisualElementMetadata
     {
+        const int initialCollectionCapacity = 256;
+
         record Metadata(UIDocument document, UxmlAttribute uxml, string path);
 
         #region Fields
-        static Dictionary<VisualElement, Metadata> rootMetadata = new();
-        static List<VisualElement> search = new(256);
-        static Dictionary<VisualElement, string> cloneMap = new(256);
-        static List<VisualElement> hide = new();
+        static readonly Dictionary<VisualElement, Metadata> rootMetadata = new(initialCollectionCapacity);
+        static readonly List<VisualElement> search = new(initialCollectionCapacity);
+        static readonly Dictionary<VisualElement, string> cloneMap = new(initialCollectionCapacity);
+        static readonly List<VisualElement> hide = new(initialCollectionCapacity);
         #endregion
 
         #region Properties
@@ -39,25 +42,22 @@ namespace Figma
         #endregion
 
         #region Methods
-        public static void Initialize(UIDocument document, IEnumerable<IRootElement> targets)
-        {
-            foreach (IRootElement target in targets.Where(x => x is not null))
-                Initialize(document, target);
-        }
+        public static void Initialize(UIDocument document, IEnumerable<IRootElement> targets) => targets.Where(x => x != null).ForEach(x => Initialize(document, x));
         public static void Initialize(UIDocument document, IRootElement target)
         {
             Type targetType = target.GetType();
             UxmlAttribute uxml = targetType.GetCustomAttribute<UxmlAttribute>();
             VisualElement targetRoot = document.rootVisualElement.Find(uxml.DocumentRoot, throwException: false, silent: false);
 
-            if (targetRoot is null) return;
+            if (targetRoot == null)
+                return;
 
             rootMetadata.Add(targetRoot, new Metadata(document, uxml, uxml.DocumentRoot));
 
             (string path, VisualElement element)[] rootsPreserved = uxml.DocumentPreserve.Select(x => (x, document.rootVisualElement.Find(x, throwException: false, silent: false))).ToArray();
-            foreach ((string path, VisualElement element) value in rootsPreserved)
-                if (!rootMetadata.ContainsKey(value.element))
-                    rootMetadata.Add(value.element, new Metadata(document, uxml, value.path));
+
+            rootsPreserved.Where(x => !rootMetadata.ContainsKey(x.element))
+                          .ForEach(x => rootMetadata.Add(x.element, new Metadata(document, uxml, x.path)));
 
             OnInitializeRoot?.Invoke(targetRoot, document, uxml);
             Initialize(target, targetType, targetRoot);
@@ -65,34 +65,34 @@ namespace Figma
         }
         public static void Initialize(ISubElement target, VisualElement targetRoot)
         {
-            Type targetType = target.GetType();
-            Initialize(target, targetType, targetRoot);
+            Initialize(target, target.GetType(), targetRoot);
             target.OnInitialize();
 
-            if (target.GetType().GetCustomAttribute<QueryAttribute>() is { } queryAttribute) OnInitializeElement?.Invoke(targetRoot, default, default, default, default, queryAttribute);
+            if (target.GetType().GetCustomAttribute<QueryAttribute>() is { } queryAttribute)
+                OnInitializeElement?.Invoke(targetRoot, null, null, null, null, queryAttribute);
         }
         public static void Rebuild(IEnumerable<IRootElement> targets)
         {
-            foreach (IRootElement target in targets.Where(x => x.Root is not null))
+            foreach (IRootElement target in targets.Where(x => x.Root != null))
             {
                 target.OnRebuild();
-                foreach (VisualElement child in target.Root.Children())
-                    Rebuild(child);
+                target.Root.Children().ForEach(Rebuild);
             }
         }
         public static void Rebuild(VisualElement target)
         {
-            if (target is ISubElement targetSubElement) targetSubElement.OnRebuild();
+            if (target is ISubElement targetSubElement)
+                targetSubElement.OnRebuild();
 
-            foreach (VisualElement child in target.Children())
-                Rebuild(child);
+            target.Children().ForEach(Rebuild);
 
             OnRebuildElement?.Invoke(target);
 
-            if (hide.Contains(target)) target.Hide();
+            if (hide.Contains(target))
+                target.Hide();
         }
 
-        public static IEnumerable<T> Search<T>(this VisualElement value, string path, string className = default) where T : VisualElement
+        public static IEnumerable<T> Search<T>(this VisualElement value, string path, string className = null) where T : VisualElement
         {
             static bool StartsWith(string path, VisualElement value, int startIndex)
             {
@@ -101,30 +101,30 @@ namespace Figma
             }
             static int LastIndexOf(VisualElement root, VisualElement leaf, VisualElement value, string path, int startIndex = 0)
             {
-                if (value.parent is not null && value.parent != root)
+                if (value.parent != null && value.parent != root)
                     startIndex = LastIndexOf(root, leaf, value.parent, path, startIndex);
-                if (startIndex >= 0 && StartsWith(path, value, startIndex))
-                {
-                    int endIndex = startIndex + value.name.Length;
-                    if (path.Length > endIndex && path[endIndex].IsSeparator() && value != leaf) endIndex++;
-                    return endIndex;
-                }
 
-                return -1;
+                if (startIndex < 0 || !StartsWith(path, value, startIndex))
+                    return -1;
+
+                int endIndex = startIndex + value.name.Length;
+
+                if (path.Length > endIndex && path[endIndex].IsSeparator() && value != leaf)
+                    endIndex++;
+
+                return endIndex;
             }
-            static void SearchIn(VisualElement value, string path, int startIndex = 0, string className = default)
+            static void SearchIn(VisualElement value, string path, int startIndex = 0, string className = null)
             {
                 static bool EqualsTo(VisualElement value, string path, int startIndex) => path.EqualsTo(value.name, startIndex);
 
-                foreach (VisualElement child in value.Children())
-                    if (child.name.NotNullOrEmpty() && EqualsTo(child, path, startIndex) && (className.NullOrEmpty() || child.ClassListContains(className)))
-                        search.Add(child);
+                search.AddRange(value.Children().Where(child => child.name.NotNullOrEmpty() && EqualsTo(child, path, startIndex) && (className.NullOrEmpty() || child.ClassListContains(className))));
 
-                foreach (VisualElement child in value.Children())
-                    if (child.name.NotNullOrEmpty() && StartsWith(path, child, startIndex))
-                        SearchIn(child, path, startIndex + child.name.Length + 1, className);
+                value.Children()
+                     .Where(child => child.name.NotNullOrEmpty() && StartsWith(path, child, startIndex))
+                     .ForEach(child => SearchIn(child, path, startIndex + child.name.Length + 1, className));
             }
-            static void SearchByFullPath(VisualElement value, string path, int startIndex = 0, string className = default)
+            static void SearchByFullPath(VisualElement value, string path, int startIndex = 0, string className = null)
             {
                 static bool EqualsToFullPath(VisualElement root, VisualElement value, string path, int startIndex) => LastIndexOf(root, value, value, path, startIndex) == path.Length;
                 static bool StartsWithFullPath(VisualElement root, VisualElement value, string path, int startIndex)
@@ -133,30 +133,33 @@ namespace Figma
                     return endIndex >= 0 && path.Length > endIndex && path[endIndex].IsSeparator();
                 }
 
-                foreach (VisualElement child in value.Children())
-                    if (child.name.NotNullOrEmpty() && EqualsToFullPath(value, child, path, startIndex) && (className.NullOrEmpty() || child.ClassListContains(className)))
-                        search.Add(child);
+                search.AddRange(value.Children().Where(child => child.name.NotNullOrEmpty() && EqualsToFullPath(value, child, path, startIndex) && (className.NullOrEmpty() || child.ClassListContains(className))));
 
-                foreach (VisualElement child in value.Children())
-                    if (child.name.NotNullOrEmpty() && StartsWithFullPath(value, child, path, startIndex))
-                        SearchByFullPath(child, path, startIndex + child.name.Length + 1, className);
+                value.Children()
+                     .Where(child => child.name.NotNullOrEmpty() && StartsWithFullPath(value, child, path, startIndex))
+                     .ForEach(child => SearchByFullPath(child, path, startIndex + child.name.Length + 1, className));
             }
 
             search.Clear();
 
             VisualElement root = FindRoot(value);
-            if (root is not null)
+
+            if (root != null)
             {
                 UxmlAttribute uxml = rootMetadata[root].uxml;
-                if (path.BeginsWith(uxml.DocumentRoot) || uxml.DocumentPreserve.Any(x => path.BeginsWith(x))) SearchByFullPath(root.parent.parent.parent, path, 0, className);
-                else SearchIn(value, path, 0, className);
+
+                if (path.BeginsWith(uxml.DocumentRoot) || uxml.DocumentPreserve.Any(x => path.BeginsWith(x)))
+                    SearchByFullPath(root.parent.parent.parent, path, 0, className);
+                else
+                    SearchIn(value, path, 0, className);
             }
             else
             {
                 SearchByFullPath(value, path, 0, className);
             }
 
-            foreach (T result in search.OfType<T>()) yield return result;
+            foreach (T result in search.OfType<T>())
+                yield return result;
         }
         public static void Dispose()
         {
@@ -166,11 +169,77 @@ namespace Figma
             search.Clear();
             hide.Clear();
         }
-        public static T Find<T>(this VisualElement value, string path, string className = default, bool throwException = true, bool silent = false) where T : VisualElement
+        public static VisualElement FindByPath(this VisualElement root, string path)
         {
-            T result = value.Search<T>(path, className).FirstOrDefault();
+            foreach (VisualElement child in root.Children())
+            {
+                VisualElement result = FindByPathRecursive(child, path);
+                if (result != null) return result;
+            }
 
-            if (result is not null)
+            return null;
+        }
+        static VisualElement FindByPathRecursive(this VisualElement root, string path, string subPath = "")
+        {
+            if (root == null)
+                return null;
+
+            subPath = !string.IsNullOrEmpty(subPath) ? CombinePath(subPath, root.name) : root.name;
+
+            if (path == subPath)
+                return root;
+
+            if (!path.StartsWith(subPath + pathSeparator) && path != subPath)
+                return null;
+
+            foreach (VisualElement child in root.Children())
+            {
+                VisualElement result = FindByPathRecursive(child, path, subPath);
+                if (result != null)
+                    return result;
+            }
+
+            switch (root)
+            {
+                case TemplateContainer { contentContainer: not null } templateContainer:
+                {
+                    foreach (VisualElement child in templateContainer.Children().First().Children())
+                    {
+                        VisualElement result = FindByPathRecursive(child, path, subPath);
+                        if (result != null)
+                            return result;
+                    }
+
+                    break;
+                }
+
+                case ScrollView view:
+                {
+                    foreach (VisualElement child in view.contentContainer.Children())
+                    {
+                        VisualElement result = FindByPathRecursive(child, path, subPath);
+                        if (result != null)
+                            return result;
+                    }
+
+                    break;
+                }
+            }
+
+            return null;
+        }
+        [Obsolete("This is a boilerplate, change references to Find<T>(a, b, c)")]
+        public static T Find<T>(this VisualElement value, string path, object _, bool throwException = true, bool silent = false) where T : VisualElement => value.Find<T>(path, throwException, silent);
+        public static T Find<T>(this VisualElement value, string path, bool throwException = true, bool silent = false) where T : VisualElement
+        {
+            path = path.Replace('\\', pathSeparator);
+
+            T result = value.FindByPath(path).As<T>();
+
+            if (result == null && value is TemplateContainer)
+                result = value.Children().First().FindByPath(path).As<T>();
+
+            if (result != null)
                 return result;
 
             if (throwException)
@@ -179,43 +248,91 @@ namespace Figma
             if (!silent)
                 Debug.LogWarning(Extensions.BuildTargetMessage($"[{nameof(VisualElementMetadata)}] Cannot find {typeof(T).Name}", path));
 
-            return default;
+            return null;
         }
         public static (T1, T2) Find<T1, T2>(this VisualElement value, string path1, string path2, bool throwException = true, bool silent = false) where T1 : VisualElement where T2 : VisualElement => (value.Find<T1>(path1, throwException: throwException, silent: silent), value.Find<T2>(path2, throwException: throwException, silent: silent));
         public static (T1, T2, T3) Find<T1, T2, T3>(this VisualElement value, string path1, string path2, string path3, bool throwException = true, bool silent = false) where T1 : VisualElement where T2 : VisualElement where T3 : VisualElement => (value.Find<T1>(path1, throwException: throwException, silent: silent), value.Find<T2>(path2, throwException: throwException, silent: silent), value.Find<T3>(path3, throwException: throwException, silent: silent));
-        public static VisualElement Find(this VisualElement value, string path, string className = default, bool throwException = true, bool silent = true) => Find<VisualElement>(value, path, className, throwException, silent);
+        [Obsolete("Use one, where 'className' attribute does not exists")]
+        public static VisualElement Find(this VisualElement value, string path, string className = null, bool throwException = true, bool silent = true) => Find<VisualElement>(value, path, throwException, silent);
 
-        public static T Clone<T>(this T value, VisualElement parent = default, int index = -1) where T : VisualElement
+        public static T Clone<T>(this T value, VisualElement parent = null, int index = -1) where T : VisualElement
         {
+            (TemplateContainer, string) GetNearestTemplate(VisualElement value, string path = "")
+            {
+                while (true)
+                {
+                    if (value is TemplateContainer template)
+                        return (template, path);
+
+                    if (value.parent is null)
+                        return (null, string.Empty);
+
+                    string subPath = CombinePath(value.name, path);
+                    value = value.parent;
+                    path = subPath;
+                }
+            }
+
             parent ??= value.parent;
 
             (VisualElement root, string pathToValue) = FindRoot(value, string.Empty);
             Metadata metadata = rootMetadata[root];
 
-            VisualElement documentRoot = new();
+            VisualElement temporaryContainer = new();
+
             try
             {
                 T elementClone;
 
-                if (cloneMap.ContainsKey(value) && cloneMap[value] is { } template &&
+                if (cloneMap.ContainsKey(value) &&
+                    cloneMap[value] is { } template &&
                     metadata.document.visualTreeAsset.templateDependencies.FirstOrDefault(x => x.name == template) is { } treeAsset && treeAsset)
                 {
-                    treeAsset.CloneTree(documentRoot);
-                    elementClone = (T)documentRoot[0];
+                    treeAsset.CloneTree(temporaryContainer);
+                    elementClone = (T)temporaryContainer[0];
                 }
                 else
                 {
-                    Debug.LogWarning($"[{nameof(VisualElementMetadata)}] Cloning directly {value.GetType().Name}");
+                    (TemplateContainer nearestTemplate, string templatePath) = GetNearestTemplate(value);
 
-                    metadata.document.visualTreeAsset.CloneTree(documentRoot);
-                    elementClone = documentRoot.Find(metadata.path).Find<T>(pathToValue);
+                    if (nearestTemplate != null)
+                    {
+                        string dependencyName = value.GetType().Name;
+                        VisualTreeAsset asset = nearestTemplate.templateSource.templateDependencies.FirstOrDefault(x => x.name == dependencyName);
+
+                        if (asset == null && cloneMap.ContainsKey(value) && cloneMap[value] is { } templateNameFallback)
+                            asset = nearestTemplate.templateSource.templateDependencies.FirstOrDefault(x => x.name == templateNameFallback);
+
+                        if (asset != null)
+                        {
+                            elementClone = (T)Activator.CreateInstance(value.GetType());
+                            asset.CloneTree(elementClone.contentContainer);
+                            elementClone.CopyStyle(value);
+                            value.GetClasses().ForEach(x => elementClone.AddToClassList(x));
+                        }
+                        else
+                        {
+                            nearestTemplate.templateSource.CloneTree(temporaryContainer);
+                            elementClone = temporaryContainer.Find<T>(pathToValue, false) ?? temporaryContainer.Find<T>(templatePath);
+                        }
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"[{nameof(VisualElementMetadata)}] Cloning directly {value.GetType().Name}");
+                        metadata.document.visualTreeAsset.CloneTree(temporaryContainer);
+                        elementClone = temporaryContainer.Find(metadata.path).Find<T>(pathToValue);
+                    }
                 }
 
                 elementClone.RemoveFromHierarchy();
 
                 parent.Add(elementClone);
-                if (value.parent == elementClone.parent) elementClone.PlaceBehind(value);
-                if (index >= 0) elementClone.name = $"{value.name} {nameof(VisualElement)}:{index}";
+
+                if (value.parent == elementClone.parent)
+                    elementClone.PlaceBehind(value);
+                if (index >= 0)
+                    elementClone.name = $"{value.name} {nameof(VisualElement)}:{index}";
+
                 parent.MarkDirtyRepaint();
 
                 if (elementClone is ISubElement subElement)
@@ -234,12 +351,12 @@ namespace Figma
             }
             finally
             {
-                documentRoot.RemoveFromHierarchy();
-                documentRoot.Clear();
-                documentRoot.MarkDirtyRepaint();
+                temporaryContainer.RemoveFromHierarchy();
+                temporaryContainer.Clear();
+                temporaryContainer.MarkDirtyRepaint();
             }
         }
-        public static VisualElement Clone(this VisualElement value, VisualElement parent = default, int index = -1) => Clone<VisualElement>(value, parent, index);
+        public static VisualElement Clone(this VisualElement value, VisualElement parent = null, int index = -1) => Clone<VisualElement>(value, parent, index);
 
         public static T Replace<T>(this VisualElement value, VisualElement prefab) where T : VisualElement
         {
@@ -289,7 +406,7 @@ namespace Figma
         public static void CopyStyleList(this VisualElement value, VisualElement source)
         {
             value.ClearClassList();
-            foreach (string className in source.GetClasses()) value.AddToClassList(className);
+            source.GetClasses().ForEach(value.AddToClassList);
         }
         public static void CopyResolvedStyle(this VisualElement value, VisualElement source, CopyStyleMask copyMask = CopyStyleMask.All)
         {
@@ -521,7 +638,8 @@ namespace Figma
 
         public static float GetItemSpacing(this ICustomStyle style) => style.TryGetValue(new CustomStyleProperty<float>("--item-spacing"), out float spacing) ? spacing : float.NaN;
         public static async void MarginMe(this VisualElement value)
-        {            static int GetLines(VisualElement value, VisualElement parent, float spacing, bool horizontalDirection)
+        {
+            static int GetLines(VisualElement value, VisualElement parent, float spacing, bool horizontalDirection)
             {
                 float valueSize = horizontalDirection ? value.resolvedStyle.width : value.resolvedStyle.height;
                 float parentSize = horizontalDirection ? parent.resolvedStyle.width : parent.resolvedStyle.height;
@@ -533,7 +651,8 @@ namespace Figma
                 int index = 0;
                 foreach (VisualElement child in children)
                 {
-                    if (child == value) return index;
+                    if (child == value)
+                        return index;
 
                     index++;
                 }
@@ -543,19 +662,21 @@ namespace Figma
 
             await Awaiters.EndOfFrame;
 
-            if (!value.IsShowing() || value.parent is null) return;
+            if (!value.IsShowing() || value.parent == null)
+                return;
 
             VisualElement parent = value.parent;
             float spacing = parent.customStyle.GetItemSpacing();
 
-
-            if (spacing.Invalid()) return;
+            if (spacing.Invalid())
+                return;
 
             using PooledObject<List<VisualElement>> pooledObject = ListPool<VisualElement>.Get(out List<VisualElement> children);
 
             children.AddRange(parent.Children().Where(x => x.resolvedStyle.display == DisplayStyle.Flex));
 
-            if (children.Count == 0) return;
+            if (children.Count == 0)
+                return;
 
             bool horizontalDirection = parent.resolvedStyle.flexDirection == FlexDirection.Row;
             bool fixedSize = parent.resolvedStyle.flexWrap == Wrap.Wrap;
@@ -565,7 +686,8 @@ namespace Figma
                 for (float i = 0; i < 1; i += Time.deltaTime)
                 {
                     await Awaiters.NextFrame;
-                    if (value.resolvedStyle.width > 0) break;
+                    if (value.resolvedStyle.width > 0)
+                        break;
                 }
             }
 
@@ -576,8 +698,8 @@ namespace Figma
 
             if (index == children.Count - 1)
             {
-                children[index].style.marginRight = 0;
-                children[index].style.marginBottom = 0;
+                value.style.marginRight = 0;
+                value.style.marginBottom = 0;
             }
 
             if (horizontalDirection)
@@ -596,35 +718,45 @@ namespace Figma
         #region Support Methods
         static VisualElement FindRoot(VisualElement value)
         {
-            if (rootMetadata.ContainsKey(value)) return value;
+            while (true)
+            {
+                if (rootMetadata.ContainsKey(value))
+                    return value;
 
-            return value.parent is not null ? FindRoot(value.parent) : default;
+                if (value.parent == null)
+                    return null;
+
+                value = value.parent;
+            }
         }
         static (VisualElement value, string path) FindRoot(VisualElement value, string path)
         {
-            if (rootMetadata.ContainsKey(value)) return (value, path);
-
-            if (value.parent is not null)
+            while (true)
             {
+                if (rootMetadata.ContainsKey(value))
+                    return (value, path);
+
+                if (value.parent == null)
+                    throw new ArgumentNullException(nameof(value));
+
                 string name = value.name.Split($" {nameof(VisualElement)}:", StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? value.name;
-                return FindRoot(value.parent, path.NotNullOrEmpty() ? Path.Combine(name, path) : name);
+                value = value.parent;
+                path = path.NotNullOrEmpty() ? CombinePath(name, path) : name;
             }
-
-            throw new ArgumentNullException(nameof(value));
         }
-
         static void Initialize(object target, Type targetType, VisualElement targetRoot, bool throwException = false, bool silent = false)
         {
             void RegisterCallback(VisualElement value, QueryAttribute query)
             {
                 void Add<TEventType>(VisualElement element, string name, TrickleDown trickleDown) where TEventType : EventBase<TEventType>, new()
                 {
-                    if (name.NotNullOrEmpty())
-                    {
-                        MethodInfo methodInfo = targetType.GetMethod(name, MethodsFlags);
-                        if (methodInfo != null)
-                            element.RegisterCallback((EventCallback<TEventType>)Delegate.CreateDelegate(typeof(EventCallback<TEventType>), target, methodInfo.Name, true), trickleDown);
-                    }
+                    if (!name.NotNullOrEmpty())
+                        return;
+
+                    MethodInfo methodInfo = targetType.GetMethod(name, MethodsFlags);
+
+                    if (methodInfo != null)
+                        element.RegisterCallback((EventCallback<TEventType>)Delegate.CreateDelegate(typeof(EventCallback<TEventType>), target, methodInfo.Name, true), trickleDown);
                 }
 
                 Add<MouseCaptureOutEvent>(value, query.MouseCaptureOutEvent, query.UseTrickleDown);
@@ -672,7 +804,9 @@ namespace Figma
                 EventCallback<TEventType> GetCallback<TEventType>(string name) where TEventType : EventBase<TEventType>, new()
                 {
                     MethodInfo methodInfo = targetType.GetMethod(name, MethodsFlags);
-                    if (methodInfo != null) return (EventCallback<TEventType>)Delegate.CreateDelegate(typeof(EventCallback<TEventType>), target, methodInfo.Name, true);
+
+                    if (methodInfo != null)
+                        return (EventCallback<TEventType>)Delegate.CreateDelegate(typeof(EventCallback<TEventType>), target, methodInfo.Name, true);
 
                     throw new NotSupportedException();
                 }
@@ -691,19 +825,23 @@ namespace Figma
             }
             void AddClicked(VisualElement value, QueryAttribute query)
             {
-                if (!query.Clicked.NotNullOrEmpty() || value is not Button button) return;
+                if (!query.Clicked.NotNullOrEmpty() || value is not Button button)
+                    return;
 
                 MethodInfo methodInfo = targetType.GetMethod(query.Clicked, BindingFlags.NonPublic | BindingFlags.Instance);
-                if (methodInfo != null) button.clicked += (Action)Delegate.CreateDelegate(typeof(Action), target, methodInfo.Name, true);
+
+                if (methodInfo != null)
+                    button.clicked += (Action)Delegate.CreateDelegate(typeof(Action), target, methodInfo.Name, true);
             }
             void AddTemplate(VisualElement value, QueryAttribute query)
             {
-                if (!query.Template.NotNullOrEmpty()) return;
+                if (query.Template.NullOrEmpty() && !query.Hash)
+                    return;
 
-                if (query.Template == "Hash")
+                if (query.Template == "Hash" || query.Hash)
                 {
                     cloneMap.Add(value, value.tooltip);
-                    value.tooltip = default;
+                    value.tooltip = null;
                 }
                 else
                 {
@@ -712,22 +850,17 @@ namespace Figma
             }
             VisualElement InitializeElement(FieldInfo field, QueryAttribute queryRoot, QueryAttribute query)
             {
-                VisualElement ResolveElement()
+                VisualElement ResolveElement(QueryAttribute queryRoot, QueryAttribute query)
                 {
-                    VisualElement FindIn(VisualElement root)
-                    {
-                        if (queryRoot is not null && !ReferenceEquals(queryRoot, query))
-                            return root.Find(queryRoot.Path, queryRoot.ClassName, throwException, silent || queryRoot.Nullable)?.
-                                        Find(query.Path, query.ClassName, throwException, silent || query.Nullable);
+                    VisualElement queryRootElement = targetRoot;
+                    if (queryRoot != null && !queryRoot.Path.NullOrEmpty() && queryRoot.Path != query.Path)
+                        queryRootElement = targetRoot.Find<VisualElement>(queryRoot.Path, false) ?? targetRoot;
 
-                        return root.Find(query.Path, query.ClassName, throwException, silent || query.Nullable);
-                    }
-
-                    VisualElement value = FindIn(targetRoot);
+                    VisualElement value = queryRootElement.Find<VisualElement>(query.Path, !query.Nullable);
 
                     if (query.ReplaceElementPath.NotNullOrEmpty())
                     {
-                        if (value is not null)
+                        if (value != null)
                         {
                             value = value.Replace(targetRoot.Find(query.ReplaceElementPath));
                         }
@@ -737,33 +870,40 @@ namespace Figma
 
                             if (name == query.Path)
                             {
-                                value = targetRoot.Find(query.ReplaceElementPath, default, throwException, silent)?.Clone(targetRoot);
+                                value = targetRoot.Find<VisualElement>(query.ReplaceElementPath, throwException, silent)?.Clone(targetRoot);
                             }
                             else
                             {
                                 string path = query.Path.Remove(query.Path.Length - name.Length - 1, name.Length + 1);
-                                value = targetRoot.Find(query.ReplaceElementPath, default, throwException, silent)?.Clone(targetRoot.Find(path));
+                                value = targetRoot.Find<VisualElement>(query.ReplaceElementPath, throwException, silent)?.Clone(targetRoot.Find<VisualElement>(path));
                             }
 
-                            if (value is not null) value.name = name;
+                            if (value != null)
+                                value.name = name;
                         }
                     }
 
                     if (query.RebuildElementEvent.NotNullOrEmpty())
                     {
                         MethodInfo methodInfo = targetType.GetMethod(query.RebuildElementEvent, MethodsFlags);
-                        if (methodInfo != null) value = (VisualElement)methodInfo.Invoke(target, new object[] { value });
+                        if (methodInfo != null)
+                            value = (VisualElement)methodInfo.Invoke(target, new object[] { value });
                     }
 
-                    if (value is null) return default;
+                    if (value == null)
+                        return null;
 
                     Type valueType = value.GetType();
+
                     if (valueType != field.FieldType && valueType.IsAssignableFrom(field.FieldType) && field.FieldType != typeof(VisualElement))
                     {
-                        if (throwException) throw new InvalidOperationException($"Element `{value.name}` of type=[{value.GetType()}] cannot be inserted into `{field.Name}` with type=[{field.FieldType}]");
+                        if (throwException)
+                            throw new InvalidOperationException($"Element `{value.name}` of type=[{value.GetType()}] cannot be inserted into `{field.Name}` with type=[{field.FieldType}]");
 
-                        if (!silent) Debug.LogWarning($"[{nameof(VisualElementMetadata)}] Element `{value.name}` of type=[{value.GetType()}] cannot be inserted into `{field.Name}` with type=[{field.FieldType}]");
-                        return default;
+                        if (!silent)
+                            Debug.LogWarning($"[{nameof(VisualElementMetadata)}] Element `{value.name}` of type=[{value.GetType()}] cannot be inserted into `{field.Name}` with type=[{field.FieldType}]");
+
+                        return null;
                     }
 
                     field.SetValue(target, value);
@@ -771,10 +911,13 @@ namespace Figma
                     return value;
                 }
 
-                if (query is null) throw new ArgumentNullException(nameof(query));
+                if (query == null)
+                    throw new ArgumentNullException(nameof(query));
 
-                VisualElement element = ResolveElement();
-                if (element is null) return default;
+                VisualElement element = ResolveElement(queryRoot, query);
+
+                if (element == null)
+                    return null;
 
                 RegisterCallback(element, query);
                 RegisterValueChangedCallback(element, query);
@@ -784,20 +927,25 @@ namespace Figma
                 return element;
             }
 
-            QueryAttribute queryRoot = default;
+            QueryAttribute queryRoot = null;
 
             foreach (FieldInfo field in targetType.GetFields(FieldsFlags))
             {
                 QueryAttribute query = field.GetCustomAttribute<QueryAttribute>();
 
-                if (query is null) continue;
+                if (query == null)
+                    continue;
 
-                if (query.StartRoot) queryRoot = query;
+                if (query.StartRoot)
+                    queryRoot = query;
 
                 VisualElement element = InitializeElement(field, queryRoot, query);
-                if (element is not null) OnInitializeElement?.Invoke(element, target, targetType, field, queryRoot, query);
 
-                if (query.EndRoot) queryRoot = default;
+                if (element != null)
+                    OnInitializeElement?.Invoke(element, target, targetType, field, queryRoot, query);
+
+                if (query.EndRoot)
+                    queryRoot = null;
 
                 if (element is ISubElement subElement)
                 {
@@ -805,7 +953,8 @@ namespace Figma
                     subElement.OnInitialize();
                 }
 
-                if (query.Hide) hide.Add(element);
+                if (query.Hide)
+                    hide.Add(element);
             }
         }
         #endregion

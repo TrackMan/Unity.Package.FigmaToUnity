@@ -19,7 +19,7 @@ namespace Figma.Core.Uss
         public static implicit operator IntegerProperty(int? value) => new(value!.Value);
         public static implicit operator IntegerProperty(int value) => new(value);
         public static implicit operator IntegerProperty(string value) => new(int.Parse(value));
-        public static implicit operator string(IntegerProperty value) => value.value.ToString(Const.culture);
+        public static implicit operator string(IntegerProperty value) => value.value.ToString(Const.Culture);
 
         public static IntegerProperty operator +(IntegerProperty a) => a;
         public static IntegerProperty operator -(IntegerProperty a) => new(-a.value);

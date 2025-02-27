@@ -4,21 +4,21 @@ using System.Threading;
 using System.Threading.Tasks;
 using Trackman;
 
-namespace Figma.Inspectors
+namespace Figma
 {
     using Internals;
 
-    internal abstract class FigmaApi
+    internal abstract class Api
     {
         #region Fields
-        protected readonly string title;
+        protected readonly string fileKey;
         protected readonly Dictionary<string, string> headers;
         #endregion
 
         #region Constructors
-        protected FigmaApi(string personalAccessToken = default, string title = default)
+        protected Api(string personalAccessToken, string fileKey)
         {
-            this.title = title;
+            this.fileKey = fileKey;
             headers = new Dictionary<string, string> { { "X-FIGMA-TOKEN", personalAccessToken } };
         }
         #endregion

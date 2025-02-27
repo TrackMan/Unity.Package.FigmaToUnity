@@ -14,7 +14,10 @@ namespace Figma.Attributes
         #region Properties
         public string Path { get; }
         public string ClassName { get; }
-        public ElementDownloadImage ImageFiltering { get; set; }
+        [Obsolete("Use 'DownloadImage' instead")]
+        public ElementDownloadImage ImageFiltering { get => DownloadImage; set => DownloadImage = value; }
+        public ElementDownloadImage DownloadImage { get; set; }
+        public bool Hash { get; set; }
         public string ReplaceElementPath { get; set; }
         public string RebuildElementEvent { get; set; }
         public bool StartRoot { get; set; }
@@ -65,7 +68,7 @@ namespace Figma.Attributes
         #endregion
 
         #region Constructors
-        public QueryAttribute(string path, string className = default)
+        public QueryAttribute(string path, string className = null)
         {
             Path = path;
             ClassName = className;

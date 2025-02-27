@@ -13,27 +13,26 @@ namespace Figma.Core.Uss
     internal class UssStyle : BaseUssStyle
     {
         #region Const
-        internal static UssStyle overrideClass = new("unity-base-override")
+        internal static readonly UssStyle overrideClass = new("unity-base-override")
         {
+            alignItems = Align.Center,
             backgroundColor = Unit.Initial,
             borderWidth = Unit.Initial,
+            justifyContent = JustifyContent.Center,
+            margin = Unit.Initial,
             overflow = Unit.Initial,
             padding = Unit.Initial,
-            margin = Unit.Initial,
-            unityFontDefinition = Unit.Initial,
-            justifyContent = JustifyContent.Center,
-            alignItems = Align.Center,
             unityBackgroundPositionX = BackgroundPositionKeyword.Center,
             unityBackgroundPositionY = BackgroundPositionKeyword.Center,
-            unityBackgroundRepeat = Repeat.NoRepeat
+            unityBackgroundRepeat = Repeat.NoRepeat,
+            unityFontDefinition = Unit.Initial,
         };
 
-        internal static UssStyle viewportClass = new("unity-viewport") { position = Position.Absolute, width = "100%", height = "100%", };
+        internal static readonly UssStyle viewportClass = new("unity-viewport") { position = Position.Absolute, width = "100%", height = "100%" };
         #endregion
 
         #region Fields
-        readonly Func<string, string, (bool valid, string path)> getAssetPath;
-        readonly Func<string, string, (bool valid, int width, int height)> getAssetSize;
+        readonly AssetsInfo assetsInfo;
         #endregion
 
         #region Properties
@@ -94,7 +93,7 @@ namespace Figma.Core.Uss
         EnumProperty<BackgroundPositionKeyword> unityBackgroundPositionX { get => Get("background-position-x"); set => Set("background-position-x", value); }
         EnumProperty<BackgroundPositionKeyword> unityBackgroundPositionY { get => Get("background-position-y"); set => Set("background-position-y", value); }
         EnumProperty<Repeat> unityBackgroundRepeat { get => Get("background-repeat"); set => Set("background-repeat", value); }
-        EnumProperty<BackgroundSizeType> unityBackgroundSize { get => Get("background-size"); set => Set("background-size", value); }
+        EnumProperty<BackgroundSizeType> unityBackgroundSize { get => GetDefault("background-size", "auto"); set => Set("background-size", value); }
         ColorProperty unityBackgroundImageTintColor { get => Get("-unity-background-image-tint-color"); set => Set("-unity-background-image-tint-color", value); }
         // Slicing
         IntegerProperty unitySliceLeft { get => Get("-unity-slice-left"); set => Set("-unity-slice-left", value); }
@@ -118,7 +117,6 @@ namespace Figma.Core.Uss
         // Text
         ColorProperty color { get => Get("color"); set => Set("color", value); }
         AssetProperty unityFont { get => Get("-unity-font"); set => Set("-unity-font", value); }
-        AssetProperty unityFontMissing { get => Get("--unity-font-missing"); set => Set("--unity-font-missing", value); }
         AssetProperty unityFontDefinition { get => Get("-unity-font-definition"); set => Set("-unity-font-definition", value); }
         LengthProperty fontSize { get => Get("font-size"); set => Set("font-size", value); }
         EnumProperty<FontStyle> unityFontStyle { get => Get("-unity-font-style"); set => Set("-unity-font-style", value); }
@@ -139,12 +137,8 @@ namespace Figma.Core.Uss
 
         #region Constructors
         public UssStyle(string name) : base(name) { }
-        public UssStyle(string name, Func<string, string, (bool valid, string path)> getAssetPath, Func<string, string, (bool valid, int width, int height)> getAssetSize) : this(name)
-        {
-            this.getAssetPath = getAssetPath;
-            this.getAssetSize = getAssetSize;
-        }
-        public UssStyle(string name, Func<string, string, (bool valid, string path)> getAssetPath, Func<string, string, (bool valid, int width, int height)> getAssetSize, string slot, StyleType type, BaseNode node) : this(name, getAssetPath, getAssetSize)
+        public UssStyle(string name, AssetsInfo assetsInfo) : this(name) => this.assetsInfo = assetsInfo;
+        public UssStyle(string name, AssetsInfo assetsInfo, string slot, StyleType type, BaseNode node) : this(name, assetsInfo)
         {
             if (type == StyleType.FILL && node is IGeometryMixin geometry)
             {
@@ -170,7 +164,7 @@ namespace Figma.Core.Uss
             else if (type == StyleType.EFFECT && node is IBlendMixin blend)
                 AddNodeEffects(blend.effects);
         }
-        public UssStyle(string name, Func<string, string, (bool valid, string path)> getAssetPath, Func<string, string, (bool valid, int width, int height)> getAssetSize, BaseNode node) : this(name, getAssetPath, getAssetSize)
+        public UssStyle(string name, AssetsInfo assetsInfo, BaseNode node) : this(name, assetsInfo)
         {
             if (node is FrameNode frame) AddFrameNode(frame);
             if (node is GroupNode group) AddGroupNode(group);
@@ -192,8 +186,7 @@ namespace Figma.Core.Uss
         #region Methods
         internal UssStyle CopyFrom(UssStyle style)
         {
-            foreach ((string key, string value) in style.Attributes)
-                Attributes[key] = value;
+            style.Attributes.ForEach(x => Attributes[x.Key] = x.Value);
             return this;
         }
         void AddDefaultFrameNode(DefaultFrameNode node)
@@ -203,7 +196,8 @@ namespace Figma.Core.Uss
             AddFrame(node);
             AddDefaultShapeNode(node);
 
-            if (node.clipsContent.HasValueAndTrue()) overflow = Visibility.Hidden;
+            if (node.clipsContent.HasValueAndTrue())
+                overflow = Visibility.Hidden;
         }
         void AddDefaultShapeNode(DefaultShapeNode node)
         {
@@ -216,7 +210,7 @@ namespace Figma.Core.Uss
         void AddGroupNode(GroupNode node) => AddDefaultFrameNode(node);
         void AddSliceNode(SliceNode node)
         {
-            AddBoxModel(node, node, default, node);
+            AddBoxModel(node, node, null, node);
             AddLayout(node, node);
         }
         void AddRectangleNode(RectangleNode node)
@@ -261,7 +255,9 @@ namespace Figma.Core.Uss
             void AddPadding()
             {
                 double[] padding = { mixin.paddingTop ?? 0, mixin.paddingRight ?? 0, mixin.paddingBottom ?? 0, mixin.paddingLeft ?? 0 };
-                if (padding.Any(x => x != 0)) this.padding = padding;
+
+                if (padding.Any(x => x != 0))
+                    this.padding = padding;
             }
             static string GetNodeFullPath(BaseNode node)
             {
@@ -325,11 +321,14 @@ namespace Figma.Core.Uss
                     };
                 }
 
-                if (mixin.itemSpacing.HasPositive()) itemSpacing = mixin.itemSpacing;
+                if (mixin.itemSpacing.HasPositive())
+                    itemSpacing = mixin.itemSpacing;
             }
 
             AddPadding();
-            if (mixin.layoutMode.HasValue) AddAutoLayout();
+
+            if (mixin.layoutMode.HasValue)
+                AddAutoLayout();
         }
         void AddLayout(ILayoutMixin mixin, IBaseNodeMixin @base)
         {
@@ -340,16 +339,8 @@ namespace Figma.Core.Uss
         }
         void AddBlend(IBlendMixin mixin)
         {
-            void AddOpacity()
-            {
-                if (mixin.opacity.HasValue)
-                    if (mixin.opacity == 1)
-                        defaults.Add("opacity", "1");
-                    else
-                        opacity = mixin.opacity;
-            }
-
-            AddOpacity();
+            if (mixin.opacity.HasValue)
+                opacity = mixin.opacity;
 
             if (mixin is TextNode)
                 AddTextNodeEffects(mixin.effects);
@@ -360,33 +351,33 @@ namespace Figma.Core.Uss
         {
             void AddBackgroundImageForVectorNode()
             {
-                (bool valid, string url) = HasImageFill(@base) ? getAssetPath(@base.id, KnownFormats.png) : getAssetPath(@base.id, KnownFormats.svg);
+                (bool valid, string url) = HasImageFill(@base) ? assetsInfo.GetAssetPath(@base.id, KnownFormats.png) : assetsInfo.GetAssetPath(@base.id, KnownFormats.svg);
                 if (valid) backgroundImage = Url(url);
             }
             void AddBorderWidth()
             {
-                bool state = IsStateNode(mixin.As<IBaseNodeMixin>());
-                if (mixin.individualStrokeWeights is not null)
+                if (mixin.individualStrokeWeights != null)
                 {
-                    if (mixin.individualStrokeWeights.left > 0 || state) borderLeftWidth = mixin.individualStrokeWeights.left;
-                    if (mixin.individualStrokeWeights.right > 0 || state) borderRightWidth = mixin.individualStrokeWeights.right;
-                    if (mixin.individualStrokeWeights.top > 0 || state) borderTopWidth = mixin.individualStrokeWeights.top;
-                    if (mixin.individualStrokeWeights.bottom > 0 || state) borderBottomWidth = mixin.individualStrokeWeights.bottom;
+                    if (mixin.individualStrokeWeights.left > 0) borderLeftWidth = mixin.individualStrokeWeights.left;
+                    if (mixin.individualStrokeWeights.right > 0) borderRightWidth = mixin.individualStrokeWeights.right;
+                    if (mixin.individualStrokeWeights.top > 0) borderTopWidth = mixin.individualStrokeWeights.top;
+                    if (mixin.individualStrokeWeights.bottom > 0) borderBottomWidth = mixin.individualStrokeWeights.bottom;
                 }
-                else if (mixin.strokeWeight > 0 || state) borderWidth = mixin.strokeWeight;
+                else if (mixin.strokeWeight > 0) borderWidth = mixin.strokeWeight;
             }
             void AddBorderRadius(IRectangleCornerMixin rectangleCornerMixin, ICornerMixin cornerMixin)
             {
                 void AddRadius(double minValue, double value)
                 {
-                    if (rectangleCornerMixin.rectangleCornerRadii is null)
+                    if (rectangleCornerMixin.rectangleCornerRadii == null)
                     {
                         if (cornerMixin.cornerRadius.HasPositive())
                             borderRadius = Math.Min(minValue, cornerMixin!.cornerRadius!.Value) + value;
                     }
                     else
                     {
-                        for (int i = 0; i < rectangleCornerMixin.rectangleCornerRadii.Length; ++i) rectangleCornerMixin.rectangleCornerRadii[i] = Math.Min(minValue, rectangleCornerMixin.rectangleCornerRadii[i]) + value;
+                        for (int i = 0; i < rectangleCornerMixin.rectangleCornerRadii.Length; ++i)
+                            rectangleCornerMixin.rectangleCornerRadii[i] = Math.Min(minValue, rectangleCornerMixin.rectangleCornerRadii[i]) + value;
                         borderRadius = rectangleCornerMixin.rectangleCornerRadii;
                     }
                 }
@@ -409,18 +400,21 @@ namespace Figma.Core.Uss
                 double minBorderRadius = Math.Min(layout.absoluteBoundingBox.width / 2, layout.absoluteBoundingBox.height / 2);
                 AddRadius(minBorderRadius, value);
 
-                if (borderRadius == new Length4Property(Unit.Pixel)) attributes.Remove("border-radius");
+                if (borderRadius == new Length4Property(Unit.Pixel))
+                    Attributes.Remove("border-radius");
             }
             void AddRotation()
             {
                 if ((layout.relativeTransform[0][0] == 1 && layout.relativeTransform[0][0] == 0 &&
                      layout.relativeTransform[0][0] == 0 && layout.relativeTransform[1][1] == 1) || !layout.relativeTransform[0][0].HasValue ||
-                    !layout.relativeTransform[0][1].HasValue || !layout.relativeTransform[1][0].HasValue || !layout.relativeTransform[1][1].HasValue) return;
+                    !layout.relativeTransform[0][1].HasValue || !layout.relativeTransform[1][0].HasValue || !layout.relativeTransform[1][1].HasValue)
+                    return;
 
                 float m00 = (float)layout.relativeTransform[0][0].Value;
                 float m01 = (float)layout.relativeTransform[0][1].Value;
                 int rotation = Mathf.RoundToInt(Mathf.Rad2Deg * Mathf.Acos(m00 / Mathf.Sqrt(m00 * m00 + m01 * m01)));
-                if (rotation != 0) rotate = new LengthProperty(rotation, Unit.Degrees);
+                if (rotation != 0)
+                    rotate = new LengthProperty(rotation, Unit.Degrees);
             }
 
             if (IsSvgNode(@base))
@@ -429,7 +423,8 @@ namespace Figma.Core.Uss
                 return;
             }
 
-            if (layout.relativeTransform is not null) AddRotation();
+            if (layout.relativeTransform != null)
+                AddRotation();
 
             if (mixin is TextNode)
             {
@@ -454,13 +449,13 @@ namespace Figma.Core.Uss
         }
 
         void AddCorner(ICornerMixin cornerMixin, IRectangleCornerMixin rectangleCornerMixin) =>
-            borderRadius = rectangleCornerMixin.rectangleCornerRadii is not null ? rectangleCornerMixin.rectangleCornerRadii : cornerMixin.cornerRadius.HasPositive() ? cornerMixin.cornerRadius : borderRadius;
+            borderRadius = rectangleCornerMixin.rectangleCornerRadii ?? (cornerMixin.cornerRadius.HasPositive() ? cornerMixin.cornerRadius : borderRadius);
 
         void AddBoxModel(ILayoutMixin layout, IConstraintMixin constraint, IGeometryMixin geometry, IBaseNodeMixin baseNode)
         {
             void AdjustSvgSize()
             {
-                (bool valid, int width, int height) = getAssetSize(baseNode.id, KnownFormats.svg);
+                (bool valid, int width, int height) = assetsInfo.GetAssetSize(baseNode.id, KnownFormats.svg);
 
                 if (valid && width > 0 && height > 0)
                     layout.absoluteBoundingBox = new Rect(layout.absoluteBoundingBox.x, layout.absoluteBoundingBox.y, width, height);
@@ -478,31 +473,27 @@ namespace Figma.Core.Uss
             void AddSizeByParentAutoLayoutFromAutoLayout(IDefaultFrameMixin frame)
             {
                 position = Position.Relative;
-                if (frame.layoutMode == LayoutMode.HORIZONTAL)
+                switch (frame.layoutMode)
                 {
-                    if (((IDefaultFrameMixin)frame.parent).layoutMode == LayoutMode.HORIZONTAL)
-                    {
+                    case LayoutMode.HORIZONTAL when ((IDefaultFrameMixin)frame.parent).layoutMode == LayoutMode.HORIZONTAL:
                         width = layout.layoutGrow.HasPositive() ? new LengthProperty(100, Unit.Percent) : frame.primaryAxisSizingMode.IsValue(PrimaryAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.width : Unit.Auto;
                         height = frame.layoutAlign == LayoutAlign.STRETCH ? new LengthProperty(100, Unit.Percent) : frame.counterAxisSizingMode.IsValue(CounterAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.height : Unit.Auto;
-                    }
-                    else
-                    {
+                        break;
+
+                    case LayoutMode.HORIZONTAL:
                         width = frame.layoutAlign == LayoutAlign.STRETCH ? new LengthProperty(100, Unit.Percent) : frame.primaryAxisSizingMode.IsValue(PrimaryAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.width : Unit.Auto;
                         height = layout.layoutGrow.HasPositive() ? new LengthProperty(100, Unit.Percent) : frame.counterAxisSizingMode.IsValue(CounterAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.height : Unit.Auto;
-                    }
-                }
-                else if (frame.layoutMode == LayoutMode.VERTICAL)
-                {
-                    if (((IDefaultFrameMixin)frame.parent).layoutMode == LayoutMode.VERTICAL)
-                    {
+                        break;
+
+                    case LayoutMode.VERTICAL when ((IDefaultFrameMixin)frame.parent).layoutMode == LayoutMode.VERTICAL:
                         width = frame.layoutAlign == LayoutAlign.STRETCH ? new LengthProperty(100, Unit.Percent) : frame.counterAxisSizingMode.IsValue(CounterAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.width : Unit.Auto;
                         height = layout.layoutGrow.HasPositive() ? new LengthProperty(100, Unit.Percent) : frame.primaryAxisSizingMode.IsValue(PrimaryAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.height : Unit.Auto;
-                    }
-                    else
-                    {
+                        break;
+
+                    case LayoutMode.VERTICAL:
                         width = layout.layoutGrow.HasPositive() ? new LengthProperty(100, Unit.Percent) : frame.counterAxisSizingMode.IsValue(CounterAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.width : Unit.Auto;
                         height = frame.layoutAlign == LayoutAlign.STRETCH ? new LengthProperty(100, Unit.Percent) : frame.primaryAxisSizingMode.IsValue(PrimaryAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.height : Unit.Auto;
-                    }
+                        break;
                 }
 
                 if (layout.layoutGrow.HasPositive()) flexGrow = layout.layoutGrow;
@@ -510,18 +501,21 @@ namespace Figma.Core.Uss
             void AddSizeByParentAutoLayoutFromLayout(IDefaultFrameMixin parent)
             {
                 position = Position.Relative;
-                if (parent.layoutMode == LayoutMode.HORIZONTAL)
+                switch (parent.layoutMode)
                 {
-                    width = layout.layoutGrow.HasPositive() ? new LengthProperty(100, Unit.Percent) : layout.absoluteBoundingBox.width;
-                    height = layout.layoutAlign == LayoutAlign.STRETCH ? new LengthProperty(100, Unit.Percent) : layout.absoluteBoundingBox.height;
-                }
-                else if (parent.layoutMode == LayoutMode.VERTICAL)
-                {
-                    width = layout.layoutAlign == LayoutAlign.STRETCH ? new LengthProperty(100, Unit.Percent) : layout.absoluteBoundingBox.width;
-                    height = layout.layoutGrow.HasPositive() ? new LengthProperty(100, Unit.Percent) : layout.absoluteBoundingBox.height;
+                    case LayoutMode.HORIZONTAL:
+                        width = layout.layoutGrow.HasPositive() ? new LengthProperty(100, Unit.Percent) : layout.absoluteBoundingBox.width;
+                        height = layout.layoutAlign == LayoutAlign.STRETCH ? new LengthProperty(100, Unit.Percent) : layout.absoluteBoundingBox.height;
+                        break;
+
+                    case LayoutMode.VERTICAL:
+                        width = layout.layoutAlign == LayoutAlign.STRETCH ? new LengthProperty(100, Unit.Percent) : layout.absoluteBoundingBox.width;
+                        height = layout.layoutGrow.HasPositive() ? new LengthProperty(100, Unit.Percent) : layout.absoluteBoundingBox.height;
+                        break;
                 }
 
-                if (layout.layoutGrow.HasPositive()) flexGrow = layout.layoutGrow;
+                if (layout.layoutGrow.HasPositive())
+                    flexGrow = layout.layoutGrow;
             }
             void AddSizeFromConstraint(IDefaultFrameMixin parent, LengthProperty widthProperty, LengthProperty heightProperty)
             {
@@ -552,6 +546,7 @@ namespace Figma.Core.Uss
                 }
 
                 position = Position.Absolute;
+
                 switch (horizontal)
                 {
                     case ConstraintHorizontal.LEFT:
@@ -641,11 +636,11 @@ namespace Figma.Core.Uss
                 {
                     case TextAutoResize.WIDTH_AND_HEIGHT:
                         width = Unit.Auto;
-                        break;
+                        return;
 
                     case TextAutoResize.HEIGHT:
                         height = Unit.Auto;
-                        break;
+                        return;
 
                     default:
                         throw new NotSupportedException();
@@ -653,23 +648,16 @@ namespace Figma.Core.Uss
             }
             void AddNonInsideBorder()
             {
-                double GetStrokeWeight(StrokeAlign strokeAlign, double strokeWeight)
-                {
-                    return strokeAlign switch
+                double GetStrokeWeight(StrokeAlign strokeAlign, double strokeWeight) =>
+                    strokeAlign switch
                     {
                         StrokeAlign.CENTER => strokeWeight / 2,
                         StrokeAlign.OUTSIDE => strokeWeight,
-                        _ => throw new NotSupportedException()
+                        _ => 0
                     };
-                }
 
-                if (baseNode is IDefaultFrameMixin { layoutMode: not null }) return;
-
-                if (!IsSvgNode(baseNode) && geometry is not null &&
-                    geometry.strokes.Length > 0 && geometry.strokeWeight is > 0 &&
-                    geometry.strokeAlign.HasValue && geometry.strokeAlign != StrokeAlign.INSIDE)
-
-                    margin += GetStrokeWeight(geometry.strokeAlign.Value, geometry.strokeWeight.Value);
+                if (baseNode is IDefaultFrameMixin { layoutMode: not null })
+                    return;
             }
 
             if (layout.minWidth.HasValue) minWidth = layout.minWidth.Value;
@@ -709,7 +697,9 @@ namespace Figma.Core.Uss
                 }
             }
 
-            if (baseNode is TextNode textNode && textNode.style.textAutoResize.HasValue) OverwriteSizeFromTextNode(textNode);
+            if (baseNode is TextNode textNode && textNode.style.textAutoResize.HasValue)
+                OverwriteSizeFromTextNode(textNode);
+
             AddNonInsideBorder();
         }
 
@@ -722,25 +712,21 @@ namespace Figma.Core.Uss
 
                 if (fill is GradientPaint gradient && gradient.visible.IsEmptyOrTrue())
                 {
-                    (bool valid, string url) = getAssetPath(gradient.GetHash(), KnownFormats.svg);
+                    (bool valid, string url) = assetsInfo.GetAssetPath(gradient.GetHash(), KnownFormats.svg);
                     if (valid) backgroundImage = Url(url);
                 }
 
                 if (fill is ImagePaint image && image.visible.IsEmptyOrTrue())
                 {
-                    (bool valid, string url) = getAssetPath(image.imageRef, KnownFormats.png);
+                    (bool valid, string url) = assetsInfo.GetAssetPath(image.imageRef, KnownFormats.png);
                     if (valid) backgroundImage = Url(url);
 
-                    switch (image.scaleMode)
+                    unityBackgroundSize = image.scaleMode switch
                     {
-                        case ScaleMode.FILL:
-                            unityBackgroundSize = BackgroundSizeType.Cover;
-                            break;
-
-                        case ScaleMode.FIT:
-                            unityBackgroundSize = BackgroundSizeType.Contain;
-                            break;
-                    }
+                        ScaleMode.FILL => BackgroundSizeType.Cover,
+                        ScaleMode.FIT => BackgroundSizeType.Contain,
+                        _ => unityBackgroundSize
+                    };
                 }
             }
         }
@@ -769,8 +755,7 @@ namespace Figma.Core.Uss
         {
             bool TryGetFontWithExtension(string font, out string resource, out string url)
             {
-                (bool ttf, string ttfPath) = getAssetPath(font, KnownFormats.ttf);
-
+                (bool ttf, string ttfPath) = assetsInfo.GetAssetPath(font, KnownFormats.ttf);
                 if (ttf)
                 {
                     resource = Url(ttfPath);
@@ -778,7 +763,7 @@ namespace Figma.Core.Uss
                     return true;
                 }
 
-                (bool otf, string otfPath) = getAssetPath(font, KnownFormats.otf);
+                (bool otf, string otfPath) = assetsInfo.GetAssetPath(font, KnownFormats.otf);
                 if (otf)
                 {
                     resource = Url(otfPath);
@@ -786,7 +771,7 @@ namespace Figma.Core.Uss
                     return true;
                 }
 
-                resource = "resource('Inter-Regular')";
+                resource = Resource("Inter-Regular");
                 url = ttfPath;
                 return false;
             }
@@ -801,15 +786,15 @@ namespace Figma.Core.Uss
                 string italicPostfix = style.italic.HasValue && style.italic.Value || style.fontPostScriptName.Contains(FontStyle.Italic.ToString()) ? FontStyle.Italic.ToString() : string.Empty;
 
                 bool valid;
+
                 if (!TryGetFontWithExtension($"{style.fontFamily}-{weightPostfix}{italicPostfix}", out string resource, out string url) && !TryGetFontWithExtension(style.fontPostScriptName, out resource, out url))
-                {
-                    unityFontMissing = Url(url);
-                    Debug.LogWarning(Extensions.BuildTargetMessage($"Cannot find Font", $"{style.fontFamily}-{weightPostfix}{italicPostfix}", string.Empty));
-                }
+                    Debug.LogWarning(Extensions.BuildTargetMessage("Cannot find Font", $"{style.fontFamily}-{weightPostfix}{italicPostfix}", string.Empty));
 
                 unityFont = resource;
-                (valid, url) = getAssetPath($"{style.fontFamily}-{weightPostfix}{italicPostfix}", KnownFormats.asset);
-                if (valid) unityFontDefinition = Url(url);
+                (valid, url) = assetsInfo.GetAssetPath($"{style.fontFamily}-{weightPostfix}{italicPostfix}", KnownFormats.asset);
+
+                if (valid)
+                    unityFontDefinition = Url(url);
             }
             void AddTextAlign()
             {
@@ -853,23 +838,27 @@ namespace Figma.Core.Uss
         #region Support Methods
         internal static List<UssStyle> MakeTransitionStyles(UssStyle root, UssStyle idle, UssStyle hover = null, UssStyle active = null)
         {
-            List<UssStyle> transitions = new();
+            List<UssStyle> transitions = new() { new UssStyle(root.Name) { Target = idle, opacity = 1 } };
 
-            transitions.Add(new UssStyle(root.Name) { Target = idle, opacity = 1 });
-            if (hover is not null) transitions.Add(new UssStyle(root.Name) { Target = idle, PseudoClass = PseudoClass.Hover, opacity = 0 });
-            if (active is not null) transitions.Add(new UssStyle(root.Name) { Target = idle, PseudoClass = PseudoClass.Active, opacity = 0 });
+            if (hover != null)
+                transitions.Add(new UssStyle(root.Name) { Target = idle, PseudoClass = PseudoClass.Hover, opacity = 0 });
+            if (active != null)
+                transitions.Add(new UssStyle(root.Name) { Target = idle, PseudoClass = PseudoClass.Active, opacity = 0 });
 
-            if (hover is not null)
+            if (hover != null)
             {
                 transitions.Add(new UssStyle(root.Name) { Target = hover, opacity = 0 });
                 transitions.Add(new UssStyle(root.Name) { Target = hover, PseudoClass = PseudoClass.Hover, opacity = 1 });
-                if (active is not null) transitions.Add(new UssStyle(root.Name) { Target = hover, PseudoClass = PseudoClass.Active, opacity = 0 });
+                if (active != null) transitions.Add(new UssStyle(root.Name) { Target = hover, PseudoClass = PseudoClass.Active, opacity = 0 });
             }
 
-            if (active is not null)
+            if (active != null)
             {
                 transitions.Add(new UssStyle(root.Name) { Target = active, opacity = 0 });
-                if (hover is not null) transitions.Add(new UssStyle(root.Name) { Target = active, PseudoClass = PseudoClass.Hover, opacity = 0 });
+
+                if (hover != null)
+                    transitions.Add(new UssStyle(root.Name) { Target = active, PseudoClass = PseudoClass.Hover, opacity = 0 });
+
                 transitions.Add(new UssStyle(root.Name) { Target = active, PseudoClass = PseudoClass.Active, opacity = 1 });
             }
 
@@ -897,7 +886,8 @@ namespace Figma.Core.Uss
         }
         static (int, int) CenterChildrenCount(IDefaultFrameMixin mixin)
         {
-            if (mixin.layoutMode.HasValue) return (0, 0);
+            if (mixin.layoutMode.HasValue)
+                return (0, 0);
 
             int horizontalCenterCount = mixin.children.Cast<IConstraintMixin>().Count(x => x.constraints.horizontal == ConstraintHorizontal.CENTER);
             int verticalCenterCount = mixin.children.Cast<IConstraintMixin>().Count(x => x.constraints.vertical == ConstraintVertical.CENTER);

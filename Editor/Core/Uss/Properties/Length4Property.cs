@@ -29,9 +29,9 @@ namespace Figma.Core.Uss
 
         #region Operators
         public static implicit operator Length4Property(Unit unit) => new(unit);
-        public static implicit operator Length4Property(Double? value) => new(new LengthProperty[] { value!.Value });
-        public static implicit operator Length4Property(Double value) => new(new LengthProperty[] { value });
-        public static implicit operator Length4Property(Double[] values)
+        public static implicit operator Length4Property(double? value) => new(new LengthProperty[] { value!.Value });
+        public static implicit operator Length4Property(double value) => new(new LengthProperty[] { value });
+        public static implicit operator Length4Property(double[] values)
         {
             LengthProperty[] properties = new LengthProperty[values.Length];
             for (int i = 0; i < values.Length; i++) properties[i] = values[i];
@@ -58,8 +58,8 @@ namespace Figma.Core.Uss
 
         public static Length4Property operator +(Length4Property a) => a;
         public static Length4Property operator -(Length4Property a) => new(a.properties.Select(x => -x).ToArray());
-        public static Length4Property operator +(Length4Property a, Double b) => new(a.properties.Select(x => x + b).ToArray());
-        public static Length4Property operator -(Length4Property a, Double b) => new(a.properties.Select(x => x - b).ToArray());
+        public static Length4Property operator +(Length4Property a, double b) => new(a.properties.Select(x => x + b).ToArray());
+        public static Length4Property operator -(Length4Property a, double b) => new(a.properties.Select(x => x - b).ToArray());
         #endregion
     }
 }

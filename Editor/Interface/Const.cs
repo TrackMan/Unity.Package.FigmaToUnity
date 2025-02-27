@@ -11,20 +11,46 @@ namespace Figma.Internals
         public const string uxmlNamespace = "UnityEngine.UIElements";
         public const string indentCharacters = "    ";
 
-        public static readonly CultureInfo culture = CultureInfo.GetCultureInfo("en-US");
-        
-        public static readonly byte[] invalidPng = {
-            137, 80, 78, 71, 13, 10, 26, 10, // PNG signature
+        public const string fontsDirectoryName = "Fonts";
+        public const string framesDirectoryName = "Frames";
+        public const string imagesDirectoryName = "Images";
+        public const string elementsDirectoryName = "Elements";
+        public const string componentsDirectoryName = "Components";
+
+        public static readonly CultureInfo Culture = CultureInfo.GetCultureInfo("en-US");
+
+        /// <summary>
+        /// Magenta colored image with resolution 2x2.
+        /// </summary>
+        public static readonly byte[] InvalidPng =
+        {
+            0x89, 0x50, 0x4E, 0x47, 0xD, 0xA, 0x1A, 0xA, // PNG signature
             // IHDR chunk
-            0, 0, 0, 13, 73, 72, 68, 82, 
-            0, 0, 0, 2, 0, 0, 0, 2, 8, 6, 0, 0, 0, 244, 120, 90, 238, 
+            0x0, 0x0, 0x0, 0xD, 0x49, 0x48, 0x44, 0x52, 0x0, 0x0, 0x0, 0x2, 0x0, 0x0, 0x0, 0x2, 0x8, 0x6, 0x0, 0x0, 0x0, 0xF4, 0x78, 0x5A, 0xEE,
             // IDAT chunk (compressed image data)
-            0, 0, 0, 17, 73, 68, 65, 84, 
-            120, 156, 99, 248, 207, 192, 192, 192, 240, 15, 4, 0, 4, 0, 1, 243, 13, 14, 67, 
+            0x0, 0x0, 0x0, 0x11, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0xF8, 0xCF, 0xC0, 0xC0, 0xC0, 0xF0, 0xF, 0x4, 0x0, 0x4, 0x0, 0x1, 0xF3, 0xD, 0xE, 0x43,
             // IEND chunk
-            0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130 
+            0x0, 0x0, 0x0, 0x0, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82
         };
 
+        public const string InvalidSvg = @"<svg width=""128"" height=""128"" viewBox=""0 0 128 128"" xmlns=""http://www.w3.org/2000/svg"">
+	<defs>
+		<linearGradient id=""gradYellow"" x1=""0%"" y1=""0%"" x2=""0%"" y2=""100%"">
+			<stop offset=""0%"" stop-color=""#FFEA00"" />
+			<stop offset=""100%"" stop-color=""#FFC400"" />
+		</linearGradient>
+
+		<filter id=""shadow"" x=""-20%"" y=""-20%"" width=""140%"" height=""140%"">
+			<feDropShadow dx=""4"" dy=""4"" stdDeviation=""4"" flood-color=""rgba(0,0,0,0.5)"" />
+		</filter>
+	</defs>
+	<polygon points=""64,8 120,120 8,120""
+		fill=""url(#gradYellow)"" stroke=""#FFF"" stroke-width=""4""
+		filter=""url(#shadow)"" />
+	<line x1=""64"" y1=""40"" x2=""64"" y2=""80""
+		stroke=""#FFF"" stroke-width=""6"" stroke-linecap=""round"" />
+	<circle cx=""64"" cy=""100"" r=""6"" fill=""#FFF"" />
+</svg>";
     }
 
     public static class KnownFormats
@@ -34,5 +60,9 @@ namespace Figma.Internals
         public const string ttf = nameof(ttf);
         public const string otf = nameof(otf);
         public const string asset = nameof(asset);
+        public const string uxml = nameof(uxml);
+        public const string uss = nameof(uss);
+        public const string json = nameof(json);
+        public const string meta = nameof(meta);
     }
 }

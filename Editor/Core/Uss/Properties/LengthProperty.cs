@@ -10,17 +10,17 @@ namespace Figma.Core.Uss
     internal readonly struct LengthProperty
     {
         #region Fields
-        readonly Double value;
+        readonly double value;
         readonly Unit unit;
         #endregion
 
         #region Constructors
         internal LengthProperty(Unit unit)
         {
-            value = default;
+            value = 0;
             this.unit = unit;
         }
-        internal LengthProperty(Double value, Unit unit)
+        internal LengthProperty(double value, Unit unit)
         {
             this.value = value;
             this.unit = unit;
@@ -28,15 +28,15 @@ namespace Figma.Core.Uss
         #endregion
 
         #region Operators
-        public static implicit operator LengthProperty(Unit value) => new(default, value);
-        public static implicit operator LengthProperty(Double? value) => new(value!.Value, Unit.Pixel);
-        public static implicit operator LengthProperty(Double value) => new(value, Unit.Pixel);
+        public static implicit operator LengthProperty(Unit value) => new(0, value);
+        public static implicit operator LengthProperty(double? value) => new(value!.Value, Unit.Pixel);
+        public static implicit operator LengthProperty(double value) => new(value, Unit.Pixel);
         public static implicit operator LengthProperty(string value)
         {
             if (Enum.TryParse(value, true, out Unit unit)) return new LengthProperty(unit);
-            if (value.Contains("px")) return new LengthProperty(Double.Parse(value.ToLower().Replace("px", string.Empty), Const.culture), Unit.Pixel);
-            if (value.Contains("deg")) return new LengthProperty(Double.Parse(value.ToLower().Replace("deg", string.Empty), Const.culture), Unit.Degrees);
-            if (value.Contains('%')) return new LengthProperty(Double.Parse(value.Replace("%", string.Empty), Const.culture), Unit.Percent);
+            if (value.Contains("px")) return new LengthProperty(double.Parse(value.ToLower().Replace("px", string.Empty), Const.Culture), Unit.Pixel);
+            if (value.Contains("deg")) return new LengthProperty(double.Parse(value.ToLower().Replace("deg", string.Empty), Const.Culture), Unit.Degrees);
+            if (value.Contains('%')) return new LengthProperty(double.Parse(value.Replace("%", string.Empty), Const.Culture), Unit.Percent);
 
             return default;
         }
@@ -45,8 +45,8 @@ namespace Figma.Core.Uss
             return value.unit switch
             {
                 Unit.Pixel => $"{(int)Math.Round(value.value)}px",
-                Unit.Degrees => $"{value.value.ToString("F2", Const.culture).Replace(".00", string.Empty)}deg",
-                Unit.Percent => $"{value.value.ToString("F2", Const.culture).Replace(".00", string.Empty)}%",
+                Unit.Degrees => $"{value.value.ToString("F2", Const.Culture).Replace(".00", string.Empty)}deg",
+                Unit.Percent => $"{value.value.ToString("F2", Const.Culture).Replace(".00", string.Empty)}%",
                 Unit.Auto => "auto",
                 Unit.None => "none",
                 Unit.Initial => "initial",
@@ -57,8 +57,8 @@ namespace Figma.Core.Uss
 
         public static LengthProperty operator +(LengthProperty a) => a;
         public static LengthProperty operator -(LengthProperty a) => new(-a.value, a.unit);
-        public static LengthProperty operator +(LengthProperty a, Double b) => new(a.value + b, a.unit);
-        public static LengthProperty operator -(LengthProperty a, Double b) => new(a.value - b, a.unit);
+        public static LengthProperty operator +(LengthProperty a, double b) => new(a.value + b, a.unit);
+        public static LengthProperty operator -(LengthProperty a, double b) => new(a.value - b, a.unit);
 
         public static bool operator ==(LengthProperty a, Unit b) => a.unit == b;
         public static bool operator !=(LengthProperty a, Unit b) => a.unit != b;

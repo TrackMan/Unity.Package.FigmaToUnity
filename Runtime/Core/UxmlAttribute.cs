@@ -1,9 +1,10 @@
 using System;
 using System.Diagnostics;
-using System.IO;
 
 namespace Figma.Attributes
 {
+    using static Internals.PathExtensions;
+
     [DebuggerStepThrough]
     [AttributeUsage(AttributeTargets.Class)]
     public class UxmlAttribute : Attribute
@@ -15,22 +16,23 @@ namespace Figma.Attributes
         public string DocumentRoot { get; }
         public string[] Preserve { get; }
         public string[] DocumentPreserve { get; }
-        public UxmlDownloadImages ImageFiltering { get; }
+        public UxmlDownloadImages DownloadImages { get; }
         public UxmlElementTypeIdentification TypeIdentification { get; }
         #endregion
 
         #region Constructors
-        public UxmlAttribute(string root = default, UxmlDownloadImages imageFiltering = UxmlDownloadImages.Everything, UxmlElementTypeIdentification typeIdentification = UxmlElementTypeIdentification.ByName, params string[] preserve)
+        public UxmlAttribute(string root = null, UxmlDownloadImages downloadImages = UxmlDownloadImages.Everything, UxmlElementTypeIdentification typeIdentification = UxmlElementTypeIdentification.ByName, params string[] preserve)
         {
             Root = root;
-            DocumentRoot = Path.Combine(prefix, root);
+
+            DocumentRoot = CombinePath(prefix, root);
             Preserve = preserve;
             DocumentPreserve = (string[])preserve.Clone();
 
             for (int i = 0; i < preserve.Length; ++i)
-                DocumentPreserve[i] = Path.Combine(prefix, DocumentPreserve[i]);
+                DocumentPreserve[i] = CombinePath(prefix, DocumentPreserve[i]);
 
-            ImageFiltering = imageFiltering;
+            DownloadImages = downloadImages;
             TypeIdentification = typeIdentification;
         }
         #endregion

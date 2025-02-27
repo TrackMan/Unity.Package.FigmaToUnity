@@ -18,14 +18,14 @@ namespace Figma.Core.Uss
         #region Constructors
         AssetProperty(Unit unit)
         {
-            url = default;
-            resource = default;
+            url = null;
+            resource = null;
             this.unit = unit;
         }
         AssetProperty(string value)
         {
-            url = default;
-            resource = default;
+            url = null;
+            resource = null;
             unit = default;
 
             if (value.StartsWith("url")) url = value;

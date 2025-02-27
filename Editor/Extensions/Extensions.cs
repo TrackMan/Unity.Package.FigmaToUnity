@@ -12,10 +12,16 @@ namespace Figma.Core
         #endregion
 
         #region Methods
-        internal static string NumberToWords(this int number)
+       internal static string NumberToWords(this int number)
         {
-            if (number == 0) return "zero";
-            if (number < 0) return $"minus-{NumberToWords(Math.Abs(number))}";
+            switch (number)
+            {
+                case 0:
+                    return unitsMap[0];
+
+                case < 0:
+                    return $"minus-{NumberToWords(Math.Abs(number))}";
+            }
 
             string words = string.Empty;
 
@@ -37,15 +43,18 @@ namespace Figma.Core
                 number %= 100;
             }
 
-            if (number > 0)
+            if (number <= 0)
+                return words;
+
+            if (words != string.Empty)
+                words += "and-";
+            if (number < 20)
+                words += unitsMap[number];
+            else
             {
-                if (words != string.Empty) words += "and-";
-                if (number < 20) words += unitsMap[number];
-                else
-                {
-                    words += tensMap[number / 10];
-                    if (number % 10 > 0) words += $"-{unitsMap[number % 10]}";
-                }
+                words += tensMap[number / 10];
+                if (number % 10 > 0)
+                    words += $"-{unitsMap[number % 10]}";
             }
 
             return words;

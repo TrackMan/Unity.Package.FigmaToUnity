@@ -12,7 +12,7 @@ namespace Figma.Internals
         internal static bool NullOrEmpty(this string value) => string.IsNullOrEmpty(value);
         internal static bool NotNullOrEmpty(this string value) => !string.IsNullOrEmpty(value);
         internal static bool Invalid(this float value) => float.IsNaN(value) || float.IsInfinity(value);
-        internal static void ForEach<T>(this IReadOnlyList<T> enumerable, Action<T> action)
+        internal static void ForEach<T>(this IEnumerable<T> enumerable, Action<T> action)
         {
             foreach (T element in enumerable)
                 action(element);

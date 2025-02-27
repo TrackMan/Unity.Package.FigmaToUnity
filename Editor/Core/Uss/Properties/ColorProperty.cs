@@ -19,17 +19,17 @@ namespace Figma.Core.Uss
         #region Constructors
         internal ColorProperty(RGBA color, Double? opacity = 1, float alphaMult = 1)
         {
-            rgba = $"rgba({(byte)(color.r * 255.0f)},{(byte)(color.g * 255.0f)},{(byte)(color.b * 255.0f)},{(color.a * (opacity ?? alphaMult)).ToString("F2", Const.culture).Replace(".00", string.Empty)})";
-            rgb = default;
-            hex = default;
-            name = default;
+            rgba = $"rgba({(byte)(color.r * 255.0f)},{(byte)(color.g * 255.0f)},{(byte)(color.b * 255.0f)},{(color.a * (opacity ?? alphaMult)).ToString("F2", Const.Culture).Replace(".00", string.Empty)})";
+            rgb = null;
+            hex = null;
+            name = null;
         }
         ColorProperty(string value)
         {
-            rgba = default;
-            rgb = default;
-            hex = default;
-            name = default;
+            rgba = null;
+            rgb = null;
+            hex = null;
+            name = null;
 
             if (value.StartsWith("rgba")) rgba = value;
             else if (value.StartsWith("rgb")) rgb = value;

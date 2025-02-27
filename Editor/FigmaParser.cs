@@ -1,8 +1,8 @@
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 // ReSharper disable UnusedMember.Local
 // ReSharper disable UnusedParameter.Local
@@ -12,12 +12,16 @@ using System.Text.RegularExpressions;
 namespace Figma
 {
     using Core;
+    using Core.Assets;
     using Core.Uss;
     using Core.Uxml;
     using Internals;
+    using static Internals.Const;
+    using static Internals.PathExtensions;
 
     internal sealed class FigmaParser
     {
+        #region Const
         const int initialCollectionCapacity = 128;
 
         internal const string imagesDirectoryName = "Images";
@@ -26,10 +30,13 @@ namespace Figma
         static readonly Regex multipleDashesRegex = new("-{2,}", RegexOptions.Compiled);
         static readonly Regex invalidCharsRegex = new("[^a-zA-Z0-9]", RegexOptions.Compiled);
         static readonly Regex invalidCharsRegexStateNode = new("[^a-zA-Z0-9:]", RegexOptions.Compiled);
+        #endregion
 
         #region Fields
-        readonly Files files;
+        readonly AssetsInfo assetsInfo;
+        readonly Data data;
         readonly NodeMetadata nodeMetadata;
+        readonly Usages usages;
 
         readonly List<ComponentNode> components = new(initialCollectionCapacity);
         readonly List<Dictionary<string, Style>> componentsStyles = new(initialCollectionCapacity);
@@ -37,28 +44,23 @@ namespace Figma
         readonly List<(StyleSlot slot, UssStyle style)> styles = new(initialCollectionCapacity);
         readonly Dictionary<BaseNode, UssStyle> componentStyleMap = new(initialCollectionCapacity);
         readonly Dictionary<BaseNode, UssStyle> nodeStyleMap = new(initialCollectionCapacity);
-
-        static readonly string[] ussStates = { ":hover", ":active", ":inactive", ":focus", ":selected", ":disabled", ":enabled", ":checked", ":root" };
         #endregion
 
         #region Properties
-        internal List<string> MissingComponents { get; } = new(initialCollectionCapacity);
-        internal List<BaseNode> ImageFillNodes { get; } = new(initialCollectionCapacity);
-        internal List<BaseNode> PngNodes { get; } = new(initialCollectionCapacity);
-        internal List<BaseNode> SvgNodes { get; } = new(initialCollectionCapacity);
-        internal Dictionary<string, GradientPaint> Gradients { get; } = new(initialCollectionCapacity);
-
-        DocumentNode Document => files.document;
-        Dictionary<string, Style> documentStyles => files.styles;
+        AssetsInfo AssetsInfo => assetsInfo;
+        DocumentNode Document => data.document;
+        Dictionary<string, Style> documentStyles => data.styles;
         #endregion
 
         #region Constructors
-        internal FigmaParser(Files files, NodeMetadata nodeMetadata)
+        internal FigmaParser(AssetsInfo assetsInfo, Data data, NodeMetadata nodeMetadata, Usages usages)
         {
-            this.files = files;
             this.nodeMetadata = nodeMetadata;
+            this.data = data;
+            this.assetsInfo = assetsInfo;
+            this.usages = usages;
 
-            foreach (CanvasNode canvas in files.document.children)
+            foreach (CanvasNode canvas in data.document.children)
             {
                 AddMissingNodesRecursively(canvas);
                 AddImageFillsRecursively(canvas);
@@ -70,49 +72,29 @@ namespace Figma
         #endregion
 
         #region Methods
-        internal void Run(Func<string, string, (bool valid, string path)> getAssetPath, Func<string, string, (bool valid, int width, int height)> getAssetSize)
+        internal void Run()
         {
-            AddStylesRecursively(Document, documentStyles, false, getAssetPath, getAssetSize);
-            Document.children.ForEach(x => AddStylesRecursively(x, documentStyles, false, getAssetPath, getAssetSize));
+            AddStylesRecursively(Document, documentStyles, false);
+            Document.children.ForEach(x => AddStylesRecursively(x, documentStyles, false));
 
-            foreach ((ComponentNode component, int index) in components.Select((x, i) => (x, i)))
-                AddStylesRecursively(component, componentsStyles[index], true, getAssetPath, getAssetSize);
+            for (int i = 0; i < components.Count; i++)
+                AddStylesRecursively(components[i], componentsStyles[i], true);
 
             InheritStylesRecursively(Document);
             Document.children.ForEach(InheritStylesRecursively);
         }
         internal void Write(string directory, string name)
         {
-            void GroupRenameStyles(IEnumerable<UssStyle> styles)
+            IEnumerable<UssStyle> GroupRenameStyles(IReadOnlyList<UssStyle> styles)
             {
                 foreach (IGrouping<string, UssStyle> group in styles.GroupBy(x => x.Name).Where(y => y.Count() > 1))
                 {
                     int i = 0;
                     foreach (UssStyle style in group)
-                        style.Name += $"-{(i++ + 1).NumberToWords()}";
+                        style.Name += "-" + (i++ + 1).NumberToWords();
                 }
-            }
-            void FixStateStyles(IEnumerable<BaseNode> nodes)
-            {
-                static string GetState(string value) => value.Substring(value.LastIndexOf(":", StringComparison.Ordinal), value.Length - value.LastIndexOf(":", StringComparison.Ordinal));
 
-                foreach (BaseNode node in nodes)
-                {
-                    if (node.parent is not IChildrenMixin parent) continue;
-
-                    foreach (SceneNode child in parent.children)
-                    {
-                        if (!IsStateNode(child) || !IsStateNode(child, node)) 
-                            continue;
-                        
-                        UssStyle childStyle = GetStyle(child);
-                        
-                        if (childStyle is not null)
-                        {
-                            childStyle.Name = $"{nodeStyleMap[node].Name}{GetState(childStyle.Name)}";
-                        }
-                    }
-                }
+                return styles;
             }
             void AddTransitionStyles()
             {
@@ -120,12 +102,12 @@ namespace Figma
                 {
                     styles ??= new List<UssStyle>();
 
-                    if (componentStyleMap.TryGetValue(node, out UssStyle style)) 
+                    if (componentStyleMap.TryGetValue(node, out UssStyle style))
                         styles.Add(style);
 
-                    if (node is not IChildrenMixin nodeWithChildren) 
+                    if (node is not IChildrenMixin nodeWithChildren)
                         return styles;
-                    
+
                     foreach (SceneNode child in nodeWithChildren.children)
                     {
                         if (child is ComponentSetNode)
@@ -141,7 +123,7 @@ namespace Figma
                     Action action = defaultComponent.interactions
                                                     .Where(interaction => interaction.trigger.type == triggerType)
                                                     .Select(interaction => interaction.actions.FirstOrDefault())
-                                                    .FirstOrDefault(action => action is not null && action.destinationId is not null);
+                                                    .FirstOrDefault(action => action?.destinationId != null);
 
                     string destinationId = action?.destinationId;
 
@@ -150,9 +132,12 @@ namespace Figma
                 }
                 UssStyle GetStyle(Dictionary<BaseNode, UssStyle> componentStyleMap, ComponentSetNode componentSet, ComponentNode defaultComponent, TriggerType triggerType)
                 {
-                    UssStyle style = default;
+                    UssStyle style = null;
                     ComponentNode node = GetTransitionNode(componentSet, defaultComponent, triggerType);
-                    if (node is not null) componentStyleMap.TryGetValue(node, out style);
+
+                    if (node != null)
+                        componentStyleMap.TryGetValue(node, out style);
+
                     return style;
                 }
 
@@ -160,30 +145,31 @@ namespace Figma
 
                 foreach ((BaseNode key, UssStyle componentSetStyle) in nodeStyleMap)
                 {
-                    if (key is not ComponentSetNode componentSet) 
+                    if (key is not ComponentSetNode componentSet)
                         continue;
-                    
-                    ComponentNode defaultComponent = default;
-                    Action action = default;
+
+                    ComponentNode defaultComponent = null;
+                    Action action = null;
+
                     foreach (SceneNode sceneNode in componentSet.children)
                     {
-                        if (sceneNode is not ComponentNode componentNode) 
+                        if (sceneNode is not ComponentNode componentNode)
                             continue;
 
                         Interactions activeInteraction = componentNode.interactions.FirstOrDefault(interaction => interaction.trigger.type == TriggerType.ON_HOVER ||
                                                                                                                   interaction.trigger.type == TriggerType.ON_CLICK);
-                        if (activeInteraction == null) 
+                        if (activeInteraction == null)
                             continue;
 
-                        action = activeInteraction.actions.FirstOrDefault(action => action.destinationId is not null);
+                        action = activeInteraction.actions.FirstOrDefault(action => action.destinationId != null);
 
-                        if (action is null) 
+                        if (action == null)
                             continue;
-                        
+
                         defaultComponent = componentNode;
                         UssStyle subStyle = new(componentSetStyle.Name) { Target = visualElement };
-                        
-                        if (action.transition is not null)
+
+                        if (action.transition != null)
                         {
                             subStyle.transitionDuration = action.transition.duration * 1000;
                             subStyle.transitionEasing = (EasingFunction)action.transition.easing.type;
@@ -193,7 +179,7 @@ namespace Figma
                         break;
                     }
 
-                    if (defaultComponent is null)
+                    if (defaultComponent == null)
                         continue;
 
                     componentStyleMap.TryGetValue(defaultComponent, out UssStyle idleStyle);
@@ -201,10 +187,10 @@ namespace Figma
                     UssStyle hoverStyle = GetStyle(componentStyleMap, componentSet, defaultComponent, TriggerType.ON_HOVER);
                     UssStyle clickStyle = GetStyle(componentStyleMap, componentSet, defaultComponent, TriggerType.ON_CLICK);
 
-                    if (idleStyle is null)
+                    if (idleStyle == null)
                         continue;
 
-                    void InjectSubstyles(ComponentNode node, List<UssStyle> defaultStyles, PseudoClass pseudoClass)
+                    void InjectSubStyles(ComponentNode node, List<UssStyle> defaultStyles, PseudoClass pseudoClass)
                     {
                         List<UssStyle> styles = GetStylesRecursive(node);
                         for (int i = 0; i < styles.Count; i++)
@@ -215,14 +201,14 @@ namespace Figma
                         }
                     }
 
-                    if (action.transition is not null && action.transition.type == TransitionType.SMART_ANIMATE)
+                    if (action.transition != null && action.transition.type == TransitionType.SMART_ANIMATE)
                     {
                         ComponentNode hoverNode = GetTransitionNode(componentSet, defaultComponent, TriggerType.ON_HOVER);
                         ComponentNode clickNode = GetTransitionNode(componentSet, defaultComponent, TriggerType.ON_CLICK);
                         List<UssStyle> defaultStyles = GetStylesRecursive(defaultComponent);
 
-                        if (hoverNode is not null) InjectSubstyles(hoverNode, defaultStyles, PseudoClass.Hover);
-                        if (clickNode is not null) InjectSubstyles(clickNode, defaultStyles, PseudoClass.Active);
+                        if (hoverNode != null) InjectSubStyles(hoverNode, defaultStyles, PseudoClass.Hover);
+                        if (clickNode != null) InjectSubStyles(clickNode, defaultStyles, PseudoClass.Active);
                     }
 
                     if (action.transition is { type: TransitionType.DISSOLVE })
@@ -230,25 +216,98 @@ namespace Figma
                 }
             }
 
-            KeyValuePair<BaseNode, UssStyle>[] nodeStyleFiltered = nodeStyleMap.Where(x => IsVisible(x.Key) && (nodeMetadata.EnabledInHierarchy(x.Key) || x.Key is ComponentSetNode)).ToArray();
-            UssStyle[] nodeStyleStatelessFiltered = nodeStyleFiltered.Where(x => !IsStateNode(x.Key)).Select(x => x.Value).ToArray();
-            UssStyle[] stylesFiltered = styles.Select(x => x.style).Where(x => nodeStyleStatelessFiltered.Any(y => y.DoesInherit(x))).ToArray();
-            UssStyle[] componentStyleFiltered = componentStyleMap.Values.ToArray();
+            RootNodes rootNodes = new(data, nodeMetadata);
 
-            GroupRenameStyles(stylesFiltered.Union(componentStyleFiltered).Union(nodeStyleStatelessFiltered));
-            FixStateStyles(nodeStyleFiltered.Select(x => x.Key));
+            KeyValuePair<BaseNode, UssStyle>[] nodeStyleFiltered = nodeStyleMap.Where(x => IsVisible(x.Key) && (nodeMetadata.EnabledInHierarchy(x.Key) || x.Key is ComponentSetNode)).ToArray();
+            UssStyle[] nodeStyleStatelessFiltered = nodeStyleFiltered.Select(x => x.Value).ToArray();
+            UssStyle[] globalStaticStyles = styles.Select(x => x.style).Where(x => nodeStyleStatelessFiltered.Any(y => y.DoesInherit(x))).ToArray();
+
             AddTransitionStyles();
 
-            // Writing UXML file
-            UxmlBuilder _ = new(directory, name, files, nodeMetadata, GetClassList);
+            // Writing global USS styles
+            string globalUssPath = CombinePath(directory, $"{name}.{KnownFormats.uss}");
+            using UssWriter globalUssWriter = new(directory, globalUssPath);
+            globalUssWriter.Write(UssStyle.overrideClass);
+            globalUssWriter.Write(UssStyle.viewportClass);
+            globalUssWriter.Write(GroupRenameStyles(globalStaticStyles));
 
-            // Writing USS styles
-            using UssWriter writer = new(Path.Combine(directory, $"{name}.uss"));
-            writer.Write(UssStyle.overrideClass);
-            writer.Write(UssStyle.viewportClass);
-            writer.Write(stylesFiltered);
-            writer.Write(componentStyleFiltered);
-            writer.Write(nodeStyleFiltered.Select(x => x.Value));
+            // Writing UXML files
+            UxmlBuilder builder = new(data, nodeMetadata, globalUssPath, GetClassList);
+            Dictionary<string, IReadOnlyList<string>> framesPaths = new(rootNodes.Frames.Count);
+
+            foreach (CanvasNode canvasNode in rootNodes.Canvases)
+            {
+                framesPaths.Add(canvasNode.name, new List<string>());
+                Directory.CreateDirectory(CombinePath(directory, framesDirectoryName, canvasNode.name));
+            }
+
+            void WriteFrame(FrameNode frameNode)
+            {
+                Dictionary<string, string> templates = new();
+
+                void FindTemplatesRecursive(BaseNode node)
+                {
+                    if (node is InstanceNode instanceNode)
+                    {
+                        Component component = data.components[instanceNode.componentId];
+
+                        if (component == null || component.remote || string.IsNullOrEmpty(component.componentSetId))
+                            return;
+
+                        Component componentSet = data.componentSets[component.componentSetId];
+
+                        if (componentSet == null || componentSet.remote || string.IsNullOrEmpty(componentSet.componentSetId))
+                            return;
+
+                        string template = componentSet.name;
+                        templates[template] = CombinePath(directory, componentsDirectoryName, $"{template}.{KnownFormats.uxml}");
+                    }
+                    else if (nodeMetadata.GetTemplate(node) is (_, { } template) && template.NotNullOrEmpty())
+                    {
+                        templates[template] = CombinePath(directory, elementsDirectoryName, $"{template}.{KnownFormats.uxml}");
+                    }
+
+                    if (node is DefaultFrameNode frameNode)
+                        foreach (SceneNode child in frameNode.children)
+                            FindTemplatesRecursive(child);
+                }
+
+                using UssWriter ussWriter = new(directory, CombinePath(directory, framesDirectoryName, frameNode.parent.name, $"{frameNode.name}.{KnownFormats.uss}"));
+                ussWriter.Write(GroupRenameStyles(GetStylesRecursive(frameNode)));
+
+                FindTemplatesRecursive(frameNode);
+
+                string uxmlPath = builder.CreateFrame(CombinePath(directory, framesDirectoryName, frameNode.parent.name), new[] { globalUssPath, ussWriter.Path }, templates, frameNode);
+                framesPaths[frameNode.parent.name].As<List<string>>().Add(uxmlPath);
+
+                usages.RecordFiles(uxmlPath, ussWriter.Path);
+                templates.Clear();
+            }
+            void WriteComponentSet(ComponentSetNode componentSet)
+            {
+                using UssWriter ussWriter = new(directory, CombinePath(directory, componentsDirectoryName, $"{componentSet.name}.{KnownFormats.uss}"));
+                ussWriter.Write(GroupRenameStyles(GetStylesRecursive(componentSet)));
+
+                string uxmlPath = builder.CreateComponentSet(CombinePath(directory, componentsDirectoryName), new[] { globalUssPath, ussWriter.Path }, componentSet);
+                usages.RecordFiles(uxmlPath, ussWriter.Path);
+            }
+            void WriteTemplate((DefaultShapeNode element, string template) node)
+            {
+                (bool isHash, string hashedTemplates) = nodeMetadata.GetTemplate(node.element);
+
+                using UssWriter ussWriter = new(directory, CombinePath(directory, elementsDirectoryName, $"{(isHash ? hashedTemplates : node.template)}.{KnownFormats.uss}"));
+                ussWriter.Write(GroupRenameStyles(GetStylesRecursive(node.element)));
+
+                string uxmlPath = builder.CreateElement(CombinePath(directory, elementsDirectoryName), new[] { globalUssPath, ussWriter.Path }, node.element, node.template);
+                usages.RecordFiles(uxmlPath, ussWriter.Path);
+            }
+
+            Parallel.ForEach(rootNodes.Frames, WriteFrame);
+            Parallel.ForEach(rootNodes.ComponentSets, WriteComponentSet);
+            Parallel.ForEach(rootNodes.Elements, WriteTemplate);
+
+            // Creating main document
+            builder.CreateDocument(directory, name, data.document, framesPaths);
         }
         internal void AddMissingComponent(ComponentNode component, Dictionary<string, Style> componentStyles)
         {
@@ -258,11 +317,11 @@ namespace Figma
 
         void AddMissingNodesRecursively(BaseNode node)
         {
-            if (node is InstanceNode instance && FindNode(instance.componentId) is null)
-                MissingComponents.Add(instance.componentId);
+            if (node is InstanceNode instance && FindNode(instance.componentId) == null)
+                usages.MissingComponents.Add(instance.componentId);
 
-            if (node is IChildrenMixin children)
-                children.children.ForEach(AddMissingNodesRecursively);
+            if (node is IChildrenMixin parent)
+                parent.children.ForEach(AddMissingNodesRecursively);
         }
         void AddImageFillsRecursively(BaseNode node)
         {
@@ -270,10 +329,10 @@ namespace Figma
                 return;
 
             if (!IsSvgNode(node) && HasImageFill(node))
-                ImageFillNodes.Add(node);
+                usages.ImageFillNodes.Add(node);
 
             if (node is IChildrenMixin children)
-                children.children.ForEach(x => AddImageFillsRecursively(x));
+                children.children.ForEach(AddImageFillsRecursively);
         }
         void AddPngNodesRecursively(BaseNode node)
         {
@@ -281,20 +340,21 @@ namespace Figma
                 return;
 
             if (IsSvgNode(node) && HasImageFill(node))
-                PngNodes.Add(node);
+                usages.PngNodes.Add(node);
 
             if (node is BooleanOperationNode)
                 return;
 
             if (node is IChildrenMixin children)
-                children.children.ForEach(x => AddPngNodesRecursively(x));
+                children.children.ForEach(AddPngNodesRecursively);
         }
         void AddSvgNodesRecursively(BaseNode node)
         {
             if (!IsVisible(node) || !nodeMetadata.EnabledInHierarchy(node))
                 return;
 
-            if (IsSvgNode(node) && !HasImageFill(node)) SvgNodes.Add(node);
+            if (IsSvgNode(node) && !HasImageFill(node))
+                usages.SvgNodes.Add(node);
 
             switch (node)
             {
@@ -302,15 +362,14 @@ namespace Figma
                     return;
 
                 case IChildrenMixin children:
-                {
-                    children.children.ForEach(child => AddSvgNodesRecursively(child));
+                    children.children.ForEach(AddSvgNodesRecursively);
                     return;
-                }
             }
         }
         void AddGradientsRecursively(BaseNode node)
         {
-            if (!IsVisible(node) || !nodeMetadata.EnabledInHierarchy(node)) return;
+            if (!IsVisible(node) || !nodeMetadata.EnabledInHierarchy(node))
+                return;
 
             switch (node)
             {
@@ -318,25 +377,23 @@ namespace Figma
                     return;
 
                 case IGeometryMixin geometry:
-                {
-                    foreach (GradientPaint gradient in geometry.fills.OfType<GradientPaint>())
-                        Gradients.TryAdd(gradient.GetHash(), gradient);
+                    geometry.fills.OfType<GradientPaint>().ForEach(x => usages.Gradients.TryAdd(x.GetHash(), x));
                     break;
-                }
             }
 
-            if (node is not IChildrenMixin children) return;
+            if (node is not IChildrenMixin children)
+                return;
 
-            children.children.ForEach(child => AddGradientsRecursively(child));
+            children.children.ForEach(AddGradientsRecursively);
         }
-        void AddStylesRecursively(BaseNode node, Dictionary<string, Style> styles, bool insideComponent, Func<string, string, (bool valid, string path)> getAssetPath, Func<string, string, (bool valid, int width, int height)> getAssetSize)
+        void AddStylesRecursively(BaseNode node, Dictionary<string, Style> styles, bool insideComponent)
         {
-            string GetClassName(string name, bool state, string prefix = "n")
+            string GetClassName(string name, string prefix = "n")
             {
                 if (name.Length > 64)
-                    name = name.Substring(0, 64);
+                    name = name[..64];
 
-                name = (state ? invalidCharsRegexStateNode : invalidCharsRegex).Replace(name, "-");
+                name = (invalidCharsRegex).Replace(name, "-");
                 name = multipleDashesRegex.Replace(name, "-");
                 name = name.Trim('-');
 
@@ -352,13 +409,9 @@ namespace Figma
             if (node is ComponentNode)
                 insideComponent = true;
 
-            if (insideComponent)
+            if (!insideComponent)
             {
-                componentStyleMap[node] = new UssStyle(GetClassName(node.name, IsStateNode(node)), getAssetPath, getAssetSize, node);
-            }
-            else
-            {
-                UssStyle style = new(GetClassName(node.name, IsStateNode(node)), getAssetPath, getAssetSize, node);
+                UssStyle style = new(GetClassName(node.name), assetsInfo, node);
 
                 if (node is ComponentSetNode)
                 {
@@ -369,6 +422,8 @@ namespace Figma
 
                 nodeStyleMap[node] = style;
             }
+            else
+                componentStyleMap[node] = new UssStyle(GetClassName(node.name), assetsInfo, node);
 
             if (node is IBlendMixin { styles: not null } blend)
             {
@@ -376,74 +431,71 @@ namespace Figma
                 {
                     bool text = node.type == NodeType.TEXT;
                     string slot = key;
+
                     if (slot.EndsWith('s'))
                         slot = slot[..^1];
+
                     string styleKey = styles[value].key;
 
                     StyleSlot style = new(text, slot, styles[value]);
                     if (!this.styles.Any(x => x.slot.Text == text && x.slot.Slot == slot && x.slot.key == styleKey))
-                        this.styles.Add((style, new UssStyle(GetClassName(style.name, false, "s"), getAssetPath, getAssetSize, style.Slot, style.styleType, node)));
+                        this.styles.Add((style, new UssStyle(GetClassName(style.name, "s"), assetsInfo, style.Slot, style.styleType, node)));
                 }
             }
 
-            switch (node)
-            {
-                case BooleanOperationNode:
-                    return;
-
-                case IChildrenMixin children:
-                {
-                    foreach (SceneNode child in children.children)
-                        AddStylesRecursively(child, styles, insideComponent, getAssetPath, getAssetSize);
-                    return;
-                }
-            }
+            if (node is IChildrenMixin children)
+                children.children.ForEach(child => AddStylesRecursively(child, styles, insideComponent));
         }
 
         BaseNode FindNode(string id)
         {
             BaseNode Find(BaseNode root)
             {
-                if (root is IChildrenMixin children)
-                    foreach (SceneNode child in children.children)
-                    {
-                        if (child.id == id) return child;
+                if (root is not IChildrenMixin children)
+                    return null;
 
-                        BaseNode node = Find(child);
-                        if (node is not null) return node;
-                    }
+                foreach (SceneNode child in children.children)
+                {
+                    if (child.id == id)
+                        return child;
 
-                return default;
+                    BaseNode node = Find(child);
+
+                    if (node != null)
+                        return node;
+                }
+
+                return null;
             }
 
-            if (Document.id == id) return Document;
+            if (Document.id == id)
+                return Document;
 
             foreach (CanvasNode canvas in Document.children)
             {
-                if (canvas.id == id) return canvas;
+                if (canvas.id == id)
+                    return canvas;
 
                 BaseNode node = Find(canvas);
-                if (node is not null) return node;
+
+                if (node != null)
+                    return node;
             }
 
-            return default;
+            return null;
         }
         void InheritStylesRecursively(BaseNode node)
         {
             UssStyle style = GetStyle(node);
-            UssStyle component = default;
+            UssStyle component = null;
             List<UssStyle> styles = new();
-
-            if (IsStateNode(node) && node.parent is IChildrenMixin parent)
-            {
-                BaseNode normalNode = Array.Find(parent.children, x => IsStateNode(node, x));
-                if (normalNode is not null) component = GetStyle(normalNode);
-            }
 
             if (node is InstanceNode instance)
             {
                 BaseNode componentNode = FindNode(instance.componentId);
-                if (componentNode is not null) component = GetStyle(componentNode);
+
+                if (componentNode != null)
+                    component = GetStyle(componentNode);
             }
             else if (node.id.Contains(';'))
             {
@@ -452,7 +504,9 @@ namespace Figma
                 {
                     string componentId = splits[^1];
                     BaseNode componentNode = FindNode(componentId);
-                    if (componentNode is not null) component = GetStyle(componentNode);
+
+                    if (componentNode != null)
+                        component = GetStyle(componentNode);
                 }
             }
 
@@ -461,10 +515,15 @@ namespace Figma
                 {
                     bool text = node.type == NodeType.TEXT;
                     string slot = keyValue.Key;
-                    if (slot.EndsWith('s')) slot = slot[..^1];
+                    if (slot.EndsWith('s'))
+                        slot = slot[..^1];
+
                     string id = keyValue.Value;
-                    string key = default;
-                    if (documentStyles.TryGetValue(id, out Style documentStyle)) key = documentStyle.key;
+                    string key = null;
+
+                    if (documentStyles.TryGetValue(id, out Style documentStyle))
+                        key = documentStyle.key;
+
                     foreach (Dictionary<string, Style> componentStyle in componentsStyles)
                         if (componentStyle.TryGetValue(id, out Style value))
                             key = value.key;
@@ -474,45 +533,40 @@ namespace Figma
                         styles.Add(this.styles[index].style);
                 }
 
-            if (component is not null && styles.Count > 0) style.Inherit(component, styles);
-            else if (component is not null) style.Inherit(component);
+            if (component != null && styles.Count > 0) style.Inherit(component, styles);
+            else if (component != null) style.Inherit(component);
             else if (styles.Count > 0) style.Inherit(styles);
 
-            if (node is BooleanOperationNode) return;
+            if (node is BooleanOperationNode)
+                return;
 
             if (node is IChildrenMixin children)
                 children.children.ForEach(InheritStylesRecursively);
         }
         UssStyle GetStyle(BaseNode node)
         {
-            if (componentStyleMap.TryGetValue(node, out UssStyle style)) return style;
+            if (componentStyleMap.TryGetValue(node, out UssStyle style))
+                return style;
 
-            return nodeStyleMap.TryGetValue(node, out style) ? style : default;
+            return
+                nodeStyleMap.TryGetValue(node, out style) ? style : null;
         }
         string GetClassList(BaseNode node)
         {
             string classList = string.Empty;
             UssStyle style = GetStyle(node);
 
-            if (style is null)
+            if (style == null)
                 return classList;
 
             string component = string.Empty;
             List<string> styles = new();
 
-            if (IsStateNode(node) && node.parent is IChildrenMixin parent)
-            {
-                BaseNode normalNode = Array.Find(parent.children, x => IsStateNode(node, x));
-
-                if (normalNode is not null)
-                    component = GetStyle(normalNode).Name;
-            }
-
             if (node is InstanceNode instance)
             {
                 BaseNode componentNode = FindNode(instance.componentId);
 
-                if (componentNode is not null)
+                if (componentNode != null)
                     component = GetStyle(componentNode).Name;
             }
             else if (node.id.Contains(';'))
@@ -523,7 +577,7 @@ namespace Figma
                     string componentId = splits[^1];
                     BaseNode componentNode = FindNode(componentId);
 
-                    if (componentNode is not null)
+                    if (componentNode != null)
                         component = GetStyle(componentNode).Name;
                 }
             }
@@ -537,8 +591,9 @@ namespace Figma
 
                     if (slot.EndsWith('s'))
                         slot = slot[..^1];
+
                     string id = keyValue.Value;
-                    string key = default;
+                    string key = null;
 
                     if (documentStyles.TryGetValue(id, out Style documentStyle))
                         key = documentStyle.key;
@@ -556,7 +611,7 @@ namespace Figma
 
             if (IsSvgNode(node))
             {
-                component = default;
+                component = null;
                 styles.Clear();
             }
 
@@ -565,35 +620,51 @@ namespace Figma
             else if (styles.Count > 0) classList = style.ResolveClassList(styles);
             else classList = style.ResolveClassList();
 
-            if (IsRootNode(node)) classList += $"{(classList == string.Empty ? string.Empty : " ")}{UssStyle.viewportClass.Name}";
+            if (IsRootNode(node))
+                classList += $"{(string.IsNullOrEmpty(classList) ? string.Empty : " ")}{UssStyle.viewportClass.Name}";
+
             return $"{UssStyle.overrideClass.Name} {classList}";
         }
         #endregion
 
         #region Support Methods
-        internal static bool IsRootNode(IBaseNodeMixin mixin) => mixin is DocumentNode || mixin is CanvasNode || mixin.parent is CanvasNode || mixin is ComponentNode || mixin.parent is ComponentNode;
-        internal static bool IsVisible(IBaseNodeMixin mixin)
-        {
-            if (mixin is ISceneNodeMixin scene && scene.visible.HasValueAndFalse()) return false;
-
-            return mixin.parent is null || IsVisible(mixin.parent);
-        }
+        internal static bool IsRootNode(IBaseNodeMixin mixin) => mixin is DocumentNode or CanvasNode or ComponentNode || mixin.parent is CanvasNode or ComponentNode;
+        internal static bool IsVisible(IBaseNodeMixin mixin) => (mixin is not ISceneNodeMixin scene || !scene.visible.HasValueAndFalse()) && (mixin.parent == null || IsVisible(mixin.parent));
         internal static bool HasImageFill(IBaseNodeMixin mixin) => mixin is IGeometryMixin geometry && geometry.fills.Any(x => x is ImagePaint);
-        internal static bool IsSvgNode(IBaseNodeMixin mixin) => mixin is LineNode || mixin is EllipseNode || mixin is RegularPolygonNode || mixin is StarNode || mixin is VectorNode || (mixin is BooleanOperationNode && IsBooleanOperationVisible(mixin));
+        internal static bool IsSvgNode(IBaseNodeMixin mixin) => mixin is LineNode or EllipseNode or RegularPolygonNode or StarNode or VectorNode || (mixin is BooleanOperationNode && IsBooleanOperationVisible(mixin));
         internal static bool IsBooleanOperationVisible(IBaseNodeMixin node)
         {
-            if (node is not IChildrenMixin children) return false;
+            if (node is not IChildrenMixin children)
+                return false;
 
             foreach (SceneNode child in children.children)
             {
-                if (child is not BooleanOperationNode && IsVisible(child) && IsSvgNode(child)) return true;
-                if (child is BooleanOperationNode) return IsBooleanOperationVisible(child);
+                if (child is not BooleanOperationNode && IsVisible(child) && IsSvgNode(child))
+                    return true;
+                if (child is BooleanOperationNode)
+                    return IsBooleanOperationVisible(child);
             }
 
             return false;
         }
-        internal static bool IsStateNode(IBaseNodeMixin mixin) => ussStates.Any(suffix => mixin.name.EndsWith(suffix));
-        internal static bool IsStateNode(IBaseNodeMixin mixin, IBaseNodeMixin normal) => mixin.name[..mixin.name.LastIndexOf(":", StringComparison.Ordinal)] == normal.name;
+        List<UssStyle> GetStylesRecursive(BaseNode node, List<UssStyle> styles = null)
+        {
+            styles ??= new List<UssStyle>();
+
+            if (componentStyleMap.TryGetValue(node, out UssStyle componentStyle))
+                styles.Add(componentStyle);
+
+            if (nodeStyleMap.TryGetValue(node, out UssStyle nodeStyle))
+                styles.Add(nodeStyle);
+
+            if (node is not IChildrenMixin nodeWithChildren)
+                return styles;
+
+            foreach (SceneNode child in nodeWithChildren.children)
+                GetStylesRecursive(child, styles);
+
+            return styles;
+        }
         #endregion
     }
 }

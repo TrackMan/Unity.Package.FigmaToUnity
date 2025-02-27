@@ -50,7 +50,7 @@ namespace Figma
         }
         public static List<VisualElement> GetElements(this VisualElement prefab) => GetElements<VisualElement>(prefab);
         public static List<VisualElement> GetElements(this VisualElement prefab, VisualElement parent) => GetElements<VisualElement>(prefab, parent);
-        public static void Sync<TVisualElement, TData>(this TVisualElement prefab, VisualElement parent, IEnumerable<TData> data, Action<TVisualElement> onCreateElement = default) where TVisualElement : VisualElement, ISyncElement<TData>
+        public static void Sync<TVisualElement, TData>(this TVisualElement prefab, VisualElement parent, IEnumerable<TData> data, Action<TVisualElement> onCreateElement = null) where TVisualElement : VisualElement, ISyncElement<TData>
         {
             IList elements = EnsureList(prefab, parent);
 
@@ -78,7 +78,7 @@ namespace Figma
 
             for (int j = i; j < elements.Count; ++j) elements[j].As<TVisualElement>().Hide();
         }
-        public static void Sync<TVisualElement, TCreationData, TData>(this TVisualElement prefab, VisualElement parent, TCreationData creationData, IEnumerable<TData> data, Action<TVisualElement> onCreateElement = default) where TVisualElement : VisualElement, ISyncElement<TCreationData, TData>
+        public static void Sync<TVisualElement, TCreationData, TData>(this TVisualElement prefab, VisualElement parent, TCreationData creationData, IEnumerable<TData> data, Action<TVisualElement> onCreateElement = null) where TVisualElement : VisualElement, ISyncElement<TCreationData, TData>
         {
             IList elements = EnsureList(prefab, parent);
 

@@ -16,7 +16,7 @@ namespace Figma.Core.Uss
         #region Constructors
         internal DurationProperty(TimeUnit unit)
         {
-            value = default;
+            value = 0;
             this.unit = unit;
         }
         internal DurationProperty(double value, TimeUnit unit)
@@ -27,14 +27,14 @@ namespace Figma.Core.Uss
         #endregion
 
         #region Operators
-        public static implicit operator DurationProperty(TimeUnit value) => new(default, value);
+        public static implicit operator DurationProperty(TimeUnit value) => new(0, value);
         public static implicit operator DurationProperty(double? value) => new(value!.Value, TimeUnit.Millisecond);
         public static implicit operator DurationProperty(double value) => new(value, TimeUnit.Millisecond);
         public static implicit operator DurationProperty(string value)
         {
             if (Enum.TryParse(value, true, out TimeUnit unit)) return new DurationProperty(unit);
-            if (value.ToLower(Const.culture).Contains("ms")) return new DurationProperty(double.Parse(value.ToLower(Const.culture).Replace("ms", string.Empty), Const.culture), TimeUnit.Millisecond);
-            if (value.ToLower(Const.culture).Contains("s")) return new DurationProperty(double.Parse(value.ToLower(Const.culture).Replace("s", string.Empty), Const.culture), TimeUnit.Second);
+            if (value.ToLower(Const.Culture).Contains("ms")) return new DurationProperty(double.Parse(value.ToLower(Const.Culture).Replace("ms", string.Empty), Const.Culture), TimeUnit.Millisecond);
+            if (value.ToLower(Const.Culture).Contains("s")) return new DurationProperty(double.Parse(value.ToLower(Const.Culture).Replace("s", string.Empty), Const.Culture), TimeUnit.Second);
 
             return default;
         }
@@ -43,8 +43,8 @@ namespace Figma.Core.Uss
             return value.unit switch
             {
                 TimeUnit.Default => $"0ms",
-                TimeUnit.Millisecond => $"{value.value.ToString("F2", Const.culture).Replace(".00", string.Empty)}ms",
-                TimeUnit.Second => $"{value.value.ToString("F2", Const.culture).Replace(".00", string.Empty)}s",
+                TimeUnit.Millisecond => $"{value.value.ToString("F2", Const.Culture).Replace(".00", string.Empty)}ms",
+                TimeUnit.Second => $"{value.value.ToString("F2", Const.Culture).Replace(".00", string.Empty)}s",
                 _ => throw new ArgumentException(nameof(value))
             };
         }
