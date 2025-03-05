@@ -123,6 +123,7 @@ namespace Figma.Core.Uss
         EnumProperty<TextAlign> unityTextAlign { get => Get("-unity-text-align"); set => Set("-unity-text-align", value); }
         EnumProperty<Wrap> whiteSpace { get => Get("white-space"); set => Set("white-space", value); }
         ShadowProperty textShadow { get => Get("text-shadow"); set => Set("text-shadow", value); }
+        EnumProperty<TextOverflow> textOverflow { get => Get("text-overflow"); set => Set("text-overflow", value); }
 
         // Cursor
         CursorProperty cursor { get => Get("cursor"); set => Set("cursor", value); }
@@ -540,7 +541,7 @@ namespace Figma.Core.Uss
                             break;
 
                         case StrokeAlign.OUTSIDE:
-                           borderDelta = parent.strokeWeight.Value;
+                            borderDelta = parent.strokeWeight.Value;
                             break;
                     }
                 }
@@ -643,7 +644,12 @@ namespace Figma.Core.Uss
                         return;
 
                     default:
-                        throw new NotSupportedException();
+                        if (node.style.textTruncation == TextTruncation.ENDING)
+                        {
+                            textOverflow = TextOverflow.Ellipsis;
+                            overflow = Visibility.Hidden;
+                        }
+                        break;
                 }
             }
 
@@ -687,7 +693,6 @@ namespace Figma.Core.Uss
             if (baseNode is TextNode textNode && textNode.style.textAutoResize.HasValue)
                 OverwriteSizeFromTextNode(textNode);
         }
-
         void AddFillStyle(IEnumerable<Paint> fills)
         {
             foreach (Paint fill in fills)
@@ -848,21 +853,6 @@ namespace Figma.Core.Uss
             }
 
             return transitions;
-        }
-        static bool HasMixedCenterChildren(IDefaultFrameMixin mixin)
-        {
-            (int horizontalCenterCount, int verticalCenterCount) = CenterChildrenCount(mixin);
-            return horizontalCenterCount > 0 && verticalCenterCount > 0;
-        }
-        static bool HasAnyCenterChildren(IDefaultFrameMixin mixin)
-        {
-            (int horizontalCenterCount, int verticalCenterCount) = CenterChildrenCount(mixin);
-            return horizontalCenterCount > 0 || verticalCenterCount > 0;
-        }
-        static bool HasManyCenterChildren(IDefaultFrameMixin mixin)
-        {
-            (int horizontalCenterCount, int verticalCenterCount) = CenterChildrenCount(mixin);
-            return horizontalCenterCount > 1 || verticalCenterCount > 1;
         }
         static bool IsMostlyHorizontal(IDefaultFrameMixin mixin)
         {

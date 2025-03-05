@@ -356,7 +356,7 @@ namespace Figma.Internals
             public string inheritFillStyleId;
             public string inheritTextStyleId;
             public string leadingTrim;
-            public string textTruncation;
+            public TextTruncation textTruncation;
             public int maxLines;
             public string fontStyle;
         }

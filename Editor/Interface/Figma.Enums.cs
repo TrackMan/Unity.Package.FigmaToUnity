@@ -81,4 +81,6 @@ namespace Figma.Internals
     public enum LayoutSizing { FIXED, HUG, FILL }
 
     public enum CounterAxisAlignContent { AUTO, SPACE_BETWEEN }
+
+    public enum TextTruncation { DISABLED, ENDING }
 }
