@@ -646,19 +646,6 @@ namespace Figma.Core.Uss
                         throw new NotSupportedException();
                 }
             }
-            void AddNonInsideBorder()
-            {
-                double GetStrokeWeight(StrokeAlign strokeAlign, double strokeWeight) =>
-                    strokeAlign switch
-                    {
-                        StrokeAlign.CENTER => strokeWeight / 2,
-                        StrokeAlign.OUTSIDE => strokeWeight,
-                        _ => 0
-                    };
-
-                if (baseNode is IDefaultFrameMixin { layoutMode: not null })
-                    return;
-            }
 
             if (layout.minWidth.HasValue) minWidth = layout.minWidth.Value;
             if (layout.minHeight.HasValue) minHeight = layout.minHeight.Value;
@@ -699,8 +686,6 @@ namespace Figma.Core.Uss
 
             if (baseNode is TextNode textNode && textNode.style.textAutoResize.HasValue)
                 OverwriteSizeFromTextNode(textNode);
-
-            AddNonInsideBorder();
         }
 
         void AddFillStyle(IEnumerable<Paint> fills)
