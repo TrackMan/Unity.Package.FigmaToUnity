@@ -228,8 +228,6 @@ namespace Figma
 
             return null;
         }
-        [Obsolete("This is a boilerplate, change references to Find<T>(a, b, c)")]
-        public static T Find<T>(this VisualElement value, string path, object _, bool throwException = true, bool silent = false) where T : VisualElement => value.Find<T>(path, throwException, silent);
         public static T Find<T>(this VisualElement value, string path, bool throwException = true, bool silent = false) where T : VisualElement
         {
             path = path.Replace('\\', pathSeparator);
@@ -252,8 +250,7 @@ namespace Figma
         }
         public static (T1, T2) Find<T1, T2>(this VisualElement value, string path1, string path2, bool throwException = true, bool silent = false) where T1 : VisualElement where T2 : VisualElement => (value.Find<T1>(path1, throwException: throwException, silent: silent), value.Find<T2>(path2, throwException: throwException, silent: silent));
         public static (T1, T2, T3) Find<T1, T2, T3>(this VisualElement value, string path1, string path2, string path3, bool throwException = true, bool silent = false) where T1 : VisualElement where T2 : VisualElement where T3 : VisualElement => (value.Find<T1>(path1, throwException: throwException, silent: silent), value.Find<T2>(path2, throwException: throwException, silent: silent), value.Find<T3>(path3, throwException: throwException, silent: silent));
-        [Obsolete("Use one, where 'className' attribute does not exists")]
-        public static VisualElement Find(this VisualElement value, string path, string className = null, bool throwException = true, bool silent = true) => Find<VisualElement>(value, path, throwException, silent);
+        public static VisualElement Find(this VisualElement value, string path, bool throwException = true, bool silent = true) => Find<VisualElement>(value, path, throwException, silent);
 
         public static T Clone<T>(this T value, VisualElement parent = null, int index = -1) where T : VisualElement
         {
