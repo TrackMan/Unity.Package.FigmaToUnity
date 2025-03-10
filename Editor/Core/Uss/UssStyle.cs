@@ -8,7 +8,7 @@ using UnityEngine.UIElements;
 namespace Figma.Core.Uss
 {
     using Internals;
-    using static FigmaParser;
+    using static ContentWriter;
 
     internal class UssStyle : BaseUssStyle
     {

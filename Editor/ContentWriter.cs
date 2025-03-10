@@ -19,13 +19,10 @@ namespace Figma
     using static Internals.Const;
     using static Internals.PathExtensions;
 
-    internal sealed class FigmaParser
+    internal sealed class ContentWriter
     {
         #region Const
         const int initialCollectionCapacity = 128;
-
-        internal const string imagesDirectoryName = "Images";
-        internal const string elementsDirectoryName = "Elements";
 
         static readonly Regex multipleDashesRegex = new("-{2,}", RegexOptions.Compiled);
         static readonly Regex invalidCharsRegex = new("[^a-zA-Z0-9]", RegexOptions.Compiled);
@@ -40,7 +37,6 @@ namespace Figma
 
         readonly List<ComponentNode> components = new(initialCollectionCapacity);
         readonly List<Dictionary<string, Style>> componentsStyles = new(initialCollectionCapacity);
-
         readonly List<(StyleSlot slot, UssStyle style)> styles = new(initialCollectionCapacity);
         readonly Dictionary<BaseNode, UssStyle> componentStyleMap = new(initialCollectionCapacity);
         readonly Dictionary<BaseNode, UssStyle> nodeStyleMap = new(initialCollectionCapacity);
@@ -53,7 +49,7 @@ namespace Figma
         #endregion
 
         #region Constructors
-        internal FigmaParser(AssetsInfo assetsInfo, Data data, NodeMetadata nodeMetadata, Usages usages)
+        internal ContentWriter(AssetsInfo assetsInfo, Data data, NodeMetadata nodeMetadata, Usages usages)
         {
             this.nodeMetadata = nodeMetadata;
             this.data = data;
@@ -83,139 +79,8 @@ namespace Figma
             InheritStylesRecursively(Document);
             Document.children.ForEach(InheritStylesRecursively);
         }
-        internal void Write(string directory, string name)
+        internal void Write(string directory, string name, bool overrideGlobal = false)
         {
-            IEnumerable<UssStyle> GroupRenameStyles(IReadOnlyList<UssStyle> styles)
-            {
-                foreach (IGrouping<string, UssStyle> group in styles.GroupBy(x => x.Name).Where(y => y.Count() > 1))
-                {
-                    int i = 0;
-                    foreach (UssStyle style in group)
-                        style.Name += "-" + (i++ + 1).NumberToWords();
-                }
-
-                return styles;
-            }
-            void AddTransitionStyles()
-            {
-                List<UssStyle> GetStylesRecursive(BaseNode node, List<UssStyle> styles = null)
-                {
-                    styles ??= new List<UssStyle>();
-
-                    if (componentStyleMap.TryGetValue(node, out UssStyle style))
-                        styles.Add(style);
-
-                    if (node is not IChildrenMixin nodeWithChildren)
-                        return styles;
-
-                    foreach (SceneNode child in nodeWithChildren.children)
-                    {
-                        if (child is ComponentSetNode)
-                            continue;
-
-                        GetStylesRecursive(child, styles);
-                    }
-
-                    return styles;
-                }
-                ComponentNode GetTransitionNode(ComponentSetNode componentSet, ComponentNode defaultComponent, TriggerType triggerType)
-                {
-                    Action action = defaultComponent.interactions
-                                                    .Where(interaction => interaction.trigger.type == triggerType)
-                                                    .Select(interaction => interaction.actions.FirstOrDefault())
-                                                    .FirstOrDefault(action => action?.destinationId != null);
-
-                    string destinationId = action?.destinationId;
-
-                    ComponentNode node = (ComponentNode)componentSet.children.FirstOrDefault(component => component is ComponentNode && component.id == destinationId);
-                    return node;
-                }
-                UssStyle GetStyle(Dictionary<BaseNode, UssStyle> componentStyleMap, ComponentSetNode componentSet, ComponentNode defaultComponent, TriggerType triggerType)
-                {
-                    UssStyle style = null;
-                    ComponentNode node = GetTransitionNode(componentSet, defaultComponent, triggerType);
-
-                    if (node != null)
-                        componentStyleMap.TryGetValue(node, out style);
-
-                    return style;
-                }
-
-                UssStyle visualElement = new(nameof(UnityEngine.UIElements.VisualElement));
-
-                foreach ((BaseNode key, UssStyle componentSetStyle) in nodeStyleMap)
-                {
-                    if (key is not ComponentSetNode componentSet)
-                        continue;
-
-                    ComponentNode defaultComponent = null;
-                    Action action = null;
-
-                    foreach (SceneNode sceneNode in componentSet.children)
-                    {
-                        if (sceneNode is not ComponentNode componentNode)
-                            continue;
-
-                        Interactions activeInteraction = componentNode.interactions.FirstOrDefault(interaction => interaction.trigger.type == TriggerType.ON_HOVER ||
-                                                                                                                  interaction.trigger.type == TriggerType.ON_CLICK);
-                        if (activeInteraction == null)
-                            continue;
-
-                        action = activeInteraction.actions.FirstOrDefault(action => action.destinationId != null);
-
-                        if (action == null)
-                            continue;
-
-                        defaultComponent = componentNode;
-                        UssStyle subStyle = new(componentSetStyle.Name) { Target = visualElement };
-
-                        if (action.transition != null)
-                        {
-                            subStyle.transitionDuration = action.transition.duration * 1000;
-                            subStyle.transitionEasing = (EasingFunction)action.transition.easing.type;
-                        }
-
-                        componentSetStyle.SubStyles.Add(subStyle);
-                        break;
-                    }
-
-                    if (defaultComponent == null)
-                        continue;
-
-                    componentStyleMap.TryGetValue(defaultComponent, out UssStyle idleStyle);
-
-                    UssStyle hoverStyle = GetStyle(componentStyleMap, componentSet, defaultComponent, TriggerType.ON_HOVER);
-                    UssStyle clickStyle = GetStyle(componentStyleMap, componentSet, defaultComponent, TriggerType.ON_CLICK);
-
-                    if (idleStyle == null)
-                        continue;
-
-                    void InjectSubStyles(ComponentNode node, List<UssStyle> defaultStyles, PseudoClass pseudoClass)
-                    {
-                        List<UssStyle> styles = GetStylesRecursive(node);
-                        for (int i = 0; i < styles.Count; i++)
-                        {
-                            UssStyle style = styles[i];
-                            UssStyle defaultStyle = defaultStyles[i];
-                            componentSetStyle.SubStyles.Add(new UssStyle(componentSetStyle.Name) { PseudoClass = pseudoClass, Target = defaultStyle }.CopyFrom(style));
-                        }
-                    }
-
-                    if (action.transition != null && action.transition.type == TransitionType.SMART_ANIMATE)
-                    {
-                        ComponentNode hoverNode = GetTransitionNode(componentSet, defaultComponent, TriggerType.ON_HOVER);
-                        ComponentNode clickNode = GetTransitionNode(componentSet, defaultComponent, TriggerType.ON_CLICK);
-                        List<UssStyle> defaultStyles = GetStylesRecursive(defaultComponent);
-
-                        if (hoverNode != null) InjectSubStyles(hoverNode, defaultStyles, PseudoClass.Hover);
-                        if (clickNode != null) InjectSubStyles(clickNode, defaultStyles, PseudoClass.Active);
-                    }
-
-                    if (action.transition is { type: TransitionType.DISSOLVE })
-                        componentSetStyle.SubStyles.AddRange(UssStyle.MakeTransitionStyles(componentSetStyle, idleStyle, hoverStyle, clickStyle));
-                }
-            }
-
             RootNodes rootNodes = new(data, nodeMetadata);
 
             KeyValuePair<BaseNode, UssStyle>[] nodeStyleFiltered = nodeStyleMap.Where(x => IsVisible(x.Key) && (nodeMetadata.EnabledInHierarchy(x.Key) || x.Key is ComponentSetNode)).ToArray();
@@ -226,20 +91,21 @@ namespace Figma
 
             // Writing global USS styles
             string globalUssPath = CombinePath(directory, $"{name}.{KnownFormats.uss}");
-            using UssWriter globalUssWriter = new(directory, globalUssPath);
-            globalUssWriter.Write(UssStyle.overrideClass);
-            globalUssWriter.Write(UssStyle.viewportClass);
-            globalUssWriter.Write(GroupRenameStyles(globalStaticStyles));
+
+            if (overrideGlobal)
+            {
+                using UssWriter globalUssWriter = new(directory, globalUssPath);
+                globalUssWriter.Write(UssStyle.overrideClass);
+                globalUssWriter.Write(UssStyle.viewportClass);
+                globalUssWriter.Write(GroupRenameStyles(globalStaticStyles));
+            }
 
             // Writing UXML files
             UxmlBuilder builder = new(data, nodeMetadata, globalUssPath, GetClassList);
             Dictionary<string, IReadOnlyList<string>> framesPaths = new(rootNodes.Frames.Count);
 
             foreach (CanvasNode canvasNode in rootNodes.Canvases)
-            {
                 framesPaths.Add(canvasNode.name, new List<string>());
-                Directory.CreateDirectory(CombinePath(directory, framesDirectoryName, canvasNode.name));
-            }
 
             void WriteFrame(FrameNode frameNode)
             {
@@ -268,16 +134,20 @@ namespace Figma
                     }
 
                     if (node is DefaultFrameNode frameNode)
-                        foreach (SceneNode child in frameNode.children)
-                            FindTemplatesRecursive(child);
+                        frameNode.children.ForEach(FindTemplatesRecursive);
                 }
 
-                using UssWriter ussWriter = new(directory, CombinePath(directory, framesDirectoryName, frameNode.parent.name, $"{frameNode.name}.{KnownFormats.uss}"));
+                string rootDirectory = CombinePath(directory, framesDirectoryName, frameNode.parent.name);
+
+                if (!Directory.Exists(rootDirectory))
+                    Directory.CreateDirectory(rootDirectory);
+
+                using UssWriter ussWriter = new(directory, CombinePath(rootDirectory, $"{frameNode.name}.{KnownFormats.uss}"));
                 ussWriter.Write(GroupRenameStyles(GetStylesRecursive(frameNode)));
 
                 FindTemplatesRecursive(frameNode);
 
-                string uxmlPath = builder.CreateFrame(CombinePath(directory, framesDirectoryName, frameNode.parent.name), new[] { globalUssPath, ussWriter.Path }, templates, frameNode);
+                string uxmlPath = builder.CreateFrame(rootDirectory, new[] { globalUssPath, ussWriter.Path }, templates, frameNode);
                 framesPaths[frameNode.parent.name].As<List<string>>().Add(uxmlPath);
 
                 usages.RecordFiles(uxmlPath, ussWriter.Path);
@@ -307,7 +177,8 @@ namespace Figma
             Parallel.ForEach(rootNodes.Elements, WriteTemplate);
 
             // Creating main document
-            builder.CreateDocument(directory, name, data.document, framesPaths);
+            if (overrideGlobal)
+                builder.CreateDocument(directory, name, data.document, framesPaths);
         }
         internal void AddMissingComponent(ComponentNode component, Dictionary<string, Style> componentStyles)
         {
@@ -315,6 +186,136 @@ namespace Figma
             componentsStyles.Add(componentStyles);
         }
 
+        IEnumerable<UssStyle> GroupRenameStyles(IReadOnlyList<UssStyle> styles)
+        {
+            foreach (IGrouping<string, UssStyle> group in styles.GroupBy(x => x.Name).Where(y => y.Count() > 1))
+            {
+                int i = 0;
+                foreach (UssStyle style in group)
+                    style.Name += "-" + (i++ + 1).NumberToWords();
+            }
+
+            return styles;
+        }
+        void AddTransitionStyles()
+        {
+            List<UssStyle> GetStylesRecursive(BaseNode node, List<UssStyle> styles = null)
+            {
+                styles ??= new List<UssStyle>();
+
+                if (componentStyleMap.TryGetValue(node, out UssStyle style))
+                    styles.Add(style);
+
+                if (node is not IChildrenMixin nodeWithChildren)
+                    return styles;
+
+                foreach (SceneNode child in nodeWithChildren.children)
+                {
+                    if (child is ComponentSetNode)
+                        continue;
+
+                    GetStylesRecursive(child, styles);
+                }
+
+                return styles;
+            }
+            ComponentNode GetTransitionNode(ComponentSetNode componentSet, ComponentNode defaultComponent, TriggerType triggerType)
+            {
+                Action action = defaultComponent.interactions
+                                                .Where(interaction => interaction.trigger.type == triggerType)
+                                                .Select(interaction => interaction.actions.FirstOrDefault())
+                                                .FirstOrDefault(action => action?.destinationId != null);
+
+                string destinationId = action?.destinationId;
+
+                ComponentNode node = (ComponentNode)componentSet.children.FirstOrDefault(component => component is ComponentNode && component.id == destinationId);
+                return node;
+            }
+            UssStyle GetStyle(Dictionary<BaseNode, UssStyle> componentStyleMap, ComponentSetNode componentSet, ComponentNode defaultComponent, TriggerType triggerType)
+            {
+                UssStyle style = null;
+                ComponentNode node = GetTransitionNode(componentSet, defaultComponent, triggerType);
+
+                if (node != null)
+                    componentStyleMap.TryGetValue(node, out style);
+
+                return style;
+            }
+
+            UssStyle visualElement = new(nameof(UnityEngine.UIElements.VisualElement));
+
+            foreach ((BaseNode key, UssStyle componentSetStyle) in nodeStyleMap)
+            {
+                if (key is not ComponentSetNode componentSet)
+                    continue;
+
+                ComponentNode defaultComponent = null;
+                Action action = null;
+
+                foreach (SceneNode sceneNode in componentSet.children)
+                {
+                    if (sceneNode is not ComponentNode componentNode)
+                        continue;
+
+                    Interactions activeInteraction = componentNode.interactions.FirstOrDefault(interaction => interaction.trigger.type == TriggerType.ON_HOVER ||
+                                                                                                              interaction.trigger.type == TriggerType.ON_CLICK);
+                    if (activeInteraction == null)
+                        continue;
+
+                    action = activeInteraction.actions.FirstOrDefault(action => action.destinationId != null);
+
+                    if (action == null)
+                        continue;
+
+                    defaultComponent = componentNode;
+                    UssStyle subStyle = new(componentSetStyle.Name) { Target = visualElement };
+
+                    if (action.transition != null)
+                    {
+                        subStyle.transitionDuration = action.transition.duration * 1000;
+                        subStyle.transitionEasing = (EasingFunction)action.transition.easing.type;
+                    }
+
+                    componentSetStyle.SubStyles.Add(subStyle);
+                    break;
+                }
+
+                if (defaultComponent == null)
+                    continue;
+
+                componentStyleMap.TryGetValue(defaultComponent, out UssStyle idleStyle);
+
+                UssStyle hoverStyle = GetStyle(componentStyleMap, componentSet, defaultComponent, TriggerType.ON_HOVER);
+                UssStyle clickStyle = GetStyle(componentStyleMap, componentSet, defaultComponent, TriggerType.ON_CLICK);
+
+                if (idleStyle == null)
+                    continue;
+
+                void InjectSubStyles(ComponentNode node, List<UssStyle> defaultStyles, PseudoClass pseudoClass)
+                {
+                    List<UssStyle> styles = GetStylesRecursive(node);
+                    for (int i = 0; i < styles.Count; i++)
+                    {
+                        UssStyle style = styles[i];
+                        UssStyle defaultStyle = defaultStyles[i];
+                        componentSetStyle.SubStyles.Add(new UssStyle(componentSetStyle.Name) { PseudoClass = pseudoClass, Target = defaultStyle }.CopyFrom(style));
+                    }
+                }
+
+                if (action.transition != null && action.transition.type == TransitionType.SMART_ANIMATE)
+                {
+                    ComponentNode hoverNode = GetTransitionNode(componentSet, defaultComponent, TriggerType.ON_HOVER);
+                    ComponentNode clickNode = GetTransitionNode(componentSet, defaultComponent, TriggerType.ON_CLICK);
+                    List<UssStyle> defaultStyles = GetStylesRecursive(defaultComponent);
+
+                    if (hoverNode != null) InjectSubStyles(hoverNode, defaultStyles, PseudoClass.Hover);
+                    if (clickNode != null) InjectSubStyles(clickNode, defaultStyles, PseudoClass.Active);
+                }
+
+                if (action.transition is { type: TransitionType.DISSOLVE })
+                    componentSetStyle.SubStyles.AddRange(UssStyle.MakeTransitionStyles(componentSetStyle, idleStyle, hoverStyle, clickStyle));
+            }
+        }
         void AddMissingNodesRecursively(BaseNode node)
         {
             if (node is InstanceNode instance && FindNode(instance.componentId) == null)

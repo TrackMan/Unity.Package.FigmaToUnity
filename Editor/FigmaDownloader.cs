@@ -17,7 +17,7 @@ namespace Figma
     using static Internals.Const;
     using static Internals.PathExtensions;
 
-    internal class FigmaUpdater : Api
+    internal class FigmaDownloader : Api
     {
         #region Consts
         const int maxConcurrentRequests = 5;
@@ -32,17 +32,17 @@ namespace Figma
         string imagesDirectoryPath;
         string framesDirectoryPath;
 
-        FigmaParser parser;
+        ContentWriter contentWriter;
         Usages usages;
         NodeMetadata nodeMetadata;
         #endregion
 
         #region Constructors
-        internal FigmaUpdater(string personalAccessToken, string fileKey, AssetsInfo info) : base(personalAccessToken, fileKey) => this.info = info;
+        internal FigmaDownloader(string personalAccessToken, string fileKey, AssetsInfo info) : base(personalAccessToken, fileKey) => this.info = info;
         #endregion
 
         #region Methods
-        internal async Task Run(bool downloadImages, string uxmlName, IReadOnlyCollection<Type> frames, bool filter, bool systemCopyBuffer, int progress, CancellationToken token)
+        internal async Task Run(bool downloadImages, string uxmlName, IReadOnlyCollection<Type> frames, bool prune, bool filter, bool systemCopyBuffer, int progress, CancellationToken token)
         {
             framesDirectoryPath = ToAbsolutePath(framesDirectoryName);
             imagesDirectoryPath = ToAbsolutePath(imagesDirectoryName);
@@ -82,7 +82,7 @@ namespace Figma
 
             string idsString = string.Empty;
 
-            if (visibleSceneNodes.Count > 0)
+            if (visibleSceneNodes.Any())
                 idsString = $"?ids={string.Join(",", visibleSceneNodes)}";
 
             string json = await GetJsonAsync($"files/{fileKey}{idsString}", token);
@@ -95,7 +95,7 @@ namespace Figma
             data.document.SetParentRecursively();
             nodeMetadata = new NodeMetadata(data.document, frames, filter);
             usages = new Usages();
-            parser = new FigmaParser(info, data, nodeMetadata, usages);
+            contentWriter = new ContentWriter(info, data, nodeMetadata, usages);
 
             Progress.Report(progress, 3, steps, "Downloading missing components");
             await DownloadDocumentsAsync(token);
@@ -117,8 +117,8 @@ namespace Figma
             Progress.SetStepLabel(progress, string.Empty);
 
             Progress.Report(progress, steps, steps, "Updating *.uss/*.uxml files");
-            parser.Run();
-            parser.Write(info.directory, uxmlName);
+            contentWriter.Run();
+            contentWriter.Write(info.directory, uxmlName, prune);
         }
         internal void CleanUp(bool cleanImages = false)
         {
@@ -170,14 +170,14 @@ namespace Figma
         #region Support Methods
         async Task DownloadDocumentsAsync(CancellationToken token)
         {
-            async Task<IEnumerable<Nodes.Document>> GetMissingComponentsAsync(IEnumerable<string> components)
-            {
-                Nodes[] result = await Task.WhenAll(components.Chunk(maxComponentsIdsInOneRequest).Select(chunk => GetAsync<Nodes>($"files/{fileKey}/nodes?ids={string.Join(",", chunk.Distinct())}", token)));
-                return result.SelectMany(node => node.nodes.Values.Where(value => value != null));
-            }
+            async Task<IEnumerable<Nodes.Document>> GetMissingComponentsAsync(IEnumerable<string> components) =>
+                (await Task.WhenAll(components.Chunk(maxComponentsIdsInOneRequest)
+                                              .Select(chunk => GetAsync<Nodes>($"files/{fileKey}/nodes?ids={string.Join(",", chunk.Distinct())}", token))))
+                .SelectMany(node => node.nodes.Values.Where(value => value != null));
+
             if (usages.MissingComponents.Count > 0)
                 foreach (Nodes.Document value in await GetMissingComponentsAsync(usages.MissingComponents))
-                    parser.AddMissingComponent(value.document, value.styles);
+                    contentWriter.AddMissingComponent(value.document, value.styles);
         }
         async Task GetImageFillsAsync(int progress, CancellationToken token)
         {

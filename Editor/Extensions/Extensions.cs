@@ -4,6 +4,7 @@ using System.Collections.Generic;
 namespace Figma.Core
 {
     using Internals;
+
     internal static class Extensions
     {
         #region Const
@@ -12,7 +13,7 @@ namespace Figma.Core
         #endregion
 
         #region Methods
-       internal static string NumberToWords(this int number)
+        internal static string NumberToWords(this int number)
         {
             switch (number)
             {
