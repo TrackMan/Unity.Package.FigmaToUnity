@@ -471,53 +471,6 @@ namespace Figma.Core.Uss
 
                 layout.absoluteBoundingBox = new Rect(layout.absoluteBoundingBox.x, layout.absoluteBoundingBox.y - geometry.strokeWeight.Value / 2, layout.absoluteBoundingBox.width, layout.absoluteBoundingBox.height);
             }
-            void AddSizeByParentAutoLayoutFromAutoLayout(IDefaultFrameMixin frame)
-            {
-                position = Position.Relative;
-                switch (frame.layoutMode)
-                {
-                    case LayoutMode.HORIZONTAL when ((IDefaultFrameMixin)frame.parent).layoutMode == LayoutMode.HORIZONTAL:
-                        width = layout.layoutGrow.HasPositive() ? new LengthProperty(100, Unit.Percent) : frame.primaryAxisSizingMode.IsValue(PrimaryAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.width : Unit.Auto;
-                        height = frame.layoutAlign == LayoutAlign.STRETCH ? new LengthProperty(100, Unit.Percent) : frame.counterAxisSizingMode.IsValue(CounterAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.height : Unit.Auto;
-                        break;
-
-                    case LayoutMode.HORIZONTAL:
-                        width = frame.layoutAlign == LayoutAlign.STRETCH ? new LengthProperty(100, Unit.Percent) : frame.primaryAxisSizingMode.IsValue(PrimaryAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.width : Unit.Auto;
-                        height = layout.layoutGrow.HasPositive() ? new LengthProperty(100, Unit.Percent) : frame.counterAxisSizingMode.IsValue(CounterAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.height : Unit.Auto;
-                        break;
-
-                    case LayoutMode.VERTICAL when ((IDefaultFrameMixin)frame.parent).layoutMode == LayoutMode.VERTICAL:
-                        width = frame.layoutAlign == LayoutAlign.STRETCH ? new LengthProperty(100, Unit.Percent) : frame.counterAxisSizingMode.IsValue(CounterAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.width : Unit.Auto;
-                        height = layout.layoutGrow.HasPositive() ? new LengthProperty(100, Unit.Percent) : frame.primaryAxisSizingMode.IsValue(PrimaryAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.height : Unit.Auto;
-                        break;
-
-                    case LayoutMode.VERTICAL:
-                        width = layout.layoutGrow.HasPositive() ? new LengthProperty(100, Unit.Percent) : frame.counterAxisSizingMode.IsValue(CounterAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.width : Unit.Auto;
-                        height = frame.layoutAlign == LayoutAlign.STRETCH ? new LengthProperty(100, Unit.Percent) : frame.primaryAxisSizingMode.IsValue(PrimaryAxisSizingMode.FIXED) ? frame.absoluteBoundingBox.height : Unit.Auto;
-                        break;
-                }
-
-                if (layout.layoutGrow.HasPositive()) flexGrow = layout.layoutGrow;
-            }
-            void AddSizeByParentAutoLayoutFromLayout(IDefaultFrameMixin parent)
-            {
-                position = Position.Relative;
-                switch (parent.layoutMode)
-                {
-                    case LayoutMode.HORIZONTAL:
-                        width = layout.layoutGrow.HasPositive() ? new LengthProperty(100, Unit.Percent) : layout.absoluteBoundingBox.width;
-                        height = layout.layoutAlign == LayoutAlign.STRETCH ? new LengthProperty(100, Unit.Percent) : layout.absoluteBoundingBox.height;
-                        break;
-
-                    case LayoutMode.VERTICAL:
-                        width = layout.layoutAlign == LayoutAlign.STRETCH ? new LengthProperty(100, Unit.Percent) : layout.absoluteBoundingBox.width;
-                        height = layout.layoutGrow.HasPositive() ? new LengthProperty(100, Unit.Percent) : layout.absoluteBoundingBox.height;
-                        break;
-                }
-
-                if (layout.layoutGrow.HasPositive())
-                    flexGrow = layout.layoutGrow;
-            }
             void AddSizeFromConstraint(IDefaultFrameMixin parent, LengthProperty widthProperty, LengthProperty heightProperty)
             {
                 ConstraintHorizontal horizontal = constraint.constraints.horizontal;
@@ -659,34 +612,54 @@ namespace Figma.Core.Uss
             if (layout.maxHeight.HasValue) maxHeight = layout.maxHeight.Value;
             if (IsSvgNode(baseNode)) AdjustSvgSize();
 
-            IDefaultFrameMixin parent = baseNode.parent as IDefaultFrameMixin;
             if (!IsRootNode(baseNode))
             {
-                if (parent!.layoutMode.HasValue && baseNode is not IDefaultFrameMixin or IDefaultFrameMixin { layoutPositioning: null })
+                IDefaultFrameMixin parent = (IDefaultFrameMixin)baseNode.parent;
+                if (parent.layoutMode is not null && baseNode is IDefaultFrameMixin { layoutPositioning: null } or not IDefaultFrameMixin)
                 {
-                    if (baseNode is IDefaultFrameMixin { layoutMode: not null, layoutPositioning: null } frame)
-                        AddSizeByParentAutoLayoutFromAutoLayout(frame);
-                    else
-                        AddSizeByParentAutoLayoutFromLayout(parent);
+                    bool growing = layout.layoutGrow is > 0;
 
-                    double? itemSpacing = parent.itemSpacing;
-                    if (itemSpacing is not null)
-                        AddItemSpacing(parent, itemSpacing!.Value);
+                    LayoutMode direction;
+                    bool primaryFixed;
+                    bool counterFixed;
+                    if (baseNode is IDefaultFrameMixin { layoutMode: not null } frame)
+                    {
+                        bool stretching = frame.layoutAlign is LayoutAlign.STRETCH;
+                        (bool primaryGrowing, bool counterGrowing) = frame.layoutMode == parent.layoutMode ? (growing, stretching) : (stretching, growing);
+                        (bool primarySizingFixed, bool counterSizingFixed) = (frame.primaryAxisSizingMode is PrimaryAxisSizingMode.FIXED, frame.counterAxisSizingMode is CounterAxisSizingMode.FIXED);
+                        (primaryFixed, counterFixed) = (primarySizingFixed && !primaryGrowing, counterSizingFixed && !counterGrowing);
+                        direction = frame.layoutMode.Value;
+                    }
+                    else
+                    {
+                        bool stretching = layout.layoutAlign is LayoutAlign.STRETCH;
+                        (primaryFixed, counterFixed) = (!growing, !stretching);
+                        direction = parent.layoutMode.Value;
+                    }
+
+                    if (direction is not LayoutMode.VERTICAL and not LayoutMode.HORIZONTAL) Debug.LogWarning(Extensions.BuildTargetMessage($"Direction layout for", $"{parent.name}/{Name}", $" is {direction}, undefined behaviour"));
+                    (bool widthFixed, bool heightFixed) = direction is LayoutMode.HORIZONTAL ? (primaryFixed, counterFixed) : (counterFixed, primaryFixed);
+
+                    if (growing) flexGrow = 1;
+                    if (widthFixed) width = layout.absoluteBoundingBox.width;
+                    if (heightFixed) height = layout.absoluteBoundingBox.height;
+                    if (parent.itemSpacing is not null) AddItemSpacing(parent, parent.itemSpacing.Value);
                 }
                 else
                 {
-                    if (baseNode is IDefaultFrameMixin { layoutMode: not null, layoutPositioning: null } frame)
-                        AddSizeFromConstraint(parent, (frame.layoutMode == LayoutMode.HORIZONTAL
-                                                  ? frame.primaryAxisSizingMode.IsValue(PrimaryAxisSizingMode.FIXED)
-                                                  : frame.counterAxisSizingMode.IsValue(CounterAxisSizingMode.FIXED))
-                                                  ? layout.absoluteBoundingBox.width
-                                                  : Unit.Auto, (frame.layoutMode == LayoutMode.VERTICAL
-                                                  ? frame.primaryAxisSizingMode.IsValue(PrimaryAxisSizingMode.FIXED)
-                                                  : frame.counterAxisSizingMode.IsValue(CounterAxisSizingMode.FIXED))
-                                                  ? layout.absoluteBoundingBox.height
-                                                  : Unit.Auto);
+                    bool widthFixed;
+                    bool heightFixed;
+                    if (baseNode is IDefaultFrameMixin { layoutMode: not null } frame)
+                    {
+                        (bool primarySizingFixed, bool counterSizingFixed) = (frame.primaryAxisSizingMode is PrimaryAxisSizingMode.FIXED, frame.counterAxisSizingMode is CounterAxisSizingMode.FIXED);
+                        (widthFixed, heightFixed) = frame.layoutMode is LayoutMode.HORIZONTAL ? (primarySizingFixed, counterSizingFixed) : (counterSizingFixed, primarySizingFixed);
+                    }
                     else
-                        AddSizeFromConstraint(parent, layout.absoluteBoundingBox.width, layout.absoluteBoundingBox.height);
+                    {
+                        (widthFixed, heightFixed) = (true, true);
+                    }
+
+                    AddSizeFromConstraint(parent, widthFixed ? layout.absoluteBoundingBox.width : Unit.Auto, heightFixed ? layout.absoluteBoundingBox.height : Unit.Auto);
                 }
             }
 
@@ -806,6 +779,7 @@ namespace Figma.Core.Uss
                 unityTextAlign = $"{vertical}-{horizontal}";
             }
 
+            if (style.textAutoResize is TextAutoResize.NONE or TextAutoResize.HEIGHT) whiteSpace = Wrap.Normal;
             if (style.fontSize.HasValue) fontSize = style.fontSize;
             if (style.fontPostScriptName.NullOrEmpty() && style.fontFamily == "Inter") style.fontPostScriptName = "Inter-Regular";
             if (style.fontPostScriptName.NotNullOrEmpty()) AddUnityFont();
