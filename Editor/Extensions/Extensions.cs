@@ -80,6 +80,7 @@ namespace Figma.Core
             avgColor.b /= count;
             return avgColor;
         }
+        internal static int ToBit(this bool value) => value ? 1 : 0;
         #endregion
     }
 }

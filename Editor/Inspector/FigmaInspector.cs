@@ -41,7 +41,7 @@ namespace Figma.Inspectors
         UIDocument document;
         new Figma target;
 
-        Dictionary<MonoBehaviour, bool> downloadMap;
+        Dictionary<MonoBehaviour, bool> selection;
         bool updating;
         bool resolvingName;
         string username;
@@ -66,7 +66,7 @@ namespace Figma.Inspectors
             waitFrameBeforeRebuild = serializedObject.FindProperty(nameof(waitFrameBeforeRebuild));
 
             document = target.GetComponent<UIDocument>();
-            downloadMap = target.GetComponentsInChildren<IRootElement>().Cast<MonoBehaviour>().ToDictionary(key => key, _ => true);
+            selection = target.GetComponentsInChildren<IRootElement>().Cast<MonoBehaviour>().ToDictionary(key => key, _ => true);
         }
         public override void OnInspectorGUI()
         {
@@ -145,8 +145,8 @@ namespace Figma.Inspectors
                     for (int index = 0; index < this.fontDirectories.arraySize; index++)
                         fontDirectories[index] = this.fontDirectories.GetArrayElementAtIndex(index).stringValue;
 
-                    Type[] frames = downloadMap.Where(x => x.Value).Select(x => x.Key.GetType()).ToArray();
-                    bool prune = downloadMap.All(x => x.Value);
+                    Type[] frames = selection.Where(x => x.Value).Select(x => x.Key.GetType()).ToArray();
+                    bool prune = selection.All(x => x.Value);
 
                     document.visualTreeAsset = pickDirectory ? null : document.visualTreeAsset;
 
@@ -166,6 +166,9 @@ namespace Figma.Inspectors
             using (new EditorGUI.DisabledScope(true))
                 EditorGUILayout.ObjectField("Asset", visualTreeAsset, typeof(VisualTreeAsset), true);
 
+            if (string.IsNullOrEmpty(PersonalAccessToken))
+                return;
+
             using (new EditorGUILayout.HorizontalScope())
             {
                 const string downloadTooltip = "Hold `Ctrl` to copy 'figma.json' into your clipboard";
@@ -175,7 +178,7 @@ namespace Figma.Inspectors
                     using (new EditorGUI.DisabledScope(true))
                         GUILayout.Button("Updating...");
                 }
-                else
+                else if (selection.Any(x => x.Value))
                 {
                     bool update = GUILayout.Button(new GUIContent("Update", DocumentsOnlyIcon, downloadTooltip), GUILayout.Height(20));
                     bool downloadImages = GUILayout.Button(new GUIContent("Update with Images", DocumentWithImagesIcon, downloadTooltip), GUILayout.Width(184), GUILayout.Height(20));
@@ -192,8 +195,11 @@ namespace Figma.Inspectors
                 }
             }
 
-            if (downloadMap.Any(x => !x.Value))
-                EditorGUILayout.HelpBox("Selection mode does not support a Clean Up.", MessageType.Warning);
+            if (selection.Any(x => !x.Value) && selection.Any(x => x.Value))
+                EditorGUILayout.HelpBox("Selection mode does clean up unused content. In order to get rid of unused content, \"Select All\" and \"Update\"", MessageType.Warning);
+
+            if (selection.All(x => !x.Value))
+                EditorGUILayout.HelpBox("Nothing is selected for Update.", MessageType.Error);
         }
         void DrawFramesView()
         {
@@ -201,18 +207,18 @@ namespace Figma.Inspectors
 
             searchBar = EditorGUILayout.TextField(searchBar, EditorStyles.toolbarSearchField);
 
-            bool clear = downloadMap.All(x => x.Value);
+            bool clear = selection.All(x => x.Value);
 
             using (new GUILayout.HorizontalScope())
             {
                 GUILayout.FlexibleSpace();
 
-                if (GUILayout.Button(new GUIContent($"{(clear ? "Clear" : "Select All")} ({downloadMap.Sum(x => x.Value ? 1 : 0)})"), GUILayout.Width(100)))
-                    foreach (MonoBehaviour frame in downloadMap.Keys.ToArray())
-                        downloadMap[frame] = !clear;
+                if (GUILayout.Button(new GUIContent($"{(clear ? "Clear" : "Select All")} ({selection.Sum(x => x.Value.ToBit())})"), GUILayout.Width(100)))
+                    foreach (MonoBehaviour frame in selection.Keys.ToArray())
+                        selection[frame] = !clear;
             }
 
-            foreach (MonoBehaviour frame in downloadMap.Keys.OrderBy(x => x.GetType().GetCustomAttribute<UxmlAttribute>().Root))
+            foreach (MonoBehaviour frame in selection.Keys.OrderBy(x => x.GetType().GetCustomAttribute<UxmlAttribute>().Root))
             {
                 Type elementType = frame.GetType();
                 UxmlAttribute uxml = elementType.GetCustomAttribute<UxmlAttribute>();
@@ -222,15 +228,15 @@ namespace Figma.Inspectors
 
                 using (new EditorGUILayout.HorizontalScope())
                 {
-                    using (new EditorGUI.DisabledGroupScope(!downloadMap[frame]))
+                    using (new EditorGUI.DisabledGroupScope(!selection[frame]))
                         EditorGUILayout.LabelField(new GUIContent(uxml.Root, uxml.Preserve.Any() ? $"Preserves {(uxml.Preserve.Aggregate((x, y) => $"{x} {y}"))}" : null),
-                                                  uxml.Preserve.Any() ? EditorStyles.boldLabel : EditorStyles.label,
-                                                  GUILayout.Width(EditorGUIUtility.labelWidth));
+                                                   uxml.Preserve.Any() ? EditorStyles.boldLabel : EditorStyles.label,
+                                                   GUILayout.Width(EditorGUIUtility.labelWidth));
 
                     using (new EditorGUI.DisabledGroupScope(true))
                         EditorGUI.ObjectField(EditorGUILayout.GetControlRect(), frame, typeof(MonoBehaviour), false);
 
-                    downloadMap[frame] = EditorGUILayout.Toggle(downloadMap[frame], GUILayout.Width(24));
+                    selection[frame] = EditorGUILayout.Toggle(selection[frame], GUILayout.Width(24));
                 }
             }
         }
