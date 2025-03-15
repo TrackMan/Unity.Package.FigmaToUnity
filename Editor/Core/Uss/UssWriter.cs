@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -69,7 +70,7 @@ namespace Figma.Core.Uss
 
             Write(style.SubStyles);
         }
-        public void Write(IEnumerable<BaseUssStyle> styles) => styles.ForEach(Write);
+        public void Write(IEnumerable<BaseUssStyle> styles) => styles.OrderBy(x => x.Name).ForEach(Write);
 
         void IDisposable.Dispose() => stream?.Dispose();
         async ValueTask IAsyncDisposable.DisposeAsync()

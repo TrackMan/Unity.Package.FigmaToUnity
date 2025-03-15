@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -30,10 +31,10 @@ namespace Figma
         #endregion
 
         #region Fields
-        readonly AssetsInfo assetsInfo;
         readonly Data data;
         readonly NodeMetadata nodeMetadata;
         readonly Usages usages;
+        readonly AssetsInfo assetsInfo;
 
         readonly List<ComponentNode> components = new(initialCollectionCapacity);
         readonly List<Dictionary<string, Style>> componentsStyles = new(initialCollectionCapacity);
@@ -43,7 +44,6 @@ namespace Figma
         #endregion
 
         #region Properties
-        AssetsInfo AssetsInfo => assetsInfo;
         DocumentNode Document => data.document;
         Dictionary<string, Style> documentStyles => data.styles;
         #endregion
@@ -53,8 +53,8 @@ namespace Figma
         {
             this.nodeMetadata = nodeMetadata;
             this.data = data;
-            this.assetsInfo = assetsInfo;
             this.usages = usages;
+            this.assetsInfo = assetsInfo;
 
             foreach (CanvasNode canvas in data.document.children)
             {
@@ -143,7 +143,7 @@ namespace Figma
                     Directory.CreateDirectory(rootDirectory);
 
                 using UssWriter ussWriter = new(directory, CombinePath(rootDirectory, $"{frameNode.name}.{KnownFormats.uss}"));
-                ussWriter.Write(GroupRenameStyles(GetStylesRecursive(frameNode)));
+                ussWriter.Write(GroupRenameStyles(GetStyles(frameNode)));
 
                 FindTemplatesRecursive(frameNode);
 
@@ -156,7 +156,7 @@ namespace Figma
             void WriteComponentSet(ComponentSetNode componentSet)
             {
                 using UssWriter ussWriter = new(directory, CombinePath(directory, componentsDirectoryName, $"{componentSet.name}.{KnownFormats.uss}"));
-                ussWriter.Write(GroupRenameStyles(GetStylesRecursive(componentSet)));
+                ussWriter.Write(GroupRenameStyles(GetStyles(componentSet)));
 
                 string uxmlPath = builder.CreateComponentSet(CombinePath(directory, componentsDirectoryName), new[] { globalUssPath, ussWriter.Path }, componentSet);
                 usages.RecordFiles(uxmlPath, ussWriter.Path);
@@ -166,7 +166,7 @@ namespace Figma
                 (bool isHash, string hashedTemplates) = nodeMetadata.GetTemplate(node.element);
 
                 using UssWriter ussWriter = new(directory, CombinePath(directory, elementsDirectoryName, $"{(isHash ? hashedTemplates : node.template)}.{KnownFormats.uss}"));
-                ussWriter.Write(GroupRenameStyles(GetStylesRecursive(node.element)));
+                ussWriter.Write(GroupRenameStyles(GetStyles(node.element)));
 
                 string uxmlPath = builder.CreateElement(CombinePath(directory, elementsDirectoryName), new[] { globalUssPath, ussWriter.Path }, node.element, node.template);
                 usages.RecordFiles(uxmlPath, ussWriter.Path);
@@ -199,26 +199,6 @@ namespace Figma
         }
         void AddTransitionStyles()
         {
-            List<UssStyle> GetStylesRecursive(BaseNode node, List<UssStyle> styles = null)
-            {
-                styles ??= new List<UssStyle>();
-
-                if (componentStyleMap.TryGetValue(node, out UssStyle style))
-                    styles.Add(style);
-
-                if (node is not IChildrenMixin nodeWithChildren)
-                    return styles;
-
-                foreach (SceneNode child in nodeWithChildren.children)
-                {
-                    if (child is ComponentSetNode)
-                        continue;
-
-                    GetStylesRecursive(child, styles);
-                }
-
-                return styles;
-            }
             ComponentNode GetTransitionNode(ComponentSetNode componentSet, ComponentNode defaultComponent, TriggerType triggerType)
             {
                 Action action = defaultComponent.interactions
@@ -291,9 +271,9 @@ namespace Figma
                 if (idleStyle == null)
                     continue;
 
-                void InjectSubStyles(ComponentNode node, List<UssStyle> defaultStyles, PseudoClass pseudoClass)
+                void InjectSubStyles(ComponentNode node, IReadOnlyList<UssStyle> defaultStyles, PseudoClass pseudoClass)
                 {
-                    List<UssStyle> styles = GetStylesRecursive(node);
+                    IReadOnlyList<UssStyle> styles = GetStyles(node);
                     for (int i = 0; i < styles.Count; i++)
                     {
                         UssStyle style = styles[i];
@@ -306,7 +286,7 @@ namespace Figma
                 {
                     ComponentNode hoverNode = GetTransitionNode(componentSet, defaultComponent, TriggerType.ON_HOVER);
                     ComponentNode clickNode = GetTransitionNode(componentSet, defaultComponent, TriggerType.ON_CLICK);
-                    List<UssStyle> defaultStyles = GetStylesRecursive(defaultComponent);
+                    IReadOnlyList<UssStyle> defaultStyles = GetStyles(defaultComponent);
 
                     if (hoverNode != null) InjectSubStyles(hoverNode, defaultStyles, PseudoClass.Hover);
                     if (clickNode != null) InjectSubStyles(clickNode, defaultStyles, PseudoClass.Active);
@@ -343,10 +323,7 @@ namespace Figma
             if (IsSvgNode(node) && HasImageFill(node))
                 usages.PngNodes.Add(node);
 
-            if (node is BooleanOperationNode)
-                return;
-
-            if (node is IChildrenMixin children)
+            if (node is not BooleanOperationNode && node is IChildrenMixin children)
                 children.children.ForEach(AddPngNodesRecursively);
         }
         void AddSvgNodesRecursively(BaseNode node)
@@ -538,20 +515,10 @@ namespace Figma
             else if (component != null) style.Inherit(component);
             else if (styles.Count > 0) style.Inherit(styles);
 
-            if (node is BooleanOperationNode)
-                return;
-
-            if (node is IChildrenMixin children)
+            if (node is not BooleanOperationNode && node is IChildrenMixin children)
                 children.children.ForEach(InheritStylesRecursively);
         }
-        UssStyle GetStyle(BaseNode node)
-        {
-            if (componentStyleMap.TryGetValue(node, out UssStyle style))
-                return style;
-
-            return
-                nodeStyleMap.TryGetValue(node, out style) ? style : null;
-        }
+        UssStyle GetStyle(BaseNode node) => componentStyleMap.TryGetValue(node, out UssStyle style) || nodeStyleMap.TryGetValue(node, out style) ? style : null;
         string GetClassList(BaseNode node)
         {
             string classList = string.Empty;
@@ -616,10 +583,9 @@ namespace Figma
                 styles.Clear();
             }
 
-            if (component.NotNullOrEmpty() && styles.Count > 0) classList = style.ResolveClassList(component, styles);
-            else if (component.NotNullOrEmpty()) classList = style.ResolveClassList(component);
-            else if (styles.Count > 0) classList = style.ResolveClassList(styles);
-            else classList = style.ResolveClassList();
+            classList = component.NotNullOrEmpty()
+                ? (styles.Count > 0 ? style.ResolveClassList(component, styles) : style.ResolveClassList(component))
+                : (styles.Count > 0 ? style.ResolveClassList(styles) : style.ResolveClassList());
 
             if (IsRootNode(node))
                 classList += $"{(string.IsNullOrEmpty(classList) ? string.Empty : " ")}{UssStyle.viewportClass.Name}";
@@ -633,38 +599,68 @@ namespace Figma
         internal static bool IsVisible(IBaseNodeMixin mixin) => (mixin is not ISceneNodeMixin scene || !scene.visible.HasValueAndFalse()) && (mixin.parent == null || IsVisible(mixin.parent));
         internal static bool HasImageFill(IBaseNodeMixin mixin) => mixin is IGeometryMixin geometry && geometry.fills.Any(x => x is ImagePaint);
         internal static bool IsSvgNode(IBaseNodeMixin mixin) => mixin is LineNode or EllipseNode or RegularPolygonNode or StarNode or VectorNode || (mixin is BooleanOperationNode && IsBooleanOperationVisible(mixin));
-        internal static bool IsBooleanOperationVisible(IBaseNodeMixin node)
+
+        static bool IsBooleanOperationVisible(IBaseNodeMixin root)
         {
-            if (node is not IChildrenMixin children)
+            if (root is not IChildrenMixin)
                 return false;
 
-            foreach (SceneNode child in children.children)
+            Stack<IBaseNodeMixin> nodes = new();
+            nodes.Push(root);
+
+            int i = 0;
+
+            while (nodes.Count > 0)
             {
-                if (child is not BooleanOperationNode && IsVisible(child) && IsSvgNode(child))
-                    return true;
-                if (child is BooleanOperationNode)
-                    return IsBooleanOperationVisible(child);
+                if (i++ > 0x1000)
+                    throw new StackOverflowException();
+
+                IBaseNodeMixin node = nodes.Pop();
+
+                if (node is not IChildrenMixin children)
+                    continue;
+
+                foreach (SceneNode child in children.children)
+                {
+                    if (child is BooleanOperationNode)
+                        nodes.Push(child);
+                    else if (IsVisible(child) && IsSvgNode(child))
+                        return true;
+                }
             }
 
             return false;
         }
-        List<UssStyle> GetStylesRecursive(BaseNode node, List<UssStyle> styles = null)
+        IReadOnlyList<UssStyle> GetStyles(BaseNode root)
         {
-            styles ??= new List<UssStyle>();
+            List<UssStyle> result = new();
+            Stack<BaseNode> nodes = new();
+            nodes.Push(root);
 
-            if (componentStyleMap.TryGetValue(node, out UssStyle componentStyle))
-                styles.Add(componentStyle);
+            int i = 0;
 
-            if (nodeStyleMap.TryGetValue(node, out UssStyle nodeStyle))
-                styles.Add(nodeStyle);
+            while (nodes.Count > 0)
+            {
+                if (i++ > 0x1000)
+                    throw new StackOverflowException();
 
-            if (node is not IChildrenMixin nodeWithChildren)
-                return styles;
+                BaseNode node = nodes.Pop();
 
-            foreach (SceneNode child in nodeWithChildren.children)
-                GetStylesRecursive(child, styles);
+                if (!IsVisible(node))
+                    continue;
 
-            return styles;
+                if ((componentStyleMap.TryGetValue(node, out UssStyle styles) || nodeStyleMap.TryGetValue(node, out styles)))
+                    result.Add(styles);
+
+                if (node is not IChildrenMixin nodeWithChildren)
+                    continue;
+
+                foreach (SceneNode child in nodeWithChildren.children)
+                    if (child is not ComponentSetNode)
+                        nodes.Push(child);
+            }
+
+            return result;
         }
         #endregion
     }

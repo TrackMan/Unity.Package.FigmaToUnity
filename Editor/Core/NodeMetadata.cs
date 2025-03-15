@@ -180,13 +180,7 @@ namespace Figma
             if (metadata.root is null || !metadata.root.filter || metadata.query is null)
                 return (false, null);
 
-            if (metadata.query.query.Template != "Hash" && !metadata.query.query.Hash)
-                return (false, metadata.query.query.Template);
-
-            if (metadata.query.query.Template == "Hash")
-                Debug.LogWarning($"Node at \'{GetFullPath(node)}\' has [Templates = \"Hash\"] template, which is obsolete. Use [Hash = true] property instead.");
-
-            return (true, $"{metadata.query.fieldType.Name}-{Hash128.Compute(GetFullPath(node))}");
+            return !metadata.query.query.Hash ? (false, metadata.query.query.Template) : (true, $"{metadata.query.fieldType.Name}-{Hash128.Compute(GetFullPath(node))}");
         }
         internal (ElementType, string) GetElementType(BaseNode node)
         {

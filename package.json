@@ -6,8 +6,7 @@
   "unity": "2022.3",
   "dependencies": {
     "com.unity.vectorgraphics": "2.0.0-preview.24",
-    "com.trackman.asyncawaitutil": "1.0.6",
-    "com.trackman.commonutils": "1.1.3"
+    "com.trackman.asyncawaitutil": "1.0.6"
   },
   "author": "TrackMan",
   "type": "trackman.package",

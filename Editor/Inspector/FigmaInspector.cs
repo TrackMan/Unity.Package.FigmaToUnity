@@ -267,20 +267,6 @@ namespace Figma.Inspectors
 
                 return PathExtensions.CombinePath(packageInfo.assetPath, Path.GetFullPath(path).Replace(Path.GetFullPath(packageInfo.resolvedPath), string.Empty));
             }
-            (string directory, string relativeDirectory, string product, string name) GetDirectoryAndRelativeDirectory(string assetPath)
-            {
-                if (!assetPath.StartsWith("Packages"))
-                    return (Path.GetDirectoryName(assetPath),
-                            Path.GetRelativePath(Directory.GetCurrentDirectory(), Path.GetDirectoryName(assetPath)),
-                            Application.productName,
-                            regex.Match(assetPath).Value);
-
-                PackageInfo packageInfo = PackageInfo.FindForAssetPath(assetPath);
-                return (packageInfo.resolvedPath + Path.GetDirectoryName(assetPath.Replace(packageInfo.assetPath, string.Empty)),
-                        Path.GetDirectoryName(assetPath),
-                        packageInfo.displayName,
-                        regex.Match(assetPath).Value);
-            }
 
             (string directory, string relativeDirectory, string product, string uxmlName) = GetDirectoryAndRelativeDirectory(GetAssetPath());
             uxmlName = Path.GetFileNameWithoutExtension(uxmlName);
@@ -305,8 +291,25 @@ namespace Figma.Inspectors
                 });
 
                 AssetsInfo info = new(directory, relativeDirectory, uxmlName, fontDirectories);
+                FigmaDownloader figmaDownloader = new(PersonalAccessToken, fileKey, info);
 
-                await UpdateAsync(document, figma, frames, prune, progress, fileKey, info, uxmlName, systemCopyBuffer, downloadImages, cancellationToken.Token);
+                try
+                {
+                    await figmaDownloader.Run(downloadImages, uxmlName, frames, prune, figma.Filter, systemCopyBuffer, progress, cancellationToken.Token);
+
+                    if (prune)
+                        figmaDownloader.CleanUp(downloadImages);
+                }
+                finally
+                {
+                    if (prune)
+                        figmaDownloader.CleanDirectories();
+                }
+
+                document.visualTreeAsset = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(PathExtensions.CombinePath(info.relativeDirectory, $"{uxmlName}.{KnownFormats.uxml}"));
+                EditorUtility.SetDirty(document);
+
+                AssetDatabase.Refresh();
 
                 stopwatch.Stop();
 
@@ -328,27 +331,19 @@ namespace Figma.Inspectors
                 stopwatch.Stop();
             }
         }
-        static async Task UpdateAsync(UIDocument document, Figma figma, IReadOnlyList<Type> frames, bool prune, int progress, string fileKey, AssetsInfo info, string uxmlName, bool systemCopyBuffer, bool downloadImages, CancellationToken token)
+        static (string directory, string relativeDirectory, string product, string name) GetDirectoryAndRelativeDirectory(string assetPath)
         {
-            FigmaDownloader figmaDownloader = new(PersonalAccessToken, fileKey, info);
+            if (!assetPath.StartsWith("Packages"))
+                return (Path.GetDirectoryName(assetPath),
+                        Path.GetRelativePath(Directory.GetCurrentDirectory(), Path.GetDirectoryName(assetPath)),
+                        Application.productName,
+                        regex.Match(assetPath).Value);
 
-            try
-            {
-                await figmaDownloader.Run(downloadImages, uxmlName, frames, prune, figma.Filter, systemCopyBuffer, progress, token);
-
-                if (prune)
-                    figmaDownloader.CleanUp(downloadImages);
-            }
-            finally
-            {
-                if (prune)
-                    figmaDownloader.CleanDirectories();
-            }
-
-            document.visualTreeAsset = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(PathExtensions.CombinePath(info.relativeDirectory, $"{uxmlName}.{KnownFormats.uxml}"));
-            EditorUtility.SetDirty(document);
-
-            AssetDatabase.Refresh();
+            PackageInfo packageInfo = PackageInfo.FindForAssetPath(assetPath);
+            return (packageInfo.resolvedPath + Path.GetDirectoryName(assetPath.Replace(packageInfo.assetPath, string.Empty)),
+                    Path.GetDirectoryName(assetPath),
+                    packageInfo.displayName,
+                    regex.Match(assetPath).Value);
         }
         #endregion
     }

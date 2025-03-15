@@ -835,7 +835,7 @@ namespace Figma
                 if (query.Template.NullOrEmpty() && !query.Hash)
                     return;
 
-                if (query.Template == "Hash" || query.Hash)
+                if (query.Hash)
                 {
                     cloneMap.Add(value, value.tooltip);
                     value.tooltip = null;

@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 
@@ -13,8 +12,6 @@ using Newtonsoft.Json;
 
 namespace Figma.Internals
 {
-    using number = Double;
-
     public interface IBaseNodeMixin
     {
         NodeType type { get; set; }
@@ -43,19 +40,19 @@ namespace Figma.Internals
     public interface ILayoutMixin
     {
         LayoutAlign layoutAlign { get; set; }
-        number? layoutGrow { get; set; }
+        double? layoutGrow { get; set; }
         Rect absoluteBoundingBox { get; set; }
-        number?[][] relativeTransform { get; set; }
+        double?[][] relativeTransform { get; set; }
         Vector? size { get; set; }
-        number? minWidth { get; set; }
-        number? minHeight { get; set; }
-        number? maxWidth { get; set; }
-        number? maxHeight { get; set; }
+        double? minWidth { get; set; }
+        double? minHeight { get; set; }
+        double? maxWidth { get; set; }
+        double? maxHeight { get; set; }
     }
 
     public interface IBlendMixin
     {
-        number? opacity { get; set; }
+        double? opacity { get; set; }
         BlendMode blendMode { get; set; }
         bool? isMask { get; set; }
         bool? isMaskOutline { get; set; }
@@ -75,7 +72,7 @@ namespace Figma.Internals
         Paint[] fills { get; set; }
         object[] fillGeometry { get; set; }
         Paint[] strokes { get; set; }
-        number? strokeWeight { get; set; }
+        double? strokeWeight { get; set; }
         StrokeAlign? strokeAlign { get; set; }
         StrokeCap? strokeCap { get; set; }
         StrokeJoin? strokeJoin { get; set; }
@@ -85,12 +82,12 @@ namespace Figma.Internals
 
     public interface ICornerMixin
     {
-        number? cornerRadius { get; set; }
+        double? cornerRadius { get; set; }
     }
 
     public interface IRectangleCornerMixin
     {
-        number[] rectangleCornerRadii { get; set; }
+        double[] rectangleCornerRadii { get; set; }
     }
 
     public interface IExportMixin
@@ -106,7 +103,7 @@ namespace Figma.Internals
     public interface ITransitionMixin
     {
         string transitionNodeID { get; set; }
-        number? transitionDuration { get; set; }
+        double? transitionDuration { get; set; }
         EasingType? transitionEasing { get; set; }
     }
 
@@ -126,11 +123,11 @@ namespace Figma.Internals
         CounterAxisSizingMode? counterAxisSizingMode { get; set; }
         CounterAxisAlignItems? counterAxisAlignItems { get; set; }
         CounterAxisAlignContent counterAxisAlignContent { get; set; }
-        number? paddingLeft { get; set; }
-        number? paddingTop { get; set; }
-        number? paddingRight { get; set; }
-        number? paddingBottom { get; set; }
-        number? itemSpacing { get; set; }
+        double? paddingLeft { get; set; }
+        double? paddingTop { get; set; }
+        double? paddingRight { get; set; }
+        double? paddingBottom { get; set; }
+        double? itemSpacing { get; set; }
         LayoutGrid[] layoutGrids { get; set; }
         bool? clipsContent { get; set; }
         OverflowDirection? overflowDirection { get; set; }

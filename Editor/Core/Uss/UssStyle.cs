@@ -260,10 +260,7 @@ namespace Figma.Core.Uss
                 if (padding.Any(x => x != 0))
                     this.padding = padding;
             }
-            static string GetNodeFullPath(BaseNode node)
-            {
-                return node is null ? string.Empty : Path.Combine(GetNodeFullPath(node.parent), node.name);
-            }
+            static string GetNodeFullPath(BaseNode node) => node is null ? string.Empty : Path.Combine(GetNodeFullPath(node.parent), node.name);
             void AddAutoLayout()
             {
                 switch (mixin.layoutMode)
@@ -277,13 +274,15 @@ namespace Figma.Core.Uss
                         if (mixin.layoutWrap is LayoutWrap.NO_WRAP)
                         {
                             flexWrap = FlexWrap.Nowrap;
+                            // This should be removed.
                             if (mixin.layoutAlign is LayoutAlign.STRETCH && mixin.primaryAxisSizingMode is PrimaryAxisSizingMode.FIXED)
                             {
                                 flexWrap = FlexWrap.Wrap;
                                 string path = GetNodeFullPath(mixin as BaseNode);
-                                Debug.LogWarning($"Path could not be found: {path}");
+                                Debug.LogWarning(Extensions.BuildTargetMessage("Set Flex Wrap to Wrap in your Figma Document", path));
                             }
                         }
+
                         break;
 
                     case LayoutMode.VERTICAL:
@@ -292,14 +291,14 @@ namespace Figma.Core.Uss
                         alignItems = Align.FlexStart;
                         if (mixin.layoutAlign != LayoutAlign.STRETCH && mixin.primaryAxisSizingMode.IsValue(PrimaryAxisSizingMode.FIXED))
                         {
-                            // Figma doesn't support wrap at vertical layout, then we forcibly set it
+                            // Figma doesn't support wrap at vertical layout, then we forcibly set it.
                             flexWrap = FlexWrap.Wrap;
                         }
+
                         break;
                 }
 
                 if (mixin.primaryAxisAlignItems.HasValue)
-                {
                     justifyContent = mixin.primaryAxisAlignItems.Value switch
                     {
                         PrimaryAxisAlignItems.MIN => JustifyContent.FlexStart,
@@ -308,10 +307,8 @@ namespace Figma.Core.Uss
                         PrimaryAxisAlignItems.SPACE_BETWEEN => JustifyContent.SpaceBetween,
                         _ => throw new NotSupportedException()
                     };
-                }
 
                 if (mixin.counterAxisAlignItems.HasValue)
-                {
                     alignItems = mixin.counterAxisAlignItems.Value switch
                     {
                         CounterAxisAlignItems.MIN => Align.FlexStart,
@@ -320,7 +317,6 @@ namespace Figma.Core.Uss
                         CounterAxisAlignItems.BASELINE => Align.Stretch,
                         _ => throw new NotSupportedException()
                     };
-                }
 
                 if (mixin.itemSpacing.HasPositive())
                     itemSpacing = mixin.itemSpacing;
@@ -353,7 +349,8 @@ namespace Figma.Core.Uss
             void AddBackgroundImageForVectorNode()
             {
                 (bool valid, string url) = HasImageFill(@base) ? assetsInfo.GetAssetPath(@base.id, KnownFormats.png) : assetsInfo.GetAssetPath(@base.id, KnownFormats.svg);
-                if (valid) backgroundImage = Url(url);
+                if (valid)
+                    backgroundImage = Url(url);
             }
             void AddBorderWidth()
             {
@@ -575,8 +572,8 @@ namespace Figma.Core.Uss
             }
             void AddItemSpacing(IDefaultFrameMixin parent, double itemSpacing)
             {
-
-                if (baseNode == parent.children.LastOrDefault(IsVisible)) return;
+                if (baseNode == parent.children.LastOrDefault(IsVisible))
+                    return;
 
                 if (parent!.layoutMode!.Value == LayoutMode.HORIZONTAL && parent.primaryAxisAlignItems is not PrimaryAxisAlignItems.SPACE_BETWEEN)
                     marginRight = itemSpacing;
@@ -637,7 +634,7 @@ namespace Figma.Core.Uss
                         direction = parent.layoutMode.Value;
                     }
 
-                    if (direction is not LayoutMode.VERTICAL and not LayoutMode.HORIZONTAL) Debug.LogWarning(Extensions.BuildTargetMessage($"Direction layout for", $"{parent.name}/{Name}", $" is {direction}, undefined behaviour"));
+                    if (direction is not LayoutMode.VERTICAL and not LayoutMode.HORIZONTAL) Debug.LogWarning(Extensions.BuildTargetMessage("Direction layout for", $"{parent.name}/{Name}", $" is {direction}, undefined behaviour"));
                     (bool widthFixed, bool heightFixed) = direction is LayoutMode.HORIZONTAL ? (primaryFixed, counterFixed) : (counterFixed, primaryFixed);
 
                     if (growing) flexGrow = 1;
@@ -695,9 +692,8 @@ namespace Figma.Core.Uss
         }
         void AddTextFillStyle(IEnumerable<Paint> fills)
         {
-            foreach (Paint fill in fills)
-                if (fill is SolidPaint solid && solid.visible.IsEmptyOrTrue())
-                    color = new ColorProperty(solid.color, solid.opacity);
+            foreach (SolidPaint solid in fills.Where(x => x is SolidPaint solid && solid.visible.IsEmptyOrTrue()).Cast<SolidPaint>())
+                color = new ColorProperty(solid.color, solid.opacity);
         }
         void AddStrokeFillStyle(IEnumerable<Paint> strokes)
         {
@@ -787,15 +783,13 @@ namespace Figma.Core.Uss
         }
         void AddTextNodeEffects(IEnumerable<Effect> effects)
         {
-            foreach (Effect effect in effects)
-                if (effect is ShadowEffect { visible: true } shadowEffect)
-                    textShadow = new ShadowProperty(shadowEffect.offset.x, shadowEffect.offset.y, shadowEffect.radius, shadowEffect.color);
+            foreach (ShadowEffect effect in effects.Where(x => x is ShadowEffect { visible: true }).Cast<ShadowEffect>())
+                textShadow = new ShadowProperty(effect.offset.x, effect.offset.y, effect.radius, effect.color);
         }
         void AddNodeEffects(IEnumerable<Effect> effects)
         {
-            foreach (Effect effect in effects)
-                if (effect is ShadowEffect { visible: true } shadowEffect)
-                    boxShadow = new ShadowProperty(shadowEffect.offset.x, shadowEffect.offset.y, shadowEffect.radius, shadowEffect.color);
+            foreach (ShadowEffect effect in effects.Where(x => x is ShadowEffect { visible: true }).Cast<ShadowEffect>())
+                boxShadow = new ShadowProperty(effect.offset.x, effect.offset.y, effect.radius, effect.color);
         }
         #endregion
 
@@ -804,10 +798,8 @@ namespace Figma.Core.Uss
         {
             List<UssStyle> transitions = new() { new UssStyle(root.Name) { Target = idle, opacity = 1 } };
 
-            if (hover != null)
-                transitions.Add(new UssStyle(root.Name) { Target = idle, PseudoClass = PseudoClass.Hover, opacity = 0 });
-            if (active != null)
-                transitions.Add(new UssStyle(root.Name) { Target = idle, PseudoClass = PseudoClass.Active, opacity = 0 });
+            if (hover != null) transitions.Add(new UssStyle(root.Name) { Target = idle, PseudoClass = PseudoClass.Hover, opacity = 0 });
+            if (active != null) transitions.Add(new UssStyle(root.Name) { Target = idle, PseudoClass = PseudoClass.Active, opacity = 0 });
 
             if (hover != null)
             {

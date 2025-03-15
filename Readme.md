@@ -4,7 +4,7 @@
 [output.webm](https://github.com/TrackMan/Unity.Package.FigmaForUnity/assets/22183046/59423710-61af-44b0-b233-47216881c051)
 
 # Overview
-FigmaToUnity is a specialized Unity tool that streamlines the UI development process by enabling the direct import of Figma page documents into Unity. The tool automatically converts Figma designs into UI Toolkit assets, allowing for quick and accurate integration of UI interfaces into your Unity games.
+FigmaToUnity is a Unity plugin that streamlines the UI development process by enabling the direct import of Figma page documents into Unity. The tool automatically converts Figma document into UI Toolkit assets, allowing for quick and accurate integration of UI interfaces into your Unity games.
 
 # Features
 
@@ -21,17 +21,14 @@ FigmaToUnity is a specialized Unity tool that streamlines the UI development pro
 3. Choose `Add package from git URL...`
 4. Enter https://github.com/TrackMan/Unity.Package.AsyncAwaitUtil.git
 5. Click the `+` button in the top-left corner
-6. Choose `Add package from git URL...`
-7. Enter https://github.com/TrackMan/Unity.Package.CommonUtils.git
-8. Click the `+` button in the top-left corner
-9. Choose `Add package from git URL...`
-10. Enter https://github.com/TrackMan/Unity.Package.FigmaForUnity.git
+6. Click the `+` button in the top-left corner
+7. Choose `Add package from git URL...`
+8. Enter https://github.com/TrackMan/Unity.Package.FigmaForUnity.git
 
 ## Dependencies
 To integrate these dependencies, you must either manually include them in your project's manifest file or ensure they are automatically resolved through Unity's Package Manager registry.
 
 - [Async Await Util 1.0.6](https://github.com/TrackMan/Unity.Package.AsyncAwaitUtil)
-- [Common Utils 3.8.0](https://github.com/TrackMan/Unity.Package.CommonUtils)
 
 ## Personal Access Token
 To start using [Figma Inspector](#Figma-Inspector), a Figma Personal Access Token is needed for API calls.
@@ -45,7 +42,7 @@ To start using [Figma Inspector](#Figma-Inspector), a Figma Personal Access Toke
 5. Paste the token into the designated field.
 
 # Quick Start
-- Finish [Installing](#installing)
+- Finish [Installing](#Installing)
 - Open `~Samples` folder
 - Open `Test.unity`
 - Go to `Figma` GameObject
@@ -85,10 +82,19 @@ This is how the final setup should look:
 <UI folder>
   ├── UI.uxml
   ├── UI.uss
-  ├── UI.asset
-  ├── remaps_UI.json
+  ├── CachedAssets_UI.json
   ├── Elements
-  │   └── CustomElement.uxml
+  │   ├── CustomElement.uxml
+  │   └── CustomElement.uss
+  ├── Components
+  │   ├── Component.uxml  
+  │   └── Component.uss  
+  ├── Frames
+  │   └── Canvas1  
+  │       ├── Frame1.uxml  
+  │       ├── Frame1.uss
+  │       ├── Frame2.uxml  
+  │       └── Frame2.uss
   ├── Images
   │   ├── AmazingImage.svg
   │   └── PerfectImage.png
@@ -176,7 +182,7 @@ This attribute specifies the Element (a frame, and it's children) that we want t
 | Attribute              | Description                                                                                                                            |
 |------------------------|----------------------------------------------------------------------------------------------------------------------------------------|
 | **Root**               | Defines the root path within the Figma document where this frame originates, inclusive of the canvas path.                             |
-| **ImageFiltering**     | Specifies the strategy for downloading images from the Figma document.                                                                 |
+| **DownloadImages**     | Specifies the strategy for downloading images from the Figma document.                                                                 |
 | **TypeIdentification** | Indicates the method for identifying the types of elements, whether based on their name or their classification under Element classes. |
 | **Preserve**           | Lists any additional paths that should be maintained as-is in the imported document.                                                   |
 
@@ -197,6 +203,7 @@ This attribute specifies the sub element (inside of the Element) parameters (lik
 | **Nullable**                    | Specifies if the element can be null.                                    |
 | **Clicked**                     | Name of the method to be invoked when the element is clicked.            |
 | **Template**                    | Template to be used for the element (creates a separate uxml file).      |
+| **Hash**                        | Create a template file using Hash.                                       |
 | **UseTrickleDown**              | Specifies if events should trickle down through the element hierarchy.   |
 | **ChangeEvent**                 | Event triggered when an element's state changes.                         |
 | **MouseCaptureOutEvent**        | Event triggered when mouse capture is lost.                              |
@@ -287,6 +294,5 @@ element.Replace(newElement);
 - IndividualStrokeWeights (Unity not supported)
 - ComponentPropertyDefinitions
 - Various CodeGenerators
-- Search by name/class/path
 - Dragging items for scroll-view
-- Generation of the various states of Elements with states- Generation of the various states of Elements with states- Generation of the various states of Elements with states
+- Generation of the various states of Elements with states - Generation of the various states of Elements with states- Generation of the various states of Elements with states

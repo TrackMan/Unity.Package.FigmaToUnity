@@ -1,13 +1,28 @@
 ﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
-using Trackman;
+using System.Buffers;
+using System.IO;
 using UnityEngine;
 
 namespace Figma.Internals
 {
-    public class JsonUtility : JsonUtilityShared<FigmaGeneration>
+    public class JsonUtility
     {
+        class ArrayPool : IArrayPool<char>
+        {
+            #region Methods
+            public char[] Rent(int minimumLength) => ArrayPool<char>.Shared.Rent(minimumLength);
+            public void Return(char[] array) => ArrayPool<char>.Shared.Return(array);
+            #endregion
+        }
+
+        #region Properties
+        static JsonSerializer serializer = new();
+
+        static readonly IArrayPool<char> arrayPool = new ArrayPool();
+        #endregion
+
         #region Constructors
 #if UNITY_EDITOR
         [UnityEditor.InitializeOnLoadMethod]
@@ -31,6 +46,22 @@ namespace Figma.Internals
                 }
             };
             serializer = JsonSerializer.Create(settings);
+        }
+        public static string ToJson<T>(T value, bool prettyPrint)
+        {
+            using StringWriter stringWriter = new();
+            using JsonTextWriter jsonTextWriter = new(stringWriter) { Formatting = prettyPrint ? Formatting.Indented : Formatting.None };
+            serializer.Serialize(jsonTextWriter, value);
+            return stringWriter.ToString();
+        }
+        public static T FromJson<T>(string json, bool useArrayPool = true)
+        {
+            using StringReader stringReader = new(json);
+            using JsonTextReader jsonTextReader = new(stringReader);
+            if (useArrayPool)
+                jsonTextReader.ArrayPool = arrayPool;
+
+            return serializer.Deserialize<T>(jsonTextReader);
         }
         #endregion
     }
