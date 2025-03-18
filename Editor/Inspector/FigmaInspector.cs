@@ -290,6 +290,7 @@ namespace Figma.Inspectors
                     return true;
                 });
 
+                AssetDatabase.StartAssetEditing();
                 AssetsInfo info = new(directory, relativeDirectory, uxmlName, fontDirectories);
                 FigmaDownloader figmaDownloader = new(PersonalAccessToken, fileKey, info);
 
@@ -307,11 +308,8 @@ namespace Figma.Inspectors
                 }
 
                 document.visualTreeAsset = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(PathExtensions.CombinePath(info.relativeDirectory, $"{uxmlName}.{KnownFormats.uxml}"));
-                EditorUtility.SetDirty(document);
-
-                AssetDatabase.Refresh();
-
                 stopwatch.Stop();
+                EditorUtility.SetDirty(document);
 
                 Debug.Log($"{display} is <color={SuccessColor}>updated successfully</color> in {(float)stopwatch.ElapsedMilliseconds / 1000}s");
                 Progress.Finish(progress);
@@ -328,7 +326,12 @@ namespace Figma.Inspectors
             finally
             {
                 Progress.UnregisterCancelCallback(progress);
-                stopwatch.Stop();
+
+                if (stopwatch.IsRunning)
+                    stopwatch.Stop();
+
+                AssetDatabase.StopAssetEditing();
+                AssetDatabase.Refresh();
             }
         }
         static (string directory, string relativeDirectory, string product, string name) GetDirectoryAndRelativeDirectory(string assetPath)
