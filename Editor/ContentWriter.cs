@@ -117,10 +117,10 @@ namespace Figma
 
                         Component componentSet = data.componentSets[component.componentSetId];
 
-                        if (componentSet == null || componentSet.remote || string.IsNullOrEmpty(componentSet.componentSetId))
+                        if (componentSet == null || componentSet.remote)
                             return;
 
-                        string template = componentSets[componentSet.componentSetId].name;
+                        string template = componentSets[component.componentSetId].name;
                         templates[template] = CombinePath(directory, componentsDirectoryName, $"{template}.{KnownFormats.uxml}");
                     }
                     else if (nodeMetadata.GetTemplate(node) is (_, { } template) && template.NotNullOrEmpty())
@@ -129,7 +129,8 @@ namespace Figma
                     }
 
                     if (node is DefaultFrameNode frameNode)
-                        frameNode.children.ForEach(FindTemplatesRecursive);
+                        foreach (SceneNode child in frameNode.children)
+                           FindTemplatesRecursive(child);
                 }
 
                 string rootDirectory = CombinePath(directory, framesDirectoryName, frameNode.parent.name);
