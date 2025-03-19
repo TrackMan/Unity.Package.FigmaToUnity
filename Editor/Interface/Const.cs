@@ -6,7 +6,7 @@ namespace Figma.Internals
     {
         public const string api = "https://api.figma.com/v1";
 
-        public const string patTarget = "Figma/Editor/PAT";
+        public const string prefsPatTag = "Figma/Editor/PAT";
 
         public const string uxmlNamespace = "UnityEngine.UIElements";
         public const string indentCharacters = "    ";
@@ -51,6 +51,9 @@ namespace Figma.Internals
 		stroke=""#FFF"" stroke-width=""6"" stroke-linecap=""round"" />
 	<circle cx=""64"" cy=""100"" r=""6"" fill=""#FFF"" />
 </svg>";
+
+        public const int maximalDepthLimit = 0x10000; // This is a random big number.
+        public const string maximalDepthLimitMessage = "Maximal depth limit is exceeded.";
     }
 
     public static class KnownFormats

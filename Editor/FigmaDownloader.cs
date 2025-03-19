@@ -107,9 +107,9 @@ namespace Figma
                 await WriteGradientsAsync(token);
                 Progress.SetDescription(progress, "Downloading image fills");
                 await GetImageFillsAsync(progress, token);
-                Progress.SetDescription(progress, $"Downloading {KnownFormats.png} images");
+                Progress.SetDescription(progress, $"Downloading {KnownFormats.png} files");
                 await GetImageNodesAsync(progress, usages.PngNodes, UxmlDownloadImages.RenderAsPng, KnownFormats.png, token);
-                Progress.SetDescription(progress, $"Downloading {KnownFormats.svg} images");
+                Progress.SetDescription(progress, $"Downloading {KnownFormats.svg} files");
                 await GetImageNodesAsync(progress, usages.SvgNodes, UxmlDownloadImages.RenderAsSvg, KnownFormats.svg, token);
                 await info.cachedAssets.Save();
             }
@@ -117,7 +117,7 @@ namespace Figma
             Progress.SetStepLabel(progress, string.Empty);
 
             Progress.Report(progress, steps, steps, "Updating *.uss/*.uxml files");
-            contentWriter.Run();
+            contentWriter.PrepareStyles();
             contentWriter.Write(info.directory, uxmlName, prune);
         }
         internal void CleanUp(bool cleanImages = false)

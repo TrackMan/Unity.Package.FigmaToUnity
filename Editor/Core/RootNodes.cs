@@ -1,20 +1,19 @@
+using System;
 using System.Collections.Generic;
 
 namespace Figma.Core
 {
     using Internals;
-    
+
     internal class RootNodes
     {
         const int initialCollectionCapacity = 32;
 
         #region Fields
-        readonly NodeMetadata nodeMetadata;
-        
-        List<CanvasNode> canvases = new(initialCollectionCapacity);
-        List<ComponentSetNode> componentSets = new(initialCollectionCapacity);
-        List<FrameNode> frames = new(initialCollectionCapacity);
-        List<(DefaultShapeNode, string hash)> elements = new(initialCollectionCapacity);
+        readonly List<CanvasNode> canvases = new(initialCollectionCapacity);
+        readonly List<ComponentSetNode> componentSets = new(initialCollectionCapacity);
+        readonly List<FrameNode> frames = new(initialCollectionCapacity);
+        readonly List<(DefaultShapeNode, string hash)> elements = new(initialCollectionCapacity);
         #endregion
 
         #region Properties
@@ -27,24 +26,48 @@ namespace Figma.Core
         #region Constructors
         public RootNodes(Data data, NodeMetadata nodeMetadata)
         {
-            this.nodeMetadata = nodeMetadata;
+            Stack<BaseNode> nodes = new();
+            int i = 0;
 
-            foreach (CanvasNode child in data.document.children) 
-                FindItemsRecursively(child);
-        }
-        #endregion
+            nodes.Push(data.document);
 
-        #region Methods
-        void FindItemsRecursively(BaseNode node)
-        {
-            if (node is CanvasNode canvasNode) canvases.Add(canvasNode);
-            if (node is ComponentSetNode componentSetNode) componentSets.Add(componentSetNode);
-            if (node is FrameNode frameNode && node.parent is CanvasNode) frames.Add(frameNode);
-            if (node is DefaultShapeNode defaultShapeNode && nodeMetadata.GetTemplate(defaultShapeNode) is (_, { } template) && template.NotNullOrEmpty()) elements.Add((defaultShapeNode, template));
+            while (nodes.Count > 0)
+            {
+                if (i++ > Const.maximalDepthLimit)
+                    throw new InvalidOperationException(Const.maximalDepthLimitMessage);
 
-            if (node is IChildrenMixin parentNode)
-                foreach (SceneNode child in parentNode.children)
-                    FindItemsRecursively(child);
+                BaseNode node = nodes.Pop();
+
+                switch (node)
+                {
+                    case CanvasNode canvasNode:
+                        canvases.Add(canvasNode);
+                        break;
+
+                    case ComponentSetNode componentSetNode:
+                        componentSets.Add(componentSetNode);
+                        break;
+
+                    case FrameNode frameNode when node.parent is CanvasNode:
+                        frames.Add(frameNode);
+                        break;
+
+                    case DefaultShapeNode defaultShapeNode when nodeMetadata.GetTemplate(defaultShapeNode) is (_, { } template) && template.NotNullOrEmpty():
+                        elements.Add((defaultShapeNode, template));
+                        break;
+                }
+
+                // ReSharper disable CoVariantArrayConversion
+                BaseNode[] children = node switch
+                {
+                    IChildrenMixin parentNode => parentNode.children,
+                    DocumentNode documentNode => documentNode.children,
+                    _ => Array.Empty<BaseNode>()
+                };
+                // ReSharper enable CoVariantArrayConversion
+                foreach (BaseNode child in children)
+                    nodes.Push(child);
+            }
         }
         #endregion
     }

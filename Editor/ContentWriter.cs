@@ -68,26 +68,21 @@ namespace Figma
         #endregion
 
         #region Methods
-        internal void Run()
-        {
-            AddStylesRecursively(Document, documentStyles, false);
-            Document.children.ForEach(x => AddStylesRecursively(x, documentStyles, false));
-
-            for (int i = 0; i < components.Count; i++)
-                AddStylesRecursively(components[i], componentsStyles[i], true);
-
-            InheritStylesRecursively(Document);
-            Document.children.ForEach(InheritStylesRecursively);
-        }
         internal void Write(string directory, string name, bool overrideGlobal = false)
         {
             RootNodes rootNodes = new(data, nodeMetadata);
+            // We do need this, since the Data.componentSets do not contain updated names.
+            Dictionary<string, ComponentSetNode> componentSets = rootNodes.ComponentSets
+                                                                          .OrderBy(x => x.id) // Ordering to avoid index confusion, since order in the Collection could vary from one request to another.
+                                                                          .ToList()
+                                                                          .IndexRedundantNames(x => x.name,
+                                                                                               (componentSet, postfix) => componentSet.name += postfix,
+                                                                                               index => index == 0 ? string.Empty : "-" + index)
+                                                                          .ToDictionary(x => x.id);
 
             KeyValuePair<BaseNode, UssStyle>[] nodeStyleFiltered = nodeStyleMap.Where(x => IsVisible(x.Key) && (nodeMetadata.EnabledInHierarchy(x.Key) || x.Key is ComponentSetNode)).ToArray();
             UssStyle[] nodeStyleStatelessFiltered = nodeStyleFiltered.Select(x => x.Value).ToArray();
             UssStyle[] globalStaticStyles = styles.Select(x => x.style).Where(x => nodeStyleStatelessFiltered.Any(y => y.DoesInherit(x))).ToArray();
-
-            AddTransitionStyles();
 
             // Writing global USS styles
             string globalUssPath = CombinePath(directory, $"{name}.{KnownFormats.uss}");
@@ -97,7 +92,7 @@ namespace Figma
                 using UssWriter globalUssWriter = new(directory, globalUssPath);
                 globalUssWriter.Write(UssStyle.overrideClass);
                 globalUssWriter.Write(UssStyle.viewportClass);
-                globalUssWriter.Write(GroupRenameStyles(globalStaticStyles));
+                globalUssWriter.Write(globalStaticStyles.IndexRedundantNames(x => x.Name, (style, postfix) => style.Name += postfix, index => "-" + (index + 1).NumberToWords()));
             }
 
             // Writing UXML files
@@ -125,7 +120,7 @@ namespace Figma
                         if (componentSet == null || componentSet.remote || string.IsNullOrEmpty(componentSet.componentSetId))
                             return;
 
-                        string template = componentSet.name;
+                        string template = componentSets[componentSet.componentSetId].name;
                         templates[template] = CombinePath(directory, componentsDirectoryName, $"{template}.{KnownFormats.uxml}");
                     }
                     else if (nodeMetadata.GetTemplate(node) is (_, { } template) && template.NotNullOrEmpty())
@@ -143,7 +138,7 @@ namespace Figma
                     Directory.CreateDirectory(rootDirectory);
 
                 using UssWriter ussWriter = new(directory, CombinePath(rootDirectory, $"{frameNode.name}.{KnownFormats.uss}"));
-                ussWriter.Write(GroupRenameStyles(GetStyles(frameNode)));
+                ussWriter.Write(GetStyles(frameNode).IndexRedundantNames(x => x.Name, (style, postfix) => style.Name += postfix, index => "-" + (index + 1).NumberToWords()));
 
                 FindTemplatesRecursive(frameNode);
 
@@ -156,7 +151,7 @@ namespace Figma
             void WriteComponentSet(ComponentSetNode componentSet)
             {
                 using UssWriter ussWriter = new(directory, CombinePath(directory, componentsDirectoryName, $"{componentSet.name}.{KnownFormats.uss}"));
-                ussWriter.Write(GroupRenameStyles(GetStyles(componentSet)));
+                ussWriter.Write(GetStyles(componentSet).IndexRedundantNames(x => x.Name, (style, postfix) => style.Name += postfix, index => "-" + (index + 1).NumberToWords()));
 
                 string uxmlPath = builder.CreateComponentSet(CombinePath(directory, componentsDirectoryName), new[] { globalUssPath, ussWriter.Path }, componentSet);
                 usages.RecordFiles(uxmlPath, ussWriter.Path);
@@ -166,7 +161,7 @@ namespace Figma
                 (bool isHash, string hashedTemplates) = nodeMetadata.GetTemplate(node.element);
 
                 using UssWriter ussWriter = new(directory, CombinePath(directory, elementsDirectoryName, $"{(isHash ? hashedTemplates : node.template)}.{KnownFormats.uss}"));
-                ussWriter.Write(GroupRenameStyles(GetStyles(node.element)));
+                ussWriter.Write(GetStyles(node.element).IndexRedundantNames(x => x.Name, (style, postfix) => style.Name += postfix, index => "-" + (index + 1).NumberToWords()));
 
                 string uxmlPath = builder.CreateElement(CombinePath(directory, elementsDirectoryName), new[] { globalUssPath, ussWriter.Path }, node.element, node.template);
                 usages.RecordFiles(uxmlPath, ussWriter.Path);
@@ -176,26 +171,27 @@ namespace Figma
             Parallel.ForEach(rootNodes.ComponentSets, WriteComponentSet);
             Parallel.ForEach(rootNodes.Elements, WriteTemplate);
 
-            // Creating main document
+            // Creating main UXML document
             if (overrideGlobal)
                 builder.CreateDocument(directory, name, data.document, framesPaths);
+        }
+        internal void PrepareStyles()
+        {
+            AddStylesRecursively(Document, documentStyles, false);
+            Document.children.ForEach(x => AddStylesRecursively(x, documentStyles, false));
+
+            for (int i = 0; i < components.Count; i++)
+                AddStylesRecursively(components[i], componentsStyles[i], true);
+
+            InheritStylesRecursively(Document);
+            Document.children.ForEach(InheritStylesRecursively);
+
+            AddTransitionStyles();
         }
         internal void AddMissingComponent(ComponentNode component, Dictionary<string, Style> componentStyles)
         {
             components.Add(component);
             componentsStyles.Add(componentStyles);
-        }
-
-        IEnumerable<UssStyle> GroupRenameStyles(IReadOnlyList<UssStyle> styles)
-        {
-            foreach (IGrouping<string, UssStyle> group in styles.GroupBy(x => x.Name).Where(y => y.Count() > 1))
-            {
-                int i = 0;
-                foreach (UssStyle style in group)
-                    style.Name += "-" + (i++ + 1).NumberToWords();
-            }
-
-            return styles;
         }
         void AddTransitionStyles()
         {
@@ -282,7 +278,7 @@ namespace Figma
                     }
                 }
 
-                if (action.transition != null && action.transition.type == TransitionType.SMART_ANIMATE)
+                if (action.transition is { type: TransitionType.SMART_ANIMATE })
                 {
                     ComponentNode hoverNode = GetTransitionNode(componentSet, defaultComponent, TriggerType.ON_HOVER);
                     ComponentNode clickNode = GetTransitionNode(componentSet, defaultComponent, TriggerType.ON_CLICK);
@@ -371,7 +367,7 @@ namespace Figma
                 if (name.Length > 64)
                     name = name[..64];
 
-                name = (invalidCharsRegex).Replace(name, "-");
+                name = invalidCharsRegex.Replace(name, "-");
                 name = multipleDashesRegex.Replace(name, "-");
                 name = name.Trim('-');
 
@@ -384,8 +380,7 @@ namespace Figma
                 return name;
             }
 
-            if (node is ComponentNode)
-                insideComponent = true;
+            insideComponent = insideComponent || node is ComponentNode;
 
             if (!insideComponent)
             {
@@ -429,18 +424,28 @@ namespace Figma
         {
             BaseNode Find(BaseNode root)
             {
-                if (root is not IChildrenMixin children)
+                if (root is not IChildrenMixin container)
                     return null;
 
-                foreach (SceneNode child in children.children)
+                Stack<SceneNode> stack = new();
+                int i = 0;
+
+                foreach (SceneNode child in container.children)
+                    stack.Push(child);
+
+                while (stack.Count > 0)
                 {
-                    if (child.id == id)
-                        return child;
+                    if (i++ > maximalDepthLimit)
+                        throw new InvalidCastException(maximalDepthLimitMessage);
 
-                    BaseNode node = Find(child);
+                    SceneNode current = stack.Pop();
 
-                    if (node != null)
-                        return node;
+                    if (current.id == id)
+                        return current;
+
+                    if (current is IChildrenMixin currentContainer)
+                        foreach (SceneNode child in currentContainer.children)
+                            stack.Push(child);
                 }
 
                 return null;
@@ -516,7 +521,8 @@ namespace Figma
             else if (styles.Count > 0) style.Inherit(styles);
 
             if (node is not BooleanOperationNode && node is IChildrenMixin children)
-                children.children.ForEach(InheritStylesRecursively);
+                foreach (SceneNode child in children.children)
+                    InheritStylesRecursively(child);
         }
         UssStyle GetStyle(BaseNode node) => componentStyleMap.TryGetValue(node, out UssStyle style) || nodeStyleMap.TryGetValue(node, out style) ? style : null;
         string GetClassList(BaseNode node)
@@ -612,8 +618,8 @@ namespace Figma
 
             while (nodes.Count > 0)
             {
-                if (i++ > 0x1000)
-                    throw new StackOverflowException();
+                if (i++ > maximalDepthLimit)
+                    throw new InvalidOperationException(maximalDepthLimitMessage);
 
                 IBaseNodeMixin node = nodes.Pop();
 
@@ -641,8 +647,8 @@ namespace Figma
 
             while (nodes.Count > 0)
             {
-                if (i++ > 0x1000)
-                    throw new StackOverflowException();
+                if (i++ > maximalDepthLimit)
+                    throw new InvalidOperationException(maximalDepthLimitMessage);
 
                 BaseNode node = nodes.Pop();
 

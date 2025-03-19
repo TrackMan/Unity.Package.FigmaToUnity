@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Figma.Core
 {
@@ -13,6 +14,17 @@ namespace Figma.Core
         #endregion
 
         #region Methods
+        internal static IEnumerable<T> IndexRedundantNames<T>(this IReadOnlyList<T> items, Func<T, string> getName, Action<T, string> setName, Func<int, string> postfixConverter)
+        {
+            foreach (IGrouping<string, T> group in items.GroupBy(getName).Where(y => y.Count() > 1))
+            {
+                int i = 0;
+                foreach (T item in group)
+                    setName(item, postfixConverter(i++));
+            }
+
+            return items;
+        }
         internal static string NumberToWords(this int number)
         {
             switch (number)

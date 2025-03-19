@@ -51,7 +51,7 @@ namespace Figma.Inspectors
         #endregion
 
         #region Properties
-        static string PersonalAccessToken { get => EditorPrefs.GetString(Const.patTarget, string.Empty); set => EditorPrefs.SetString(Const.patTarget, value); }
+        static string PersonalAccessToken { get => EditorPrefs.GetString(Const.prefsPatTag, string.Empty); set => EditorPrefs.SetString(Const.prefsPatTag, value); }
         #endregion
 
         #region Methods
