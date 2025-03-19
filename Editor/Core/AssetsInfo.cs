@@ -97,7 +97,7 @@ namespace Figma.Core
             string localFontsPath = PathExtensions.CombinePath(fontsDirectoryName, $"{name}.{extension}");
 
             if (File.Exists(FileUtil.GetPhysicalPath(PathExtensions.CombinePath(relativeDirectory, localFontsPath))))
-                return localFontsPath;
+                return "/" + PathExtensions.CombinePath(relativeDirectory, localFontsPath);
 
             foreach (string fontsDirectory in fontDirectories)
             {
