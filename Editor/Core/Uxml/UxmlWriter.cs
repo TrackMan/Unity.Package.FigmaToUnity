@@ -97,14 +97,18 @@ namespace Figma.Core.Uxml
 
             (string prefix, string elementName, string pickingMode) = GetElementData(node);
 
-            if (prefix.NotNullOrEmpty()) XmlWriter.WriteStartElement(prefix, elementName, uxmlNamespace);
-            else XmlWriter.WriteStartElement(elementName);
+            if (prefix.NotNullOrEmpty())
+                XmlWriter.WriteStartElement(prefix, elementName, uxmlNamespace);
+            else
+                XmlWriter.WriteStartElement(elementName);
 
             XmlWriter.WriteAttributeString("name", node.name);
             XmlWriter.WriteAttributeString("id", node.id);
 
-            if (ussClasses.NotNullOrEmpty()) XmlWriter.WriteAttributeString("class", ussClasses);
-            if (pickingMode != PickingMode.Position.ToString()) XmlWriter.WriteAttributeString("picking-mode", pickingMode);
+            if (ussClasses.NotNullOrEmpty())
+                XmlWriter.WriteAttributeString("class", ussClasses);
+            if (pickingMode != PickingMode.Position.ToString())
+                XmlWriter.WriteAttributeString("picking-mode", pickingMode);
         }
         public void StartElement(string type, params (string name, string value)[] attributes)
         {
@@ -117,23 +121,17 @@ namespace Figma.Core.Uxml
 
         public void WriteUssStyleReference(string path)
         {
-            StartElement("Style",
-                         ("src", path));
+            StartElement("Style", ("src", path));
             EndElement();
         }
         public void WriteTemplate(string templateName, string templatePath)
         {
-            StartElement("Template",
-                         ("name", templateName),
-                         ("src", templatePath));
+            StartElement("Template", ("name", templateName), ("src", templatePath));
             EndElement();
         }
         public void WriteInstance(string instanceName, string templateName, string classList = null)
         {
-            StartElement("Instance",
-                         ("name", instanceName),
-                         ("template", templateName),
-                         ("picking-mode", "ignore"));
+            StartElement("Instance", ("name", instanceName), ("template", templateName), ("picking-mode", "ignore"));
             if (!string.IsNullOrEmpty(classList))
                 XmlWriter.WriteAttributeString("class", classList);
             EndElement();

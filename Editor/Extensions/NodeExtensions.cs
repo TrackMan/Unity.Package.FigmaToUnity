@@ -11,7 +11,7 @@ namespace Figma
     public static class NodeExtensions
     {
         #region Methods
-        public static void SetParentRecursively(this BaseNode node)
+        public static void SetParent(this BaseNode node)
         {
             switch (node)
             {
@@ -19,7 +19,7 @@ namespace Figma
                     foreach (CanvasNode canvas in document.children)
                     {
                         canvas.parent = node;
-                        SetParentRecursively(canvas);
+                        SetParent(canvas);
                     }
 
                     break;
@@ -28,7 +28,7 @@ namespace Figma
                     foreach (SceneNode child in children.children)
                     {
                         child.parent = node;
-                        SetParentRecursively(child);
+                        SetParent(child);
                     }
 
                     break;

@@ -172,7 +172,7 @@ namespace Figma.Core.Uxml
                 }
             }
 
-            if (!ContentWriter.IsVisible(node) || (!nodeMetadata.EnabledInHierarchy(node) && node is not ComponentSetNode && !isComponent))
+            if (!StylesPreprocessor.IsVisible(node) || (!nodeMetadata.EnabledInHierarchy(node) && node is not ComponentSetNode && !isComponent))
                 return;
 
             if (node is CanvasNode canvas) WriteCanvasNode(canvas, uxml);

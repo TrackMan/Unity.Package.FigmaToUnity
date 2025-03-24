@@ -4,35 +4,46 @@ namespace Figma.Internals
 {
     public static class Const
     {
+        // Http API target
         public const string api = "https://api.figma.com/v1";
 
-        public const string prefsPatTag = "Figma/Editor/PAT";
-
-        public const string uxmlNamespace = "UnityEngine.UIElements";
-        public const string indentCharacters = "    ";
-
+        // Directories
         public const string fontsDirectoryName = "Fonts";
         public const string framesDirectoryName = "Frames";
         public const string imagesDirectoryName = "Images";
         public const string elementsDirectoryName = "Elements";
         public const string componentsDirectoryName = "Components";
 
-        public static readonly CultureInfo Culture = CultureInfo.GetCultureInfo("en-US");
+        // PlayerPrefs/EditorPrefs
+        public const string prefsPatTag = "Figma/Editor/PAT";
 
+        // Uxml
+        public const string uxmlNamespace = "UnityEngine.UIElements";
+        public const string indentCharacters = "    ";
+
+        // Fallback written data
         /// <summary>
         /// Magenta colored image with resolution 2x2.
         /// </summary>
         public static readonly byte[] InvalidPng =
         {
-            0x89, 0x50, 0x4E, 0x47, 0xD, 0xA, 0x1A, 0xA, // PNG signature
+            0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // PNG signature
             // IHDR chunk
-            0x0, 0x0, 0x0, 0xD, 0x49, 0x48, 0x44, 0x52, 0x0, 0x0, 0x0, 0x2, 0x0, 0x0, 0x0, 0x2, 0x8, 0x6, 0x0, 0x0, 0x0, 0xF4, 0x78, 0x5A, 0xEE,
+            0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
+            0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x02,
+            0x08, 0x06, 0x00, 0x00, 0x00, 0xF4, 0x78, 0x5A, 0xEE,
             // IDAT chunk (compressed image data)
-            0x0, 0x0, 0x0, 0x11, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0xF8, 0xCF, 0xC0, 0xC0, 0xC0, 0xF0, 0xF, 0x4, 0x0, 0x4, 0x0, 0x1, 0xF3, 0xD, 0xE, 0x43,
+            0x00, 0x00, 0x00, 0x11, 0x49, 0x44, 0x41, 0x54,
+            0x78, 0x9C, 0x63, 0xF8, 0xCF, 0xC0, 0xC0, 0xC0,
+            0xF0, 0x0F, 0x04, 0x00, 0x04, 0x00, 0x01, 0xF3,
+            0x0D, 0x0E, 0x43,
             // IEND chunk
-            0x0, 0x0, 0x0, 0x0, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82
+            0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44,
+            0xAE, 0x42, 0x60, 0x82
         };
-
+        /// <summary>
+        /// Warning sign in SVG.
+        /// </summary>
         public const string InvalidSvg = @"<svg width=""128"" height=""128"" viewBox=""0 0 128 128"" xmlns=""http://www.w3.org/2000/svg"">
 	<defs>
 		<linearGradient id=""gradYellow"" x1=""0%"" y1=""0%"" x2=""0%"" y2=""100%"">
@@ -52,8 +63,12 @@ namespace Figma.Internals
 	<circle cx=""64"" cy=""100"" r=""6"" fill=""#FFF"" />
 </svg>";
 
+        public static readonly CultureInfo Culture = CultureInfo.GetCultureInfo("en-US");
+
+        // Recursive functions
         public const int maximalDepthLimit = 0x10000; // This is a random big number.
         public const string maximalDepthLimitMessage = "Maximal depth limit is exceeded.";
+        public const int initialCollectionCapacity = 128;
     }
 
     public static class KnownFormats

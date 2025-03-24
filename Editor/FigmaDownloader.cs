@@ -32,9 +32,10 @@ namespace Figma
         string imagesDirectoryPath;
         string framesDirectoryPath;
 
-        ContentWriter contentWriter;
+        FigmaWriter figmaWriter;
         Usages usages;
         NodeMetadata nodeMetadata;
+        StylesPreprocessor stylesPreprocessor;
         #endregion
 
         #region Constructors
@@ -72,7 +73,7 @@ namespace Figma
                 Progress.SetDescription(progress, "Filtering nodes");
 
                 Data shallowData = await GetAsync<Data>($"files/{fileKey}?depth=2", token);
-                shallowData.document.SetParentRecursively();
+                shallowData.document.SetParent();
 
                 NodeMetadata shallowMetadata = new(shallowData.document, frames, true, false, true);
                 visibleSceneNodes.AddRange(shallowData.document.children.SelectMany(x => x.children).Where(shallowMetadata.EnabledInHierarchy).Select(node => node.id));
@@ -91,11 +92,14 @@ namespace Figma
                 GUIUtility.systemCopyBuffer = json;
 
             Progress.Report(progress, 2, steps, "Parsing file");
+
             Data data = await ConvertOnBackgroundAsync<Data>(json, token);
-            data.document.SetParentRecursively();
-            nodeMetadata = new NodeMetadata(data.document, frames, filter);
+            data.document.SetParent();
+
             usages = new Usages();
-            contentWriter = new ContentWriter(info, data, nodeMetadata, usages);
+            nodeMetadata = new NodeMetadata(data.document, frames, filter);
+            stylesPreprocessor = new StylesPreprocessor(data, info, nodeMetadata, usages);
+            figmaWriter = new FigmaWriter(data, stylesPreprocessor, nodeMetadata, usages);
 
             Progress.Report(progress, 3, steps, "Downloading missing components");
             await DownloadDocumentsAsync(token);
@@ -117,8 +121,8 @@ namespace Figma
             Progress.SetStepLabel(progress, string.Empty);
 
             Progress.Report(progress, steps, steps, "Updating *.uss/*.uxml files");
-            contentWriter.PrepareStyles();
-            contentWriter.Write(info.directory, uxmlName, prune);
+            stylesPreprocessor.Run();
+            await figmaWriter.WriteAsync(info.directory, uxmlName, prune);
         }
         internal void CleanUp(bool cleanImages = false)
         {
@@ -177,7 +181,7 @@ namespace Figma
 
             if (usages.MissingComponents.Count > 0)
                 foreach (Nodes.Document value in await GetMissingComponentsAsync(usages.MissingComponents))
-                    contentWriter.AddMissingComponent(value.document, value.styles);
+                    stylesPreprocessor.AddMissingComponent(value.document, value.styles);
         }
         async Task GetImageFillsAsync(int progress, CancellationToken token)
         {

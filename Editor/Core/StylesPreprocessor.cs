@@ -1,60 +1,44 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
-// ReSharper disable UnusedMember.Local
-// ReSharper disable UnusedParameter.Local
-
-#pragma warning disable S1144 // Unused private types or members should be removed
-
-namespace Figma
+namespace Figma.Core
 {
-    using Core;
-    using Core.Assets;
-    using Core.Uss;
-    using Core.Uxml;
+    using Assets;
+    using Uss;
     using Internals;
     using static Internals.Const;
-    using static Internals.PathExtensions;
 
-    internal sealed class ContentWriter
+    internal class StylesPreprocessor
     {
-        #region Const
-        const int initialCollectionCapacity = 128;
-
         static readonly Regex multipleDashesRegex = new("-{2,}", RegexOptions.Compiled);
         static readonly Regex invalidCharsRegex = new("[^a-zA-Z0-9]", RegexOptions.Compiled);
-        static readonly Regex invalidCharsRegexStateNode = new("[^a-zA-Z0-9:]", RegexOptions.Compiled);
-        #endregion
 
         #region Fields
+        readonly List<(StyleSlot slot, UssStyle style)> styles = new(initialCollectionCapacity);
+        readonly Dictionary<BaseNode, UssStyle> nodeStyleMap = new(initialCollectionCapacity);
+        readonly List<ComponentNode> components = new(initialCollectionCapacity);
+        readonly List<Dictionary<string, Style>> componentsStyles = new(initialCollectionCapacity);
+        readonly Dictionary<BaseNode, UssStyle> componentStyleMap = new(initialCollectionCapacity);
+
+        readonly AssetsInfo assetsInfo;
         readonly Data data;
         readonly NodeMetadata nodeMetadata;
         readonly Usages usages;
-        readonly AssetsInfo assetsInfo;
-
-        readonly List<ComponentNode> components = new(initialCollectionCapacity);
-        readonly List<Dictionary<string, Style>> componentsStyles = new(initialCollectionCapacity);
-        readonly List<(StyleSlot slot, UssStyle style)> styles = new(initialCollectionCapacity);
-        readonly Dictionary<BaseNode, UssStyle> componentStyleMap = new(initialCollectionCapacity);
-        readonly Dictionary<BaseNode, UssStyle> nodeStyleMap = new(initialCollectionCapacity);
         #endregion
 
         #region Properties
-        DocumentNode Document => data.document;
-        Dictionary<string, Style> documentStyles => data.styles;
+        public IReadOnlyList<(StyleSlot slot, UssStyle style)> Styles => styles;
+        public IReadOnlyDictionary<BaseNode, UssStyle> NodeStyleMap => nodeStyleMap;
         #endregion
 
-        #region Constructors
-        internal ContentWriter(AssetsInfo assetsInfo, Data data, NodeMetadata nodeMetadata, Usages usages)
+        internal StylesPreprocessor(Data data, AssetsInfo assetsInfo, NodeMetadata nodeMetadata, Usages usages)
         {
-            this.nodeMetadata = nodeMetadata;
             this.data = data;
             this.usages = usages;
             this.assetsInfo = assetsInfo;
+            this.nodeMetadata = nodeMetadata;
 
             foreach (CanvasNode canvas in data.document.children)
             {
@@ -65,127 +49,18 @@ namespace Figma
                 AddGradientsRecursively(canvas);
             }
         }
-        #endregion
 
         #region Methods
-        internal void Write(string directory, string name, bool overrideGlobal = false)
+        internal void Run()
         {
-            RootNodes rootNodes = new(data, nodeMetadata);
-            // We do need this, since the Data.componentSets do not contain updated names.
-            Dictionary<string, ComponentSetNode> componentSets = rootNodes.ComponentSets
-                                                                          .OrderBy(x => x.id) // Ordering to avoid index confusion, since order in the Collection could vary from one request to another.
-                                                                          .ToList()
-                                                                          .IndexRedundantNames(x => x.name,
-                                                                                               (componentSet, postfix) => componentSet.name += postfix,
-                                                                                               index => index == 0 ? string.Empty : "-" + index)
-                                                                          .ToDictionary(x => x.id);
-
-            KeyValuePair<BaseNode, UssStyle>[] nodeStyleFiltered = nodeStyleMap.Where(x => IsVisible(x.Key) && (nodeMetadata.EnabledInHierarchy(x.Key) || x.Key is ComponentSetNode)).ToArray();
-            UssStyle[] nodeStyleStatelessFiltered = nodeStyleFiltered.Select(x => x.Value).ToArray();
-            UssStyle[] globalStaticStyles = styles.Select(x => x.style).Where(x => nodeStyleStatelessFiltered.Any(y => y.DoesInherit(x))).ToArray();
-
-            // Writing global USS styles
-            string globalUssPath = CombinePath(directory, $"{name}.{KnownFormats.uss}");
-
-            if (overrideGlobal)
-            {
-                using UssWriter globalUssWriter = new(directory, globalUssPath);
-                globalUssWriter.Write(UssStyle.overrideClass);
-                globalUssWriter.Write(UssStyle.viewportClass);
-                globalUssWriter.Write(globalStaticStyles.IndexRedundantNames(x => x.Name, (style, postfix) => style.Name += postfix, index => "-" + (index + 1).NumberToWords()));
-            }
-
-            // Writing UXML files
-            UxmlBuilder builder = new(data, nodeMetadata, globalUssPath, GetClassList);
-            Dictionary<string, IReadOnlyList<string>> framesPaths = new(rootNodes.Frames.Count);
-
-            foreach (CanvasNode canvasNode in rootNodes.Canvases)
-                framesPaths.Add(canvasNode.name, new List<string>());
-
-            void WriteFrame(FrameNode frameNode)
-            {
-                Dictionary<string, string> templates = new();
-
-                void FindTemplatesRecursive(BaseNode node)
-                {
-                    if (node is InstanceNode instanceNode)
-                    {
-                        Component component = data.components[instanceNode.componentId];
-
-                        if (component == null || component.remote || string.IsNullOrEmpty(component.componentSetId))
-                            return;
-
-                        Component componentSet = data.componentSets[component.componentSetId];
-
-                        if (componentSet == null || componentSet.remote)
-                            return;
-
-                        string template = componentSets[component.componentSetId].name;
-                        templates[template] = CombinePath(directory, componentsDirectoryName, $"{template}.{KnownFormats.uxml}");
-                    }
-                    else if (nodeMetadata.GetTemplate(node) is (_, { } template) && template.NotNullOrEmpty())
-                    {
-                        templates[template] = CombinePath(directory, elementsDirectoryName, $"{template}.{KnownFormats.uxml}");
-                    }
-
-                    if (node is DefaultFrameNode frameNode)
-                        foreach (SceneNode child in frameNode.children)
-                           FindTemplatesRecursive(child);
-                }
-
-                string rootDirectory = CombinePath(directory, framesDirectoryName, frameNode.parent.name);
-
-                if (!Directory.Exists(rootDirectory))
-                    Directory.CreateDirectory(rootDirectory);
-
-                using UssWriter ussWriter = new(directory, CombinePath(rootDirectory, $"{frameNode.name}.{KnownFormats.uss}"));
-                ussWriter.Write(GetStyles(frameNode).IndexRedundantNames(x => x.Name, (style, postfix) => style.Name += postfix, index => "-" + (index + 1).NumberToWords()));
-
-                FindTemplatesRecursive(frameNode);
-
-                string uxmlPath = builder.CreateFrame(rootDirectory, new[] { globalUssPath, ussWriter.Path }, templates, frameNode);
-                framesPaths[frameNode.parent.name].As<List<string>>().Add(uxmlPath);
-
-                usages.RecordFiles(uxmlPath, ussWriter.Path);
-                templates.Clear();
-            }
-            void WriteComponentSet(ComponentSetNode componentSet)
-            {
-                using UssWriter ussWriter = new(directory, CombinePath(directory, componentsDirectoryName, $"{componentSet.name}.{KnownFormats.uss}"));
-                ussWriter.Write(GetStyles(componentSet).IndexRedundantNames(x => x.Name, (style, postfix) => style.Name += postfix, index => "-" + (index + 1).NumberToWords()));
-
-                string uxmlPath = builder.CreateComponentSet(CombinePath(directory, componentsDirectoryName), new[] { globalUssPath, ussWriter.Path }, componentSet);
-                usages.RecordFiles(uxmlPath, ussWriter.Path);
-            }
-            void WriteTemplate((DefaultShapeNode element, string template) node)
-            {
-                (bool isHash, string hashedTemplates) = nodeMetadata.GetTemplate(node.element);
-
-                using UssWriter ussWriter = new(directory, CombinePath(directory, elementsDirectoryName, $"{(isHash ? hashedTemplates : node.template)}.{KnownFormats.uss}"));
-                ussWriter.Write(GetStyles(node.element).IndexRedundantNames(x => x.Name, (style, postfix) => style.Name += postfix, index => "-" + (index + 1).NumberToWords()));
-
-                string uxmlPath = builder.CreateElement(CombinePath(directory, elementsDirectoryName), new[] { globalUssPath, ussWriter.Path }, node.element, node.template);
-                usages.RecordFiles(uxmlPath, ussWriter.Path);
-            }
-
-            Parallel.ForEach(rootNodes.Frames, WriteFrame);
-            Parallel.ForEach(rootNodes.ComponentSets, WriteComponentSet);
-            Parallel.ForEach(rootNodes.Elements, WriteTemplate);
-
-            // Creating main UXML document
-            if (overrideGlobal)
-                builder.CreateDocument(directory, name, data.document, framesPaths);
-        }
-        internal void PrepareStyles()
-        {
-            AddStylesRecursively(Document, documentStyles, false);
-            Document.children.ForEach(x => AddStylesRecursively(x, documentStyles, false));
+            AddStylesRecursively(data.document, data.styles, false);
+            data.document.children.ForEach(x => AddStylesRecursively(x, data.styles, false));
 
             for (int i = 0; i < components.Count; i++)
                 AddStylesRecursively(components[i], componentsStyles[i], true);
 
-            InheritStylesRecursively(Document);
-            Document.children.ForEach(InheritStylesRecursively);
+            InheritStylesRecursively(data.document);
+            data.document.children.ForEach(InheritStylesRecursively);
 
             AddTransitionStyles();
         }
@@ -299,7 +174,8 @@ namespace Figma
                 usages.MissingComponents.Add(instance.componentId);
 
             if (node is IChildrenMixin parent)
-                parent.children.ForEach(AddMissingNodesRecursively);
+                foreach (SceneNode child in parent.children)
+                    AddMissingNodesRecursively(child);
         }
         void AddImageFillsRecursively(BaseNode node)
         {
@@ -310,7 +186,8 @@ namespace Figma
                 usages.ImageFillNodes.Add(node);
 
             if (node is IChildrenMixin children)
-                children.children.ForEach(AddImageFillsRecursively);
+                foreach (SceneNode child in children.children)
+                    AddImageFillsRecursively(child);
         }
         void AddPngNodesRecursively(BaseNode node)
         {
@@ -321,7 +198,8 @@ namespace Figma
                 usages.PngNodes.Add(node);
 
             if (node is not BooleanOperationNode && node is IChildrenMixin children)
-                children.children.ForEach(AddPngNodesRecursively);
+                foreach (SceneNode child in children.children)
+                    AddPngNodesRecursively(child);
         }
         void AddSvgNodesRecursively(BaseNode node)
         {
@@ -337,7 +215,8 @@ namespace Figma
                     return;
 
                 case IChildrenMixin children:
-                    children.children.ForEach(AddSvgNodesRecursively);
+                    foreach (SceneNode child in children.children)
+                        AddSvgNodesRecursively(child);
                     return;
             }
         }
@@ -359,7 +238,8 @@ namespace Figma
             if (node is not IChildrenMixin children)
                 return;
 
-            children.children.ForEach(AddGradientsRecursively);
+            foreach (SceneNode child in children.children)
+                AddGradientsRecursively(child);
         }
         void AddStylesRecursively(BaseNode node, Dictionary<string, Style> styles, bool insideComponent)
         {
@@ -418,56 +298,10 @@ namespace Figma
             }
 
             if (node is IChildrenMixin children)
-                children.children.ForEach(child => AddStylesRecursively(child, styles, insideComponent));
+                foreach (SceneNode child in children.children)
+                    AddStylesRecursively(child, styles, insideComponent);
         }
 
-        BaseNode FindNode(string id)
-        {
-            BaseNode Find(BaseNode root)
-            {
-                if (root is not IChildrenMixin container)
-                    return null;
-
-                Stack<SceneNode> stack = new();
-                int i = 0;
-
-                foreach (SceneNode child in container.children)
-                    stack.Push(child);
-
-                while (stack.Count > 0)
-                {
-                    if (i++ > maximalDepthLimit)
-                        throw new InvalidCastException(maximalDepthLimitMessage);
-
-                    SceneNode current = stack.Pop();
-
-                    if (current.id == id)
-                        return current;
-
-                    if (current is IChildrenMixin currentContainer)
-                        foreach (SceneNode child in currentContainer.children)
-                            stack.Push(child);
-                }
-
-                return null;
-            }
-
-            if (Document.id == id)
-                return Document;
-
-            foreach (CanvasNode canvas in Document.children)
-            {
-                if (canvas.id == id)
-                    return canvas;
-
-                BaseNode node = Find(canvas);
-
-                if (node != null)
-                    return node;
-            }
-
-            return null;
-        }
         void InheritStylesRecursively(BaseNode node)
         {
             UssStyle style = GetStyle(node);
@@ -505,7 +339,7 @@ namespace Figma
                     string id = keyValue.Value;
                     string key = null;
 
-                    if (documentStyles.TryGetValue(id, out Style documentStyle))
+                    if (data.styles.TryGetValue(id, out Style documentStyle))
                         key = documentStyle.key;
 
                     foreach (Dictionary<string, Style> componentStyle in componentsStyles)
@@ -525,8 +359,54 @@ namespace Figma
                 foreach (SceneNode child in children.children)
                     InheritStylesRecursively(child);
         }
-        UssStyle GetStyle(BaseNode node) => componentStyleMap.TryGetValue(node, out UssStyle style) || nodeStyleMap.TryGetValue(node, out style) ? style : null;
-        string GetClassList(BaseNode node)
+        BaseNode FindNode(string id)
+        {
+            BaseNode Find(BaseNode root)
+            {
+                if (root is not IChildrenMixin container)
+                    return null;
+
+                Stack<SceneNode> stack = new();
+                int i = 0;
+
+                foreach (SceneNode child in container.children)
+                    stack.Push(child);
+
+                while (stack.Count > 0)
+                {
+                    if (i++ > maximalDepthLimit)
+                        throw new InvalidCastException(maximalDepthLimitMessage);
+
+                    SceneNode current = stack.Pop();
+
+                    if (current.id == id)
+                        return current;
+
+                    if (current is IChildrenMixin currentContainer)
+                        foreach (SceneNode child in currentContainer.children)
+                            stack.Push(child);
+                }
+
+                return null;
+            }
+
+            if (data.document.id == id)
+                return data.document;
+
+            foreach (CanvasNode canvas in data.document.children)
+            {
+                if (canvas.id == id)
+                    return canvas;
+
+                BaseNode node = Find(canvas);
+
+                if (node != null)
+                    return node;
+            }
+
+            return null;
+        }
+        internal string GetClassList(BaseNode node)
         {
             string classList = string.Empty;
             UssStyle style = GetStyle(node);
@@ -570,7 +450,7 @@ namespace Figma
                     string id = keyValue.Value;
                     string key = null;
 
-                    if (documentStyles.TryGetValue(id, out Style documentStyle))
+                    if (data.styles.TryGetValue(id, out Style documentStyle))
                         key = documentStyle.key;
 
                     foreach (Dictionary<string, Style> componentStyle in componentsStyles)
@@ -591,21 +471,24 @@ namespace Figma
             }
 
             classList = component.NotNullOrEmpty()
-                ? (styles.Count > 0 ? style.ResolveClassList(component, styles) : style.ResolveClassList(component))
-                : (styles.Count > 0 ? style.ResolveClassList(styles) : style.ResolveClassList());
+                ? styles.Count > 0 ? style.ResolveClassList(component, styles) : style.ResolveClassList(component)
+                : styles.Count > 0
+                    ? style.ResolveClassList(styles)
+                    : style.ResolveClassList();
 
             if (IsRootNode(node))
                 classList += $"{(string.IsNullOrEmpty(classList) ? string.Empty : " ")}{UssStyle.viewportClass.Name}";
 
             return $"{UssStyle.overrideClass.Name} {classList}";
         }
+        UssStyle GetStyle(BaseNode node) => componentStyleMap.TryGetValue(node, out UssStyle style) || nodeStyleMap.TryGetValue(node, out style) ? style : null;
         #endregion
 
         #region Support Methods
         internal static bool IsRootNode(IBaseNodeMixin mixin) => mixin is DocumentNode or CanvasNode or ComponentNode || mixin.parent is CanvasNode or ComponentNode;
-        internal static bool IsVisible(IBaseNodeMixin mixin) => (mixin is not ISceneNodeMixin scene || !scene.visible.HasValueAndFalse()) && (mixin.parent == null || IsVisible(mixin.parent));
         internal static bool HasImageFill(IBaseNodeMixin mixin) => mixin is IGeometryMixin geometry && geometry.fills.Any(x => x is ImagePaint);
         internal static bool IsSvgNode(IBaseNodeMixin mixin) => mixin is LineNode or EllipseNode or RegularPolygonNode or StarNode or VectorNode || (mixin is BooleanOperationNode && IsBooleanOperationVisible(mixin));
+        internal static bool IsVisible(IBaseNodeMixin mixin) => (mixin is not ISceneNodeMixin scene || !scene.visible.HasValueAndFalse()) && (mixin.parent == null || IsVisible(mixin.parent));
 
         static bool IsBooleanOperationVisible(IBaseNodeMixin root)
         {
@@ -638,7 +521,7 @@ namespace Figma
 
             return false;
         }
-        IReadOnlyList<UssStyle> GetStyles(BaseNode root)
+        internal IReadOnlyList<UssStyle> GetStyles(BaseNode root)
         {
             List<UssStyle> result = new();
             Stack<BaseNode> nodes = new();
@@ -656,7 +539,7 @@ namespace Figma
                 if (!IsVisible(node))
                     continue;
 
-                if ((componentStyleMap.TryGetValue(node, out UssStyle styles) || nodeStyleMap.TryGetValue(node, out styles)))
+                if (componentStyleMap.TryGetValue(node, out UssStyle styles) || nodeStyleMap.TryGetValue(node, out styles))
                     result.Add(styles);
 
                 if (node is not IChildrenMixin nodeWithChildren)

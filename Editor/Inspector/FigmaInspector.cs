@@ -229,7 +229,7 @@ namespace Figma.Inspectors
                 using (new EditorGUILayout.HorizontalScope())
                 {
                     using (new EditorGUI.DisabledGroupScope(!selection[frame]))
-                        EditorGUILayout.LabelField(new GUIContent(uxml.Root, uxml.Preserve.Any() ? $"Preserves {(uxml.Preserve.Aggregate((x, y) => $"{x} {y}"))}" : null),
+                        EditorGUILayout.LabelField(new GUIContent(uxml.Root, uxml.Preserve.Any() ? $"Preserves {uxml.Preserve.Aggregate((x, y) => $"{x} {y}")}" : null),
                                                    uxml.Preserve.Any() ? EditorStyles.boldLabel : EditorStyles.label,
                                                    GUILayout.Width(EditorGUIUtility.labelWidth));
 
@@ -309,7 +309,7 @@ namespace Figma.Inspectors
 
                 document.visualTreeAsset = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(PathExtensions.CombinePath(info.relativeDirectory, $"{uxmlName}.{KnownFormats.uxml}"));
                 stopwatch.Stop();
-                EditorUtility.SetDirty(document);
+                EditorUtility.SetDirty(document.visualTreeAsset);
 
                 Debug.Log($"{display} is <color={SuccessColor}>updated successfully</color> in {(float)stopwatch.ElapsedMilliseconds / 1000}s");
                 Progress.Finish(progress);
@@ -331,7 +331,7 @@ namespace Figma.Inspectors
                     stopwatch.Stop();
 
                 AssetDatabase.StopAssetEditing();
-                AssetDatabase.Refresh();
+                AssetDatabase.ImportAsset(AssetDatabase.GetAssetPath(document.visualTreeAsset));
             }
         }
         static (string directory, string relativeDirectory, string product, string name) GetDirectoryAndRelativeDirectory(string assetPath)
