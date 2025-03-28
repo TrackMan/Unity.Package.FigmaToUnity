@@ -33,8 +33,8 @@ namespace Figma.Core
 
             while (nodes.Count > 0)
             {
-                if (i++ > Const.maximalDepthLimit)
-                    throw new InvalidOperationException(Const.maximalDepthLimitMessage);
+                if (i++ >= Const.maximumAllowedDepthLimit)
+                    throw new InvalidOperationException(Const.maximumDepthLimitReachedExceptionMessage);
 
                 BaseNode node = nodes.Pop();
 

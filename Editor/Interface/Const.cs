@@ -66,8 +66,8 @@ namespace Figma.Internals
         public static readonly CultureInfo Culture = CultureInfo.GetCultureInfo("en-US");
 
         // Recursive functions
-        public const int maximalDepthLimit = 0x10000; // This is a random big number.
-        public const string maximalDepthLimitMessage = "Maximal depth limit is exceeded.";
+        public const int maximumAllowedDepthLimit = 0x10000; // This is a random big number.
+        public const string maximumDepthLimitReachedExceptionMessage = "Maximum depth limit is exceeded.";
         public const int initialCollectionCapacity = 128;
     }
 

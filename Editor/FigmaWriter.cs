@@ -116,8 +116,8 @@ namespace Figma
                             foreach (SceneNode child in frameNode.children)
                                 nodes.Push(child);
 
-                        if (i++ > maximalDepthLimit)
-                            throw new InvalidOperationException(maximalDepthLimitMessage);
+                        if (i++ >= maximumAllowedDepthLimit)
+                            throw new InvalidOperationException(maximumDepthLimitReachedExceptionMessage);
                     }
                 }
 

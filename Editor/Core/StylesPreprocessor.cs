@@ -42,22 +42,22 @@ namespace Figma.Core
 
             foreach (CanvasNode canvas in data.document.children)
             {
-                AddMissingNodesRecursively(canvas);
-                AddImageFillsRecursively(canvas);
-                AddPngNodesRecursively(canvas);
-                AddSvgNodesRecursively(canvas);
-                AddGradientsRecursively(canvas);
+                AddMissingNodes(canvas);
+                AddImageFills(canvas);
+                AddPngNodes(canvas);
+                AddSvgNodes(canvas);
+                AddGradients(canvas);
             }
         }
 
         #region Methods
         internal void Run()
         {
-            AddStylesRecursively(data.document, data.styles, false);
-            data.document.children.ForEach(x => AddStylesRecursively(x, data.styles, false));
+            AddStyles(data.document, data.styles, false);
+            data.document.children.ForEach(x => AddStyles(x, data.styles, false));
 
             for (int i = 0; i < components.Count; i++)
-                AddStylesRecursively(components[i], componentsStyles[i], true);
+                AddStyles(components[i], componentsStyles[i], true);
 
             InheritStylesRecursively(data.document);
             data.document.children.ForEach(InheritStylesRecursively);
@@ -168,80 +168,123 @@ namespace Figma.Core
                     componentSetStyle.SubStyles.AddRange(UssStyle.MakeTransitionStyles(componentSetStyle, idleStyle, hoverStyle, clickStyle));
             }
         }
-        void AddMissingNodesRecursively(BaseNode node)
+        void AddMissingNodes(BaseNode root)
         {
-            if (node is InstanceNode instance && FindNode(instance.componentId) == null)
-                usages.MissingComponents.Add(instance.componentId);
+            Stack<BaseNode> nodes = new();
+            nodes.Push(root);
+            int i = 0;
 
-            if (node is IChildrenMixin parent)
-                foreach (SceneNode child in parent.children)
-                    AddMissingNodesRecursively(child);
-        }
-        void AddImageFillsRecursively(BaseNode node)
-        {
-            if (!IsVisible(node) || !nodeMetadata.EnabledInHierarchy(node) || node is BooleanOperationNode)
-                return;
-
-            if (!IsSvgNode(node) && HasImageFill(node))
-                usages.ImageFillNodes.Add(node);
-
-            if (node is IChildrenMixin children)
-                foreach (SceneNode child in children.children)
-                    AddImageFillsRecursively(child);
-        }
-        void AddPngNodesRecursively(BaseNode node)
-        {
-            if (!IsVisible(node) || !nodeMetadata.EnabledInHierarchy(node))
-                return;
-
-            if (IsSvgNode(node) && HasImageFill(node))
-                usages.PngNodes.Add(node);
-
-            if (node is not BooleanOperationNode && node is IChildrenMixin children)
-                foreach (SceneNode child in children.children)
-                    AddPngNodesRecursively(child);
-        }
-        void AddSvgNodesRecursively(BaseNode node)
-        {
-            if (!IsVisible(node) || !nodeMetadata.EnabledInHierarchy(node))
-                return;
-
-            if (IsSvgNode(node) && !HasImageFill(node))
-                usages.SvgNodes.Add(node);
-
-            switch (node)
+            while (nodes.Count > 0)
             {
-                case BooleanOperationNode:
-                    return;
+                if (i++ >= maximumAllowedDepthLimit)
+                    throw new InvalidOperationException(maximumDepthLimitReachedExceptionMessage);
 
-                case IChildrenMixin children:
-                    foreach (SceneNode child in children.children)
-                        AddSvgNodesRecursively(child);
-                    return;
+                BaseNode node = nodes.Pop();
+
+                if (node is InstanceNode instance && FindNode(instance.componentId) == null)
+                    usages.MissingComponents.Add(instance.componentId);
+
+                if (node is IChildrenMixin parent)
+                    foreach (SceneNode child in parent.children)
+                        nodes.Push(child);
             }
         }
-        void AddGradientsRecursively(BaseNode node)
+        void AddImageFills(BaseNode root)
         {
-            if (!IsVisible(node) || !nodeMetadata.EnabledInHierarchy(node))
-                return;
+            Stack<BaseNode> nodes = new();
+            nodes.Push(root);
+            int i = 0;
 
-            switch (node)
+            while (nodes.Count > 0)
             {
-                case BooleanOperationNode:
-                    return;
+                if (i++ >= maximumAllowedDepthLimit)
+                    throw new InvalidOperationException(maximumDepthLimitReachedExceptionMessage);
 
-                case IGeometryMixin geometry:
+                BaseNode node = nodes.Pop();
+
+                if (!IsVisible(node) || !nodeMetadata.EnabledInHierarchy(node) || node is BooleanOperationNode)
+                    continue;
+
+                if (!IsSvgNode(node) && HasImageFill(node))
+                    usages.ImageFillNodes.Add(node);
+
+                if (node is IChildrenMixin parent)
+                    foreach (SceneNode child in parent.children)
+                        nodes.Push(child);
+            }
+        }
+        void AddPngNodes(BaseNode root)
+        {
+            Stack<BaseNode> nodes = new();
+            nodes.Push(root);
+            int i = 0;
+
+            while (nodes.Count > 0)
+            {
+                if (i++ >= maximumAllowedDepthLimit)
+                    throw new InvalidOperationException(maximumDepthLimitReachedExceptionMessage);
+
+                BaseNode node = nodes.Pop();
+
+                if (!IsVisible(node) || !nodeMetadata.EnabledInHierarchy(node))
+                    continue;
+
+                if (IsSvgNode(node) && HasImageFill(node))
+                    usages.PngNodes.Add(node);
+
+                if (node is not BooleanOperationNode && node is IChildrenMixin parent)
+                    foreach (SceneNode child in parent.children)
+                        nodes.Push(child);
+            }
+        }
+        void AddSvgNodes(BaseNode root)
+        {
+            Stack<BaseNode> nodes = new();
+            nodes.Push(root);
+            int i = 0;
+
+            while (nodes.Count > 0)
+            {
+                if (i++ >= maximumAllowedDepthLimit)
+                    throw new InvalidOperationException(maximumDepthLimitReachedExceptionMessage);
+
+                BaseNode node = nodes.Pop();
+
+                if (!IsVisible(node) || !nodeMetadata.EnabledInHierarchy(node))
+                    continue;
+
+                if (IsSvgNode(node) && !HasImageFill(node))
+                    usages.SvgNodes.Add(node);
+
+                if (node is not BooleanOperationNode && node is IChildrenMixin parent)
+                    foreach (SceneNode child in parent.children)
+                        nodes.Push(child);
+            }
+        }
+        void AddGradients(BaseNode root)
+        {
+            Stack<BaseNode> nodes = new();
+            nodes.Push(root);
+            int i = 0;
+
+            while (nodes.Count > 0)
+            {
+                if (i++ >= maximumAllowedDepthLimit)
+                    throw new InvalidOperationException(maximumDepthLimitReachedExceptionMessage);
+
+                BaseNode node = nodes.Pop();
+
+                if (!IsVisible(node) || !nodeMetadata.EnabledInHierarchy(node) || node is BooleanOperationNode)
+                    continue;
+
+                if (node is IGeometryMixin geometry)
                     geometry.fills.OfType<GradientPaint>().ForEach(x => usages.Gradients.TryAdd(x.GetHash(), x));
-                    break;
+                else if (node is IChildrenMixin parent)
+                    foreach (SceneNode child in parent.children)
+                        nodes.Push(child);
             }
-
-            if (node is not IChildrenMixin children)
-                return;
-
-            foreach (SceneNode child in children.children)
-                AddGradientsRecursively(child);
         }
-        void AddStylesRecursively(BaseNode node, Dictionary<string, Style> styles, bool insideComponent)
+        void AddStyles(BaseNode root, Dictionary<string, Style> styles, bool insideComponent)
         {
             string GetClassName(string name, string prefix = "n")
             {
@@ -261,45 +304,127 @@ namespace Figma.Core
                 return name;
             }
 
-            insideComponent = insideComponent || node is ComponentNode;
+            Stack<BaseNode> nodes = new();
+            nodes.Push(root);
+            int i = 0;
 
-            if (!insideComponent)
+            while (nodes.Count > 0)
             {
-                UssStyle style = new(GetClassName(node.name), assetsInfo, node);
+                if (i++ >= maximumAllowedDepthLimit)
+                    throw new InvalidOperationException(maximumDepthLimitReachedExceptionMessage);
 
-                if (node is ComponentSetNode)
+                BaseNode node = nodes.Pop();
+
+                insideComponent = insideComponent || node is ComponentNode;
+
+                if (!insideComponent)
                 {
-                    // Removing annoying borders for ComponentSetNode
-                    style.Attributes.Clear();
-                    style.Attributes.Add("overflow", "hidden");
+                    UssStyle style = new(GetClassName(node.name), assetsInfo, node);
+
+                    if (node is ComponentSetNode)
+                    {
+                        // Removing annoying borders for ComponentSetNode
+                        style.Attributes.Clear();
+                        style.Attributes.Add("overflow", "hidden");
+                    }
+
+                    nodeStyleMap[node] = style;
+                }
+                else
+                    componentStyleMap[node] = new UssStyle(GetClassName(node.name), assetsInfo, node);
+
+                if (node is IBlendMixin { styles: not null } blend)
+                {
+                    foreach ((string key, string value) in blend.styles)
+                    {
+                        bool text = node.type == NodeType.TEXT;
+                        string slot = key;
+
+                        if (slot.EndsWith('s'))
+                            slot = slot[..^1];
+
+                        string styleKey = styles[value].key;
+
+                        StyleSlot style = new(text, slot, styles[value]);
+                        if (!this.styles.Any(x => x.slot.Text == text && x.slot.Slot == slot && x.slot.key == styleKey))
+                            this.styles.Add((style, new UssStyle(GetClassName(style.name, "s"), assetsInfo, style.Slot, style.styleType, node)));
+                    }
                 }
 
-                nodeStyleMap[node] = style;
+                if (node is IChildrenMixin parent)
+                    foreach (SceneNode child in parent.children)
+                        nodes.Push(child);
             }
-            else
-                componentStyleMap[node] = new UssStyle(GetClassName(node.name), assetsInfo, node);
+        }
+        #endregion
 
-            if (node is IBlendMixin { styles: not null } blend)
+        #region Support Methods
+        internal static bool IsRootNode(IBaseNodeMixin mixin) => mixin is DocumentNode or CanvasNode or ComponentNode || mixin.parent is CanvasNode or ComponentNode;
+        internal static bool HasImageFill(IBaseNodeMixin mixin) => mixin is IGeometryMixin geometry && geometry.fills.Any(x => x is ImagePaint);
+        internal static bool IsSvgNode(IBaseNodeMixin mixin) => mixin is LineNode or EllipseNode or RegularPolygonNode or StarNode or VectorNode || (mixin is BooleanOperationNode && IsBooleanOperationVisible(mixin));
+        internal static bool IsVisible(IBaseNodeMixin mixin) => (mixin is not ISceneNodeMixin scene || !scene.visible.HasValueAndFalse()) && (mixin.parent == null || IsVisible(mixin.parent));
+
+        static bool IsBooleanOperationVisible(IBaseNodeMixin root)
+        {
+            if (root is not IChildrenMixin)
+                return false;
+
+            Stack<IBaseNodeMixin> nodes = new();
+            nodes.Push(root);
+
+            int i = 0;
+
+            while (nodes.Count > 0)
             {
-                foreach ((string key, string value) in blend.styles)
-                {
-                    bool text = node.type == NodeType.TEXT;
-                    string slot = key;
+                if (i++ >= maximumAllowedDepthLimit)
+                    throw new InvalidOperationException(maximumDepthLimitReachedExceptionMessage);
 
-                    if (slot.EndsWith('s'))
-                        slot = slot[..^1];
+                IBaseNodeMixin node = nodes.Pop();
 
-                    string styleKey = styles[value].key;
+                if (node is not IChildrenMixin children)
+                    continue;
 
-                    StyleSlot style = new(text, slot, styles[value]);
-                    if (!this.styles.Any(x => x.slot.Text == text && x.slot.Slot == slot && x.slot.key == styleKey))
-                        this.styles.Add((style, new UssStyle(GetClassName(style.name, "s"), assetsInfo, style.Slot, style.styleType, node)));
-                }
-            }
-
-            if (node is IChildrenMixin children)
                 foreach (SceneNode child in children.children)
-                    AddStylesRecursively(child, styles, insideComponent);
+                {
+                    if (child is BooleanOperationNode)
+                        nodes.Push(child);
+                    else if (IsVisible(child) && IsSvgNode(child))
+                        return true;
+                }
+            }
+
+            return false;
+        }
+        internal IReadOnlyList<UssStyle> GetStyles(BaseNode root)
+        {
+            List<UssStyle> result = new();
+            Stack<BaseNode> nodes = new();
+            nodes.Push(root);
+
+            int i = 0;
+
+            while (nodes.Count > 0)
+            {
+                if (i++ >= maximumAllowedDepthLimit)
+                    throw new InvalidOperationException(maximumDepthLimitReachedExceptionMessage);
+
+                BaseNode node = nodes.Pop();
+
+                if (!IsVisible(node))
+                    continue;
+
+                if (componentStyleMap.TryGetValue(node, out UssStyle styles) || nodeStyleMap.TryGetValue(node, out styles))
+                    result.Add(styles);
+
+                if (node is not IChildrenMixin nodeWithChildren)
+                    continue;
+
+                foreach (SceneNode child in nodeWithChildren.children)
+                    if (child is not ComponentSetNode)
+                        nodes.Push(child);
+            }
+
+            return result;
         }
 
         void InheritStylesRecursively(BaseNode node)
@@ -374,8 +499,8 @@ namespace Figma.Core
 
                 while (stack.Count > 0)
                 {
-                    if (i++ > maximalDepthLimit)
-                        throw new InvalidCastException(maximalDepthLimitMessage);
+                    if (i++ >= maximumAllowedDepthLimit)
+                        throw new InvalidCastException(maximumDepthLimitReachedExceptionMessage);
 
                     SceneNode current = stack.Pop();
 
@@ -482,76 +607,6 @@ namespace Figma.Core
             return $"{UssStyle.overrideClass.Name} {classList}";
         }
         UssStyle GetStyle(BaseNode node) => componentStyleMap.TryGetValue(node, out UssStyle style) || nodeStyleMap.TryGetValue(node, out style) ? style : null;
-        #endregion
-
-        #region Support Methods
-        internal static bool IsRootNode(IBaseNodeMixin mixin) => mixin is DocumentNode or CanvasNode or ComponentNode || mixin.parent is CanvasNode or ComponentNode;
-        internal static bool HasImageFill(IBaseNodeMixin mixin) => mixin is IGeometryMixin geometry && geometry.fills.Any(x => x is ImagePaint);
-        internal static bool IsSvgNode(IBaseNodeMixin mixin) => mixin is LineNode or EllipseNode or RegularPolygonNode or StarNode or VectorNode || (mixin is BooleanOperationNode && IsBooleanOperationVisible(mixin));
-        internal static bool IsVisible(IBaseNodeMixin mixin) => (mixin is not ISceneNodeMixin scene || !scene.visible.HasValueAndFalse()) && (mixin.parent == null || IsVisible(mixin.parent));
-
-        static bool IsBooleanOperationVisible(IBaseNodeMixin root)
-        {
-            if (root is not IChildrenMixin)
-                return false;
-
-            Stack<IBaseNodeMixin> nodes = new();
-            nodes.Push(root);
-
-            int i = 0;
-
-            while (nodes.Count > 0)
-            {
-                if (i++ > maximalDepthLimit)
-                    throw new InvalidOperationException(maximalDepthLimitMessage);
-
-                IBaseNodeMixin node = nodes.Pop();
-
-                if (node is not IChildrenMixin children)
-                    continue;
-
-                foreach (SceneNode child in children.children)
-                {
-                    if (child is BooleanOperationNode)
-                        nodes.Push(child);
-                    else if (IsVisible(child) && IsSvgNode(child))
-                        return true;
-                }
-            }
-
-            return false;
-        }
-        internal IReadOnlyList<UssStyle> GetStyles(BaseNode root)
-        {
-            List<UssStyle> result = new();
-            Stack<BaseNode> nodes = new();
-            nodes.Push(root);
-
-            int i = 0;
-
-            while (nodes.Count > 0)
-            {
-                if (i++ > maximalDepthLimit)
-                    throw new InvalidOperationException(maximalDepthLimitMessage);
-
-                BaseNode node = nodes.Pop();
-
-                if (!IsVisible(node))
-                    continue;
-
-                if (componentStyleMap.TryGetValue(node, out UssStyle styles) || nodeStyleMap.TryGetValue(node, out styles))
-                    result.Add(styles);
-
-                if (node is not IChildrenMixin nodeWithChildren)
-                    continue;
-
-                foreach (SceneNode child in nodeWithChildren.children)
-                    if (child is not ComponentSetNode)
-                        nodes.Push(child);
-            }
-
-            return result;
-        }
         #endregion
     }
 }
