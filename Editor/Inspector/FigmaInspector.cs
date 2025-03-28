@@ -40,6 +40,7 @@ namespace Figma.Inspectors
 
         UIDocument document;
         new Figma target;
+        Texture2D icon;
 
         Dictionary<MonoBehaviour, bool> selection;
         bool updating;
@@ -55,9 +56,14 @@ namespace Figma.Inspectors
         #endregion
 
         #region Methods
+        void Awake()
+        {
+            icon = AssetDatabase.LoadAssetAtPath<Texture2D>($"{PackageInfo.FindForAssembly(typeof(Figma).Assembly)?.assetPath}/Editor/Assets/icon.png");
+        }
         void OnEnable()
         {
             target = (Figma)base.target;
+            EditorGUIUtility.SetIconForObject(target, icon);
 
             fileKey = serializedObject.FindProperty(nameof(fileKey));
             filter = serializedObject.FindProperty(nameof(filter));
@@ -73,8 +79,7 @@ namespace Figma.Inspectors
             serializedObject.Update();
             DrawPersonalAccessTokenGUI();
             DrawAssetGUI();
-            if (document && document.visualTreeAsset)
-                DrawFramesView();
+            DrawFramesView();
             DrawProperties();
             serializedObject.ApplyModifiedProperties();
         }
@@ -198,11 +203,17 @@ namespace Figma.Inspectors
             if (selection.Any(x => !x.Value) && selection.Any(x => x.Value))
                 EditorGUILayout.HelpBox("Selection mode does clean up unused content. In order to get rid of unused content, \"Select All\" and \"Update\"", MessageType.Warning);
 
-            if (selection.All(x => !x.Value))
+            if (selection.Count > 0 && selection.All(x => !x.Value))
                 EditorGUILayout.HelpBox("Nothing is selected for Update.", MessageType.Error);
         }
         void DrawFramesView()
         {
+            if (!document || !document.visualTreeAsset)
+            {
+                EditorGUILayout.HelpBox("'UIDocument' not found or 'SourceAsset' is not referenced.", MessageType.Error);
+                return;
+            }
+
             using GUILayout.VerticalScope _ = new(GUI.skin.box);
 
             searchBar = EditorGUILayout.TextField(searchBar, EditorStyles.toolbarSearchField);
