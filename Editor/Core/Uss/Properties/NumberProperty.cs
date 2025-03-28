@@ -1,5 +1,3 @@
-using System;
-
 namespace Figma.Core.Uss
 {
     using Internals;

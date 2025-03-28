@@ -46,7 +46,7 @@ namespace Figma.Core.Uss
             {
                 Unit.None => "none",
                 Unit.Initial => "initial",
-                _ => throw new ArgumentException(value)
+                _ => throw new ArgumentException(nameof(value))
             };
         }
         #endregion

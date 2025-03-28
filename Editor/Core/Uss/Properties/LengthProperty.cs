@@ -51,7 +51,7 @@ namespace Figma.Core.Uss
                 Unit.None => "none",
                 Unit.Initial => "initial",
                 Unit.Default => "0px",
-                _ => throw new ArgumentException(value)
+                _ => throw new ArgumentException(nameof(value))
             };
         }
 
