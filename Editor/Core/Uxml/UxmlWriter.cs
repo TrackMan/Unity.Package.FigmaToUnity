@@ -23,8 +23,8 @@ namespace Figma.Core.Uxml
         };
 
         #region Fields
-        public readonly string filePath;
-        public readonly XmlWriter xmlWriter;
+        internal readonly string filePath;
+        internal readonly XmlWriter xmlWriter;
         #endregion
         
         #region Constructors

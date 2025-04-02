@@ -32,6 +32,7 @@ namespace Figma
         string imagesDirectoryPath;
         string framesDirectoryPath;
 
+        HttpClient httpClient;
         FigmaWriter figmaWriter;
         NodeMetadata nodeMetadata;
         NodesRegistry nodesRegistry;
@@ -45,10 +46,10 @@ namespace Figma
         #region Methods
         internal async Task Run(bool downloadImages, string uxmlName, IReadOnlyCollection<Type> frames, bool prune, bool filter, bool systemCopyBuffer, int progress, CancellationToken token)
         {
-            Directory.CreateDirectory(framesDirectoryPath = ToAbsolutePath(framesDirectoryName));
-            Directory.CreateDirectory(imagesDirectoryPath = ToAbsolutePath(imagesDirectoryName));
-            Directory.CreateDirectory(elementsDirectoryPath = ToAbsolutePath(elementsDirectoryName));
-            Directory.CreateDirectory(componentsDirectoryPath = ToAbsolutePath(componentsDirectoryName));
+            Directory.CreateDirectory(framesDirectoryPath = assetsInfo.GetAbsolutePath(framesDirectoryName));
+            Directory.CreateDirectory(imagesDirectoryPath = assetsInfo.GetAbsolutePath(imagesDirectoryName));
+            Directory.CreateDirectory(elementsDirectoryPath = assetsInfo.GetAbsolutePath(elementsDirectoryName));
+            Directory.CreateDirectory(componentsDirectoryPath = assetsInfo.GetAbsolutePath(componentsDirectoryName));
 
             int steps = downloadImages ? 5 : 4;
 
@@ -95,18 +96,19 @@ namespace Figma
             await DownloadDocumentsAsync(token);
 
             if (downloadImages)
-            {
-                Progress.Report(progress, 4, steps, "Downloading images");
-                Progress.SetDescription(progress, "Writing Gradients");
-                await WriteGradientsAsync(token);
-                Progress.SetDescription(progress, "Downloading image fills");
-                await GetImageFillsAsync(progress, nodesRegistry.ImageFills, token);
-                Progress.SetDescription(progress, $"Downloading {KnownFormats.png} files");
-                await GetImageNodesAsync(progress, nodesRegistry.Pngs, UxmlDownloadImages.RenderAsPng, KnownFormats.png, token);
-                Progress.SetDescription(progress, $"Downloading {KnownFormats.svg} files");
-                await GetImageNodesAsync(progress, nodesRegistry.Svgs, UxmlDownloadImages.RenderAsSvg, KnownFormats.svg, token);
-                await assetsInfo.cachedAssets.Save();
-            }
+                using (httpClient = new HttpClient())
+                {
+                    Progress.Report(progress, 4, steps, "Downloading images");
+                    Progress.SetDescription(progress, "Writing Gradients");
+                    await WriteGradientsAsync(token);
+                    Progress.SetDescription(progress, "Downloading image fills");
+                    await GetImageFillsAsync(progress, nodesRegistry.ImageFills, token);
+                    Progress.SetDescription(progress, $"Downloading {KnownFormats.png} files");
+                    await GetImageNodesAsync(progress, nodesRegistry.Pngs, UxmlDownloadImages.RenderAsPng, KnownFormats.png, token);
+                    Progress.SetDescription(progress, $"Downloading {KnownFormats.svg} files");
+                    await GetImageNodesAsync(progress, nodesRegistry.Svgs, UxmlDownloadImages.RenderAsSvg, KnownFormats.svg, token);
+                    await assetsInfo.cachedAssets.Save();
+                }
 
             Progress.SetStepLabel(progress, string.Empty);
 
@@ -204,35 +206,27 @@ namespace Figma
         async Task GetImageAsync(string nodeID, string url, string extension, int progress, CancellationToken token)
         {
             (bool fileExists, string assetPath) = assetsInfo.GetAssetPath(nodeID, extension);
-
-            if (assetsInfo.modifiedContent.Contains(ToAbsolutePath(assetPath)))
+            if (assetsInfo.modifiedContent.Contains(assetsInfo.GetAbsolutePath(assetPath)))
                 return;
 
             Progress.SetStepLabel(progress, url);
 
-            // Using HttpClient here instead of UnityWebRequest since UnityWebRequest causes deadlock
-            HttpClient client = new();
-            headers.ForEach(x => client.DefaultRequestHeaders.Add(x.Key, x.Value));
+            using HttpRequestMessage request = new(HttpMethod.Get, url);
+            headers.ForEach(x => request.Headers.Add(x.Key, x.Value));
 
             if (fileExists && assetsInfo.cachedAssets.Map.TryGetValue(nodeID, out string etag))
-                client.DefaultRequestHeaders.Add("If-None-Match", $"\"{etag}\"");
+                request.Headers.Add("If-None-Match", $"\"{etag}\"");
 
-            HttpResponseMessage response = await client.GetAsync(url, token);
+            HttpResponseMessage response = await httpClient.SendAsync(request, token);
 
-            // Sometimes, one image could be shared by 2 nodes and be occupied, in order to avoid that
-            // we are checking if someone already wrote the key.
             bool isResolved = assetsInfo.cachedAssets.Map.ContainsValue(nodeID);
-
             if (response.Headers.TryGetValues("ETag", out IEnumerable<string> values))
                 assetsInfo.cachedAssets[nodeID] = values.First().Trim('"');
 
-            // This is invoked again, since the line above is inserting a value for cachedAssets and now the path is updated.
             assetPath = assetsInfo.GetAssetPath(nodeID, extension).path;
-            string path = ToAbsolutePath(assetPath);
-
+            string path = assetsInfo.GetAbsolutePath(assetPath);
             if (assetsInfo.modifiedContent.Contains(path))
                 return;
-
             assetsInfo.modifiedContent.Add(path);
 
             if (response.StatusCode == HttpStatusCode.OK && !isResolved)
@@ -241,7 +235,6 @@ namespace Figma
                 if (bytes.Length == 0)
                 {
                     Debug.LogWarning($"Response is empty for node={nodeID}, url={url}");
-
                     if (extension == KnownFormats.svg)
                         await File.WriteAllTextAsync(path, InvalidSvg, token);
                     else
@@ -264,13 +257,12 @@ namespace Figma
         {
             foreach ((string key, GradientPaint gradient) in nodesRegistry.Gradients)
             {
-                string xmlPath = ToAbsolutePath(assetsInfo.GetAssetPath(key, KnownFormats.svg).path);
+                string xmlPath = assetsInfo.GetAbsolutePath(assetsInfo.GetAssetPath(key, KnownFormats.svg).path);
                 using GradientWriter writer = new(xmlPath);
                 await writer.WriteAsync(gradient, token);
                 assetsInfo.modifiedContent.Add(xmlPath);
             }
         }
-        string ToAbsolutePath(string path) => CombinePath(assetsInfo.directory, path);
         #endregion
     }
 }

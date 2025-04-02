@@ -94,6 +94,7 @@ namespace Figma.Core.Assets
             }
         }
         internal void AddModifiedFiles(params string[] items) => items.ForEach(item => modifiedContent.Add(item));
+        internal string GetAbsolutePath(string path) => PathExtensions.CombinePath(directory, path);
         #endregion
 
         #region Support Methods
