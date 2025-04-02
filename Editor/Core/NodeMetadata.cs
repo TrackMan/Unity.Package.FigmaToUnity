@@ -84,9 +84,9 @@ namespace Figma
         #endregion
 
         #region Fields
-        readonly Dictionary<BaseNode, RootMetadata> rootMetadata = new();
-        readonly Dictionary<BaseNode, QueryMetadata> queryMetadata = new();
-        readonly List<BaseNode> search = new(256);
+        readonly Dictionary<IBaseNodeMixin, RootMetadata> rootMetadata = new();
+        readonly Dictionary<IBaseNodeMixin, QueryMetadata> queryMetadata = new();
+        readonly List<IBaseNodeMixin> search = new(256);
         #endregion
 
         #region Properties
@@ -98,9 +98,9 @@ namespace Figma
         {
             void InitializeRootElement(Type elementType)
             {
-                void InitializeElement(Type type, BaseNode rootNode)
+                void InitializeElement(Type type, IBaseNodeMixin rootNode)
                 {
-                    BaseNode FindNodeByQuery(QueryAttribute queryRoot, QueryAttribute query, bool throwException) =>
+                    IBaseNodeMixin FindNodeByQuery(QueryAttribute queryRoot, QueryAttribute query, bool throwException) =>
                         queryRoot != null && !ReferenceEquals(queryRoot, query) && Find(rootNode, queryRoot.Path, throwException, silent) is { } queryRootNode
                             ? Find(queryRootNode, query.Path, throwException, silent)
                             : Find(rootNode, query.Path, throwException, silent);
@@ -118,10 +118,10 @@ namespace Figma
                         if (query.StartRoot)
                             queryRoot = query;
 
-                        BaseNode node = FindNodeByQuery(queryRoot, query, throwExceptions &&
-                                                                          !query.Nullable &&
-                                                                          query.ReplaceElementPath.NullOrEmpty() &&
-                                                                          query.RebuildElementEvent.NullOrEmpty());
+                        IBaseNodeMixin node = FindNodeByQuery(queryRoot, query, throwExceptions &&
+                                                                                !query.Nullable &&
+                                                                                query.ReplaceElementPath.NullOrEmpty() &&
+                                                                                query.RebuildElementEvent.NullOrEmpty());
 
                         if (node != null && !queryMetadata.ContainsKey(node))
                             queryMetadata.Add(node, new QueryMetadata(fieldType, query));
@@ -136,12 +136,12 @@ namespace Figma
                 if (uxml is null)
                     return;
 
-                BaseNode elementRoot = Find(documentNode, uxml.Root);
-                BaseNode[] elementPreserve = uxml.Preserve.Select(x => Find(documentNode, x)).ToArray();
+                IBaseNodeMixin elementRoot = Find(documentNode, uxml.Root);
+                IBaseNodeMixin[] elementPreserve = uxml.Preserve.Select(x => Find(documentNode, x)).ToArray();
 
                 rootMetadata.Add(elementRoot, new RootMetadata(filter, uxml, uxml.DownloadImages));
 
-                foreach (BaseNode value in elementPreserve.Where(x => !rootMetadata.ContainsKey(x)))
+                foreach (IBaseNodeMixin value in elementPreserve.Where(x => !rootMetadata.ContainsKey(x)))
                     rootMetadata.Add(value, new RootMetadata(filter, uxml, UxmlDownloadImages.Everything));
 
                 InitializeElement(elementType, elementRoot);
@@ -152,8 +152,8 @@ namespace Figma
         #endregion
 
         #region Methods
-        internal bool EnabledInHierarchy(BaseNode node) => !rootMetadata.Any(x => x.Value.filter) || GetMetadata(node).root != null;
-        internal bool ShouldDownload(BaseNode node, UxmlDownloadImages flag)
+        internal bool EnabledInHierarchy(IBaseNodeMixin node) => !rootMetadata.Any(x => x.Value.filter) || GetMetadata(node).root != null;
+        internal bool ShouldDownload(IBaseNodeMixin node, UxmlDownloadImages flag)
         {
             BaseNodeMetadata metadata = GetMetadata(node);
             if (metadata.root is null || !metadata.root.filter)
@@ -171,9 +171,9 @@ namespace Figma
                 _ => shouldDownload
             };
         }
-        internal (bool isHash, string templateName) GetTemplate(BaseNode node)
+        internal (bool isHash, string templateName) GetTemplate(IBaseNodeMixin node)
         {
-            string GetFullPath(BaseNode x) => x.parent != null ? CombinePath(GetFullPath(x.parent), x.name) : x.name;
+            string GetFullPath(IBaseNodeMixin x) => x.parent != null ? CombinePath(GetFullPath(x.parent), x.name) : x.name;
 
             BaseNodeMetadata metadata = GetMetadata(node);
 
@@ -182,7 +182,7 @@ namespace Figma
 
             return !metadata.query.query.Hash ? (false, metadata.query.query.Template) : (true, $"{metadata.query.fieldType.Name}-{Hash128.Compute(GetFullPath(node))}");
         }
-        internal (ElementType, string) GetElementType(BaseNode node)
+        internal (ElementType, string) GetElementType(IBaseNodeMixin node)
         {
             ElementType FieldTypeToElementType(Type type) => typeMap.TryGetValue(type, out ElementType elementType)
                 ? elementType
@@ -198,16 +198,16 @@ namespace Figma
         #endregion
 
         #region Support Methods
-        BaseNode Find(BaseNode value, string path, bool throwException = true, bool silent = false)
+        IBaseNodeMixin Find(IBaseNodeMixin value, string path, bool throwException = true, bool silent = false)
         {
-            IEnumerable<BaseNode> Search(BaseNode value, string path)
+            IEnumerable<IBaseNodeMixin> Search(IBaseNodeMixin value, string path)
             {
-                bool StartsWith(string path, BaseNode value, int startIndex)
+                bool StartsWith(string path, IBaseNodeMixin value, int startIndex)
                 {
                     int endIndex = startIndex + value.name.Length;
                     return path.BeginsWith(value.name, startIndex) && path.Length >= endIndex && (path.Length == endIndex || path[endIndex].IsSeparator());
                 }
-                int LastIndexOf(BaseNode root, BaseNode leaf, BaseNode value, string path, int startIndex = 0)
+                int LastIndexOf(IBaseNodeMixin root, IBaseNodeMixin leaf, IBaseNodeMixin value, string path, int startIndex = 0)
                 {
                     if (value.parent != null && value.parent != root)
                         startIndex = LastIndexOf(root, leaf, value.parent, path, startIndex);
@@ -221,7 +221,7 @@ namespace Figma
 
                     return endIndex;
                 }
-                void SearchIn(BaseNode value, string path, int startIndex = 0)
+                void SearchIn(IBaseNodeMixin value, string path, int startIndex = 0)
                 {
                     static bool IsVisible(IBaseNodeMixin mixin)
                     {
@@ -230,7 +230,7 @@ namespace Figma
 
                         return mixin.parent is null || IsVisible(mixin.parent);
                     }
-                    static IReadOnlyCollection<BaseNode> GetChildren(BaseNode value)
+                    static IReadOnlyCollection<BaseNode> GetChildren(IBaseNodeMixin value)
                     {
                         List<BaseNode> children = new();
                         switch (value)
@@ -246,14 +246,14 @@ namespace Figma
 
                         return children;
                     }
-                    static bool EqualsTo(BaseNode value, string path, int startIndex) => path.EqualsTo(value.name, startIndex);
+                    static bool EqualsTo(IBaseNodeMixin value, string path, int startIndex) => path.EqualsTo(value.name, startIndex);
 
                     IReadOnlyCollection<BaseNode> children = GetChildren(value);
 
                     search.AddRange(children.Where(child => IsVisible(child) && child.name.NotNullOrEmpty() && EqualsTo(child, path, startIndex)));
                     children.Where(child => IsVisible(child) && child.name.NotNullOrEmpty() && StartsWith(path, child, startIndex)).ForEach(child => SearchIn(child, path, startIndex + child.name.Length + 1));
                 }
-                void SearchByFullPath(BaseNode value, string path, int startIndex = 0)
+                void SearchByFullPath(IBaseNodeMixin value, string path, int startIndex = 0)
                 {
                     static bool IsVisible(IBaseNodeMixin mixin)
                     {
@@ -262,7 +262,7 @@ namespace Figma
 
                         return mixin.parent is null || IsVisible(mixin.parent);
                     }
-                    static IReadOnlyCollection<BaseNode> GetChildren(BaseNode value)
+                    static IReadOnlyCollection<BaseNode> GetChildren(IBaseNodeMixin value)
                     {
                         List<BaseNode> children = new();
                         switch (value)
@@ -280,8 +280,8 @@ namespace Figma
                     }
                     IReadOnlyCollection<BaseNode> children = GetChildren(value);
 
-                    bool EqualsToFullPath(BaseNode root, BaseNode value, string path, int startIndex) => LastIndexOf(root, value, value, path, startIndex) == path.Length;
-                    bool StartsWithFullPath(BaseNode root, BaseNode value, string path, int startIndex)
+                    bool EqualsToFullPath(IBaseNodeMixin root, IBaseNodeMixin value, string path, int startIndex) => LastIndexOf(root, value, value, path, startIndex) == path.Length;
+                    bool StartsWithFullPath(IBaseNodeMixin root, IBaseNodeMixin value, string path, int startIndex)
                     {
                         int endIndex = LastIndexOf(root, value, value, path, startIndex);
                         return endIndex >= 0 && path.Length > endIndex && path[endIndex].IsSeparator();
@@ -289,13 +289,13 @@ namespace Figma
 
                     search.AddRange(children.Where(child => IsVisible(child) && child.name.NotNullOrEmpty() && EqualsToFullPath(value, child, path, startIndex)));
 
-                    foreach (BaseNode child in children.Where(child => IsVisible(child) && child.name.NotNullOrEmpty() && StartsWithFullPath(value, child, path, startIndex)))
+                    foreach (IBaseNodeMixin child in children.Where(child => IsVisible(child) && child.name.NotNullOrEmpty() && StartsWithFullPath(value, child, path, startIndex)))
                         SearchByFullPath(child, path, startIndex + child.name.Length + 1);
                 }
 
                 search.Clear();
 
-                BaseNode root = FindRoot(value);
+                IBaseNodeMixin root = FindRoot(value);
                 if (root != null)
                 {
                     UxmlAttribute uxml = rootMetadata[root].uxml;
@@ -307,26 +307,25 @@ namespace Figma
                 else
                     SearchByFullPath(value, path);
 
-                foreach (BaseNode result in search.OfType<BaseNode>())
-                    yield return result;
+                return search;
             }
 
-            string GetFullPath(BaseNode node) => node.parent != null ? CombinePath(GetFullPath(node.parent), node.name) : node.name;
+            string GetFullPath(IBaseNodeMixin node) => node.parent != null ? CombinePath(GetFullPath(node.parent), node.name) : node.name;
 
-            BaseNode result = Search(value, path).FirstOrDefault();
+            IBaseNodeMixin result = Search(value, path).FirstOrDefault();
 
             if (result != null)
                 return result;
 
             if (throwException)
-                throw new Exception(Extensions.BuildTargetMessage("Cannot find node at", CombinePath(GetFullPath(value), path)));
+                throw new Exception(Internals.Extensions.BuildTargetMessage("Cannot find node at", CombinePath(GetFullPath(value), path)));
 
             if (!silent)
-                Debug.LogWarning(Extensions.BuildTargetMessage("Cannot find node at", CombinePath(GetFullPath(value), path)));
+                Debug.LogWarning(Internals.Extensions.BuildTargetMessage("Cannot find node at", CombinePath(GetFullPath(value), path)));
 
             return null;
         }
-        BaseNode FindRoot(BaseNode value)
+        IBaseNodeMixin FindRoot(IBaseNodeMixin value)
         {
             try
             {
@@ -345,9 +344,9 @@ namespace Figma
                 throw;
             }
         }
-        BaseNodeMetadata GetMetadata(BaseNode value)
+        BaseNodeMetadata GetMetadata(IBaseNodeMixin value)
         {
-            BaseNode FindRootInChildren(BaseNode value)
+            IBaseNodeMixin FindRootInChildren(IBaseNodeMixin value)
             {
                 if (rootMetadata.ContainsKey(value))
                     return value;
@@ -357,7 +356,7 @@ namespace Figma
                     case DocumentNode documentNode:
                         foreach (CanvasNode child in documentNode.children)
                         {
-                            BaseNode node = FindRootInChildren(child);
+                            IBaseNodeMixin node = FindRootInChildren(child);
                             if (node != null)
                                 return node;
                         }
@@ -367,7 +366,7 @@ namespace Figma
                     case IChildrenMixin children:
                         foreach (SceneNode child in children.children)
                         {
-                            BaseNode node = FindRootInChildren(child);
+                            IBaseNodeMixin node = FindRootInChildren(child);
                             if (node != null)
                                 return node;
                         }
@@ -378,7 +377,7 @@ namespace Figma
                 return null;
             }
 
-            BaseNode root = FindRoot(value) ?? FindRootInChildren(value);
+            IBaseNodeMixin root = FindRoot(value) ?? FindRootInChildren(value);
             return root != null ? new BaseNodeMetadata(rootMetadata[root], queryMetadata.GetValueOrDefault(value)) : new BaseNodeMetadata(null, null);
         }
         #endregion

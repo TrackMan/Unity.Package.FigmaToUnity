@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
@@ -7,33 +8,36 @@ using UnityEditor;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
-namespace Figma.Core
+namespace Figma.Core.Assets
 {
-    using Assets;
     using Internals;
     using static Internals.Const;
 
     internal class AssetsInfo
     {
         #region Fields
-        public readonly string directory;
-        public readonly string relativeDirectory;
-        public readonly CachedAssets cachedAssets;
+        internal readonly string directory;
+        internal readonly string relativeDirectory;
+        internal readonly CachedAssets cachedAssets;
+        internal readonly ConcurrentBag<string> modifiedContent;
+
         readonly IReadOnlyList<string> fontDirectories;
         #endregion
 
         #region Constructors
-        public AssetsInfo(string directory, string relativeDirectory, string remapsFileName, IReadOnlyList<string> fontDirectories)
+        internal AssetsInfo(string directory, string relativeDirectory, string remapsFileName, IReadOnlyList<string> fontDirectories)
         {
             this.directory = directory;
             this.relativeDirectory = relativeDirectory;
             this.fontDirectories = fontDirectories;
+
+            modifiedContent = new ConcurrentBag<string>();
             cachedAssets = new CachedAssets(directory, remapsFileName);
         }
         #endregion
 
         #region Methods
-        public (bool exists, string path) GetAssetPath(string name, string extension)
+        internal (bool exists, string path) GetAssetPath(string name, string extension)
         {
             switch (extension)
             {
@@ -56,7 +60,7 @@ namespace Figma.Core
                     throw new NotSupportedException(extension);
             }
         }
-        public (bool valid, int width, int height) GetAssetSize(string name, string extension)
+        internal (bool valid, int width, int height) GetAssetSize(string name, string extension)
         {
             (bool valid, string path) = GetAssetPath(name, extension);
             switch (extension)
@@ -89,6 +93,7 @@ namespace Figma.Core
                     throw new NotSupportedException(extension);
             }
         }
+        internal void AddModifiedFiles(params string[] items) => items.ForEach(item => modifiedContent.Add(item));
         #endregion
 
         #region Support Methods

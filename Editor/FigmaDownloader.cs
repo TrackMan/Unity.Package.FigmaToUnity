@@ -25,7 +25,7 @@ namespace Figma
         #endregion
 
         #region Fields
-        readonly AssetsInfo info;
+        readonly AssetsInfo assetsInfo;
 
         string componentsDirectoryPath;
         string elementsDirectoryPath;
@@ -33,36 +33,26 @@ namespace Figma
         string framesDirectoryPath;
 
         FigmaWriter figmaWriter;
-        Usages usages;
         NodeMetadata nodeMetadata;
+        NodesRegistry nodesRegistry;
         StylesPreprocessor stylesPreprocessor;
         #endregion
 
         #region Constructors
-        internal FigmaDownloader(string personalAccessToken, string fileKey, AssetsInfo info) : base(personalAccessToken, fileKey) => this.info = info;
+        internal FigmaDownloader(string personalAccessToken, string fileKey, AssetsInfo assetsInfo) : base(personalAccessToken, fileKey) => this.assetsInfo = assetsInfo;
         #endregion
 
         #region Methods
         internal async Task Run(bool downloadImages, string uxmlName, IReadOnlyCollection<Type> frames, bool prune, bool filter, bool systemCopyBuffer, int progress, CancellationToken token)
         {
-            framesDirectoryPath = ToAbsolutePath(framesDirectoryName);
-            imagesDirectoryPath = ToAbsolutePath(imagesDirectoryName);
-            elementsDirectoryPath = ToAbsolutePath(elementsDirectoryName);
-            componentsDirectoryPath = ToAbsolutePath(componentsDirectoryName);
-
-            void CreateDirectories()
-            {
-                Directory.CreateDirectory(framesDirectoryPath);
-                Directory.CreateDirectory(imagesDirectoryPath);
-                Directory.CreateDirectory(elementsDirectoryPath);
-                Directory.CreateDirectory(componentsDirectoryPath);
-            }
+            Directory.CreateDirectory(framesDirectoryPath = ToAbsolutePath(framesDirectoryName));
+            Directory.CreateDirectory(imagesDirectoryPath = ToAbsolutePath(imagesDirectoryName));
+            Directory.CreateDirectory(elementsDirectoryPath = ToAbsolutePath(elementsDirectoryName));
+            Directory.CreateDirectory(componentsDirectoryPath = ToAbsolutePath(componentsDirectoryName));
 
             int steps = downloadImages ? 5 : 4;
 
-            CreateDirectories();
-
-            await info.cachedAssets.Load(token);
+            await assetsInfo.cachedAssets.Load(token);
 
             Progress.Report(progress, 1, steps, "Downloading file");
 
@@ -96,10 +86,10 @@ namespace Figma
             Data data = await ConvertOnBackgroundAsync<Data>(json, token);
             data.document.SetParent();
 
-            usages = new Usages();
             nodeMetadata = new NodeMetadata(data.document, frames, filter);
-            stylesPreprocessor = new StylesPreprocessor(data, info, nodeMetadata, usages);
-            figmaWriter = new FigmaWriter(data, stylesPreprocessor, nodeMetadata, usages);
+            nodesRegistry = new NodesRegistry(data, nodeMetadata);
+            stylesPreprocessor = new StylesPreprocessor(data, assetsInfo);
+            figmaWriter = new FigmaWriter(assetsInfo.directory, uxmlName, data, stylesPreprocessor, nodeMetadata, assetsInfo);
 
             Progress.Report(progress, 3, steps, "Downloading missing components");
             await DownloadDocumentsAsync(token);
@@ -110,26 +100,25 @@ namespace Figma
                 Progress.SetDescription(progress, "Writing Gradients");
                 await WriteGradientsAsync(token);
                 Progress.SetDescription(progress, "Downloading image fills");
-                await GetImageFillsAsync(progress, token);
+                await GetImageFillsAsync(progress, nodesRegistry.ImageFills, token);
                 Progress.SetDescription(progress, $"Downloading {KnownFormats.png} files");
-                await GetImageNodesAsync(progress, usages.PngNodes, UxmlDownloadImages.RenderAsPng, KnownFormats.png, token);
+                await GetImageNodesAsync(progress, nodesRegistry.Pngs, UxmlDownloadImages.RenderAsPng, KnownFormats.png, token);
                 Progress.SetDescription(progress, $"Downloading {KnownFormats.svg} files");
-                await GetImageNodesAsync(progress, usages.SvgNodes, UxmlDownloadImages.RenderAsSvg, KnownFormats.svg, token);
-                await info.cachedAssets.Save();
+                await GetImageNodesAsync(progress, nodesRegistry.Svgs, UxmlDownloadImages.RenderAsSvg, KnownFormats.svg, token);
+                await assetsInfo.cachedAssets.Save();
             }
 
             Progress.SetStepLabel(progress, string.Empty);
 
             Progress.Report(progress, steps, steps, "Updating *.uss/*.uxml files");
-            stylesPreprocessor.Run();
-            await figmaWriter.WriteAsync(info.directory, uxmlName, prune);
+            await figmaWriter.WriteAsync(prune);
         }
         internal void CleanUp(bool cleanImages = false)
         {
             void CleanDirectory(string directory, string[] filters)
             {
                 IEnumerable<string> target = filters.SelectMany(filter => GetFiles(directory, filter, SearchOption.AllDirectories))
-                                                    .Where(fileName => !usages.Files.Contains(fileName));
+                                                    .Where(fileName => !assetsInfo.modifiedContent.Contains(fileName));
 
                 foreach (string file in target)
                 {
@@ -179,13 +168,13 @@ namespace Figma
                                               .Select(chunk => GetAsync<Nodes>($"files/{fileKey}/nodes?ids={string.Join(",", chunk.Distinct())}", token))))
                 .SelectMany(node => node.nodes.Values.Where(value => value != null));
 
-            if (usages.MissingComponents.Count > 0)
-                foreach (Nodes.Document value in await GetMissingComponentsAsync(usages.MissingComponents))
+            if (nodesRegistry.MissingComponents.Count > 0)
+                foreach (Nodes.Document value in await GetMissingComponentsAsync(nodesRegistry.MissingComponents))
                     stylesPreprocessor.AddMissingComponent(value.document, value.styles);
         }
-        async Task GetImageFillsAsync(int progress, CancellationToken token)
+        async Task GetImageFillsAsync(int progress, List<IBaseNodeMixin> imageFills, CancellationToken token)
         {
-            BaseNode[] nodes = usages.ImageFillNodes.Where(x => nodeMetadata.ShouldDownload(x, UxmlDownloadImages.ImageFills)).ToArray();
+            IBaseNodeMixin[] nodes = imageFills.Where(x => nodeMetadata.ShouldDownload(x, UxmlDownloadImages.ImageFills)).ToArray();
 
             if (!nodes.Any())
                 return;
@@ -196,9 +185,9 @@ namespace Figma
             IEnumerable<KeyValuePair<string, string>> urls = filesImages.meta.images.Where(item => imageRefs.Contains(item.Key));
             await urls.ForEachParallelAsync(maxConcurrentRequests, x => GetImageAsync(x.Key, x.Value, KnownFormats.png, progress, token), token);
         }
-        async Task GetImageNodesAsync(int progress, IEnumerable<BaseNode> targetNodes, UxmlDownloadImages downloadImages, string extension, CancellationToken token)
+        async Task GetImageNodesAsync(int progress, IEnumerable<IBaseNodeMixin> targetNodes, UxmlDownloadImages downloadImages, string extension, CancellationToken token)
         {
-            BaseNode[] nodes = targetNodes.Where(x => nodeMetadata.ShouldDownload(x, downloadImages)).ToArray();
+            IBaseNodeMixin[] nodes = targetNodes.Where(x => nodeMetadata.ShouldDownload(x, downloadImages)).ToArray();
 
             if (!nodes.Any())
                 return;
@@ -214,9 +203,9 @@ namespace Figma
         }
         async Task GetImageAsync(string nodeID, string url, string extension, int progress, CancellationToken token)
         {
-            (bool fileExists, string assetPath) = info.GetAssetPath(nodeID, extension);
+            (bool fileExists, string assetPath) = assetsInfo.GetAssetPath(nodeID, extension);
 
-            if (usages.Files.Contains(ToAbsolutePath(assetPath)))
+            if (assetsInfo.modifiedContent.Contains(ToAbsolutePath(assetPath)))
                 return;
 
             Progress.SetStepLabel(progress, url);
@@ -225,26 +214,26 @@ namespace Figma
             HttpClient client = new();
             headers.ForEach(x => client.DefaultRequestHeaders.Add(x.Key, x.Value));
 
-            if (fileExists && info.cachedAssets.Map.TryGetValue(nodeID, out string etag))
+            if (fileExists && assetsInfo.cachedAssets.Map.TryGetValue(nodeID, out string etag))
                 client.DefaultRequestHeaders.Add("If-None-Match", $"\"{etag}\"");
 
             HttpResponseMessage response = await client.GetAsync(url, token);
 
             // Sometimes, one image could be shared by 2 nodes and be occupied, in order to avoid that
             // we are checking if someone already wrote the key.
-            bool isResolved = info.cachedAssets.Map.ContainsValue(nodeID);
+            bool isResolved = assetsInfo.cachedAssets.Map.ContainsValue(nodeID);
 
             if (response.Headers.TryGetValues("ETag", out IEnumerable<string> values))
-                info.cachedAssets[nodeID] = values.First().Trim('"');
+                assetsInfo.cachedAssets[nodeID] = values.First().Trim('"');
 
             // This is invoked again, since the line above is inserting a value for cachedAssets and now the path is updated.
-            assetPath = info.GetAssetPath(nodeID, extension).path;
+            assetPath = assetsInfo.GetAssetPath(nodeID, extension).path;
             string path = ToAbsolutePath(assetPath);
 
-            if (usages.Files.Contains(path))
+            if (assetsInfo.modifiedContent.Contains(path))
                 return;
 
-            usages.Files.Add(path);
+            assetsInfo.modifiedContent.Add(path);
 
             if (response.StatusCode == HttpStatusCode.OK && !isResolved)
             {
@@ -273,15 +262,15 @@ namespace Figma
         }
         async Task WriteGradientsAsync(CancellationToken token)
         {
-            foreach ((string key, GradientPaint gradient) in usages.Gradients)
+            foreach ((string key, GradientPaint gradient) in nodesRegistry.Gradients)
             {
-                string xmlPath = ToAbsolutePath(info.GetAssetPath(key, KnownFormats.svg).path);
+                string xmlPath = ToAbsolutePath(assetsInfo.GetAssetPath(key, KnownFormats.svg).path);
                 using GradientWriter writer = new(xmlPath);
                 await writer.WriteAsync(gradient, token);
-                usages.Files.Add(xmlPath);
+                assetsInfo.modifiedContent.Add(xmlPath);
             }
         }
-        string ToAbsolutePath(string path) => CombinePath(info.directory, path);
+        string ToAbsolutePath(string path) => CombinePath(assetsInfo.directory, path);
         #endregion
     }
 }

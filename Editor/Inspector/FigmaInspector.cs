@@ -19,6 +19,7 @@ using PackageInfo = UnityEditor.PackageManager.PackageInfo;
 namespace Figma.Inspectors
 {
     using Core;
+    using Core.Assets;
     using Attributes;
     using Internals;
     using static Styles;
@@ -29,6 +30,7 @@ namespace Figma.Inspectors
     {
         #region Const
         static readonly Regex regex = new(@"[^/\\]+$", RegexOptions.Compiled);
+        static readonly string patKey = $"{nameof(Figma)}/{nameof(PersonalAccessToken)}";
         #endregion
 
         #region Fields
@@ -52,7 +54,7 @@ namespace Figma.Inspectors
         #endregion
 
         #region Properties
-        static string PersonalAccessToken { get => EditorPrefs.GetString(Const.prefsPatTag, string.Empty); set => EditorPrefs.SetString(Const.prefsPatTag, value); }
+        static string PersonalAccessToken { get => EditorPrefs.GetString(patKey, string.Empty); set => EditorPrefs.SetString(patKey, value); }
         #endregion
 
         #region Methods
@@ -342,7 +344,7 @@ namespace Figma.Inspectors
                     stopwatch.Stop();
 
                 AssetDatabase.StopAssetEditing();
-                AssetDatabase.ImportAsset(AssetDatabase.GetAssetPath(document.visualTreeAsset));
+                AssetDatabase.Refresh();
             }
         }
         static (string directory, string relativeDirectory, string product, string name) GetDirectoryAndRelativeDirectory(string assetPath)

@@ -12,8 +12,8 @@ namespace Figma.Core.Uss
     internal class UssWriter : IDisposable, IAsyncDisposable
     {
         #region Fields
-        readonly StreamWriter stream;
         readonly string rootDirectory;
+        readonly StreamWriter stream;
         int count;
         #endregion
 

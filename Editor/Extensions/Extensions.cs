@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
-namespace Figma.Core
+namespace Figma
 {
     using Internals;
 
+    [DebuggerStepThrough]
     internal static class Extensions
     {
         #region Const
@@ -14,6 +16,13 @@ namespace Figma.Core
         #endregion
 
         #region Methods
+        internal static bool IsEmptyOrTrue(this bool? value) => !value.HasValue || value.Value;
+        internal static bool HasValueAndTrue(this bool? value) => value == true;
+        internal static bool HasValueAndFalse(this bool? value) => value == false;
+        internal static bool HasPositive(this double? value) => value is > 0;
+        internal static bool IsValue<T>(this T? source, T dest) where T : struct, Enum => source.HasValue && source.Value.Equals(dest);
+        internal static int ToBit(this bool value) => value ? 1 : 0;
+
         internal static IEnumerable<T> IndexRedundantNames<T>(this IReadOnlyList<T> items, Func<T, string> getName, Action<T, string> setName, Func<int, string> postfixConverter)
         {
             foreach (IGrouping<string, T> group in items.GroupBy(getName).Where(y => y.Count() > 1))
@@ -92,7 +101,6 @@ namespace Figma.Core
             avgColor.b /= count;
             return avgColor;
         }
-        internal static int ToBit(this bool value) => value ? 1 : 0;
         #endregion
     }
 }

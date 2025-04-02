@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 
 namespace Figma.Core
@@ -26,18 +25,8 @@ namespace Figma.Core
         #region Constructors
         public RootNodes(Data data, NodeMetadata nodeMetadata)
         {
-            Stack<BaseNode> nodes = new();
-            int i = 0;
-
-            nodes.Push(data.document);
-
-            while (nodes.Count > 0)
+            foreach (IBaseNodeMixin node in data.document.Flatten())
             {
-                if (i++ >= Const.maximumAllowedDepthLimit)
-                    throw new InvalidOperationException(Const.maximumDepthLimitReachedExceptionMessage);
-
-                BaseNode node = nodes.Pop();
-
                 switch (node)
                 {
                     case CanvasNode canvasNode:
@@ -56,17 +45,6 @@ namespace Figma.Core
                         elements.Add((defaultShapeNode, template));
                         break;
                 }
-
-                // ReSharper disable CoVariantArrayConversion
-                BaseNode[] children = node switch
-                {
-                    IChildrenMixin parentNode => parentNode.children,
-                    DocumentNode documentNode => documentNode.children,
-                    _ => Array.Empty<BaseNode>()
-                };
-                // ReSharper enable CoVariantArrayConversion
-                foreach (BaseNode child in children)
-                    nodes.Push(child);
             }
         }
         #endregion

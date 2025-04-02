@@ -7,8 +7,8 @@ using UnityEngine.UIElements;
 
 namespace Figma.Core.Uss
 {
+    using Assets;
     using Internals;
-    using static StylesPreprocessor;
 
     internal class UssStyle : BaseUssStyle
     {
@@ -139,7 +139,7 @@ namespace Figma.Core.Uss
         #region Constructors
         public UssStyle(string name) : base(name) { }
         public UssStyle(string name, AssetsInfo assetsInfo) : this(name) => this.assetsInfo = assetsInfo;
-        public UssStyle(string name, AssetsInfo assetsInfo, string slot, StyleType type, BaseNode node) : this(name, assetsInfo)
+        public UssStyle(string name, AssetsInfo assetsInfo, string slot, StyleType type, IBaseNodeMixin node) : this(name, assetsInfo)
         {
             if (type == StyleType.FILL && node is IGeometryMixin geometry)
             {
@@ -165,7 +165,7 @@ namespace Figma.Core.Uss
             else if (type == StyleType.EFFECT && node is IBlendMixin blend)
                 AddNodeEffects(blend.effects);
         }
-        public UssStyle(string name, AssetsInfo assetsInfo, BaseNode node) : this(name, assetsInfo)
+        public UssStyle(string name, AssetsInfo assetsInfo, IBaseNodeMixin node) : this(name, assetsInfo)
         {
             if (node is FrameNode frame) AddFrameNode(frame);
             if (node is GroupNode group) AddGroupNode(group);
@@ -348,7 +348,7 @@ namespace Figma.Core.Uss
         {
             void AddBackgroundImageForVectorNode()
             {
-                (bool valid, string url) = HasImageFill(@base) ? assetsInfo.GetAssetPath(@base.id, KnownFormats.png) : assetsInfo.GetAssetPath(@base.id, KnownFormats.svg);
+                (bool valid, string url) = @base.HasImage() ? assetsInfo.GetAssetPath(@base.id, KnownFormats.png) : assetsInfo.GetAssetPath(@base.id, KnownFormats.svg);
                 if (valid)
                     backgroundImage = Url(url);
             }
@@ -415,7 +415,7 @@ namespace Figma.Core.Uss
                     rotate = new LengthProperty(rotation, Unit.Degrees);
             }
 
-            if (IsSvgNode(@base))
+            if (@base.IsSvgNode())
             {
                 AddBackgroundImageForVectorNode();
                 return;
@@ -572,7 +572,7 @@ namespace Figma.Core.Uss
             }
             void AddItemSpacing(IDefaultFrameMixin parent, double itemSpacing)
             {
-                if (baseNode == parent.children.LastOrDefault(IsVisible))
+                if (baseNode == parent.children.LastOrDefault(x => x.IsVisible()))
                     return;
 
                 if (parent!.layoutMode!.Value == LayoutMode.HORIZONTAL && parent.primaryAxisAlignItems is not PrimaryAxisAlignItems.SPACE_BETWEEN)
@@ -599,6 +599,7 @@ namespace Figma.Core.Uss
                             textOverflow = TextOverflow.Ellipsis;
                             overflow = Visibility.Hidden;
                         }
+
                         break;
                 }
             }
@@ -607,9 +608,9 @@ namespace Figma.Core.Uss
             if (layout.minHeight.HasValue) minHeight = layout.minHeight.Value;
             if (layout.maxWidth.HasValue) maxWidth = layout.maxWidth.Value;
             if (layout.maxHeight.HasValue) maxHeight = layout.maxHeight.Value;
-            if (IsSvgNode(baseNode)) AdjustSvgSize();
+            if (baseNode.IsSvgNode()) AdjustSvgSize();
 
-            if (!IsRootNode(baseNode))
+            if (!baseNode.IsRootNode())
             {
                 IDefaultFrameMixin parent = (IDefaultFrameMixin)baseNode.parent;
                 if (parent.layoutMode is not null && baseNode is IDefaultFrameMixin { layoutPositioning: null } or not IDefaultFrameMixin)

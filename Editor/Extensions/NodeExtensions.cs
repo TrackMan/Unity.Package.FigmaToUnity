@@ -1,16 +1,56 @@
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 
 namespace Figma
 {
     using Internals;
+    using static Internals.Const;
 
     [DebuggerStepThrough]
     public static class NodeExtensions
     {
+        public const int maximumAllowedDepthLimit = 0x10000; // This is a random big number.
+        public const string maximumDepthLimitReachedExceptionMessage = "Maximum depth limit is exceeded.";
+
         #region Methods
+        public static IEnumerable<IBaseNodeMixin> Flatten(this IBaseNodeMixin root, Func<IBaseNodeMixin, bool> filter = null)
+        {
+            Stack<IBaseNodeMixin> nodes = new();
+            nodes.Push(root);
+            int depth = 0;
+
+            if (root is DocumentNode documentNode)
+                foreach (CanvasNode canvasNode in documentNode.children)
+                    nodes.Push(canvasNode);
+
+            while (nodes.Count > 0)
+            {
+                if (depth++ >= maximumAllowedDepthLimit)
+                    throw new InvalidOperationException(maximumDepthLimitReachedExceptionMessage);
+
+                IBaseNodeMixin node = nodes.Pop();
+
+                if (filter != null && !filter(node))
+                    continue;
+
+                yield return node;
+
+                if (node is IChildrenMixin parent)
+                    foreach (SceneNode child in parent.children)
+                        nodes.Push(child);
+            }
+        }
+        internal static bool IsRootNode(this IBaseNodeMixin node) => node is DocumentNode or CanvasNode or ComponentNode || node.parent is CanvasNode or ComponentNode;
+        internal static bool IsSvgNode(this IBaseNodeMixin node) => node is LineNode or EllipseNode or RegularPolygonNode or StarNode or VectorNode ||
+                                                                    (node is BooleanOperationNode && node.Flatten().Any(x => x is not BooleanOperationNode && IsVisible(x) && IsSvgNode(x)));
+        internal static bool IsVisible(this IBaseNodeMixin node) => (node is not ISceneNodeMixin scene || !scene.visible.HasValueAndFalse()) && (node.parent == null || IsVisible(node.parent));
+        internal static bool HasImage(this IBaseNodeMixin node) => node is IGeometryMixin geometry && geometry.fills.Any(x => x is ImagePaint);
+
         public static void SetParent(this BaseNode node)
         {
             switch (node)

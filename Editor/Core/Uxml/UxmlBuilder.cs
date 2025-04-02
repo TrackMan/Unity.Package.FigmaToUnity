@@ -38,12 +38,12 @@ namespace Figma.Core.Uxml
 
             using UxmlWriter writer = new(directory, fileName);
 
-            writer.WriteUssStyleReference(GetRelativePath(writer.FilePath, globalUssFilePath));
+            writer.WriteUssStyleReference(GetRelativePath(writer.filePath, globalUssFilePath));
             writer.StartElement(documentNode, getClassList(documentNode), nodeMetadata.GetElementType(documentNode));
 
             foreach (string templatePath in framesPaths.SelectMany(framesPath => framesPath.Value))
             {
-                string path = GetRelativePath(writer.FilePath, templatePath);
+                string path = GetRelativePath(writer.filePath, templatePath);
                 writer.WriteTemplate(CreateTemplateName(path), path);
             }
 
@@ -56,7 +56,7 @@ namespace Figma.Core.Uxml
                 foreach (string path in scope)
                 {
                     string frameName = Path.GetFileNameWithoutExtension(path);
-                    string templateName = CreateTemplateName(GetRelativePath(writer.FilePath, path));
+                    string templateName = CreateTemplateName(GetRelativePath(writer.filePath, path));
                     writer.WriteInstance(frameName, templateName, Uss.UssStyle.viewportClass.Name);
                 }
                 writer.EndElement();
@@ -71,11 +71,11 @@ namespace Figma.Core.Uxml
             WriteStyles(ussStyleFilesPath, writer);
 
             foreach ((string templateName, string templatePath) in templates)
-                writer.WriteTemplate(templateName, GetRelativePath(writer.FilePath, templatePath));
+                writer.WriteTemplate(templateName, GetRelativePath(writer.filePath, templatePath));
 
             WriteNodesRecursively(frameNode, writer);
 
-            return writer.FilePath;
+            return writer.filePath;
         }
         public string CreateComponentSet(string directory, string[] ussStyleFilesPath, ComponentSetNode componentSetNode)
         {
@@ -84,7 +84,7 @@ namespace Figma.Core.Uxml
             WriteStyles(ussStyleFilesPath, writer);
             WriteNodesRecursively(componentSetNode, writer);
 
-            return writer.FilePath;
+            return writer.filePath;
         }
         public string CreateElement(string directory, string[] ussStyleFilesPath, DefaultShapeNode node, string template)
         {
@@ -97,7 +97,7 @@ namespace Figma.Core.Uxml
                 foreach (SceneNode child in parent.children)
                     WriteNodesRecursively(child, writer);
 
-            return writer.FilePath;
+            return writer.filePath;
         }
 
         void WriteNodesRecursively(BaseNode node, UxmlWriter uxml, bool isComponent = false)
@@ -131,7 +131,7 @@ namespace Figma.Core.Uxml
                     TextCase.LOWER => textNode.characters.ToLower(Culture),
                     _ => textNode.characters
                 };
-                writer.XmlWriter.WriteAttributeString("text", text);
+                writer.xmlWriter.WriteAttributeString("text", text);
                 writer.EndElement();
             }
             void WriteDefaultFrameNode(DefaultFrameNode defaultFrameNode, UxmlWriter writer)
@@ -148,7 +148,7 @@ namespace Figma.Core.Uxml
 
                 writer.StartElement(defaultShapeNode, getClassList(defaultShapeNode), nodeMetadata.GetElementType(defaultShapeNode));
                 if (tooltip.NotNullOrEmpty())
-                    writer.XmlWriter.WriteAttributeString(nameof(tooltip), tooltip!); // Use tooltip as a storage for hash template name
+                    writer.xmlWriter.WriteAttributeString(nameof(tooltip), tooltip!); // Use tooltip as a storage for hash template name
                 if (closeElement)
                     writer.EndElement();
             }
@@ -172,7 +172,7 @@ namespace Figma.Core.Uxml
                 }
             }
 
-            if (!StylesPreprocessor.IsVisible(node) || (!nodeMetadata.EnabledInHierarchy(node) && node is not ComponentSetNode && !isComponent))
+            if (!node.IsVisible() || (!nodeMetadata.EnabledInHierarchy(node) && node is not ComponentSetNode && !isComponent))
                 return;
 
             if (node is CanvasNode canvas) WriteCanvasNode(canvas, uxml);
@@ -195,7 +195,7 @@ namespace Figma.Core.Uxml
         #endregion
 
         #region Support Methods
-        void WriteStyles(string[] styles, UxmlWriter writer) => styles.ForEach(ussPath => writer.WriteUssStyleReference(CombinePath(GetRelativePath(writer.FilePath, ussPath))));
+        void WriteStyles(string[] styles, UxmlWriter writer) => styles.ForEach(ussPath => writer.WriteUssStyleReference(CombinePath(GetRelativePath(writer.filePath, ussPath))));
         #endregion
     }
 }

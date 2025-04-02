@@ -22,25 +22,25 @@ namespace Figma.Core.Uxml
             Encoding = Encoding.UTF8
         };
 
+        #region Fields
+        public readonly string filePath;
+        public readonly XmlWriter xmlWriter;
+        #endregion
+        
         #region Constructors
         public UxmlWriter(string directory, string fileName)
         {
-            FilePath = CombinePath(directory, $"{fileName}.{KnownFormats.uxml}");
-            XmlWriter = XmlWriter.Create(FilePath, xmlWriterSettings);
-            XmlWriter.WriteStartElement(elementsNamespace, "UXML", uxmlNamespace);
+            filePath = CombinePath(directory, $"{fileName}.{KnownFormats.uxml}");
+            xmlWriter = XmlWriter.Create(filePath, xmlWriterSettings);
+            xmlWriter.WriteStartElement(elementsNamespace, "UXML", uxmlNamespace);
         }
-        #endregion
-
-        #region Properties
-        public string FilePath { get; }
-        public XmlWriter XmlWriter { get; }
         #endregion
 
         #region Methods
         public void Dispose()
         {
-            XmlWriter.WriteEndElement();
-            XmlWriter?.Dispose();
+            xmlWriter.WriteEndElement();
+            xmlWriter?.Dispose();
         }
         public void StartElement(BaseNode node, string ussClasses, (ElementType type, string typeFullName) elementTypeInfo)
         {
@@ -98,26 +98,26 @@ namespace Figma.Core.Uxml
             (string prefix, string elementName, string pickingMode) = GetElementData(node);
 
             if (prefix.NotNullOrEmpty())
-                XmlWriter.WriteStartElement(prefix, elementName, uxmlNamespace);
+                xmlWriter.WriteStartElement(prefix, elementName, uxmlNamespace);
             else
-                XmlWriter.WriteStartElement(elementName);
+                xmlWriter.WriteStartElement(elementName);
 
-            XmlWriter.WriteAttributeString("name", node.name);
-            XmlWriter.WriteAttributeString("id", node.id);
+            xmlWriter.WriteAttributeString("name", node.name);
+            xmlWriter.WriteAttributeString("id", node.id);
 
             if (ussClasses.NotNullOrEmpty())
-                XmlWriter.WriteAttributeString("class", ussClasses);
+                xmlWriter.WriteAttributeString("class", ussClasses);
             if (pickingMode != PickingMode.Position.ToString())
-                XmlWriter.WriteAttributeString("picking-mode", pickingMode);
+                xmlWriter.WriteAttributeString("picking-mode", pickingMode);
         }
         public void StartElement(string type, params (string name, string value)[] attributes)
         {
-            XmlWriter.WriteStartElement(elementsNamespace, type, uxmlNamespace);
+            xmlWriter.WriteStartElement(elementsNamespace, type, uxmlNamespace);
 
             foreach ((string name, string value) attribute in attributes)
-                XmlWriter.WriteAttributeString(attribute.name, attribute.value);
+                xmlWriter.WriteAttributeString(attribute.name, attribute.value);
         }
-        public void EndElement() => XmlWriter.WriteEndElement();
+        public void EndElement() => xmlWriter.WriteEndElement();
 
         public void WriteUssStyleReference(string path)
         {
@@ -133,7 +133,7 @@ namespace Figma.Core.Uxml
         {
             StartElement("Instance", ("name", instanceName), ("template", templateName), ("picking-mode", "ignore"));
             if (!string.IsNullOrEmpty(classList))
-                XmlWriter.WriteAttributeString("class", classList);
+                xmlWriter.WriteAttributeString("class", classList);
             EndElement();
         }
         #endregion
