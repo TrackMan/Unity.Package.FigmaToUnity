@@ -739,7 +739,7 @@ namespace Figma.Core.Uss
             void AddUnityFont()
             {
                 string weightPostfix = style.fontWeight.HasValue
-                    ? Enum.GetValues(typeof(FontWeight)).GetValue((int)(style.fontWeight / 100) - 1).ToString()
+                    ? ((FontWeight) style.fontWeight).ToString()
                     : style.fontPostScriptName.Contains('-')
                         ? style.fontPostScriptName.Split('-')[1].Replace("Index", string.Empty)
                         : string.Empty;

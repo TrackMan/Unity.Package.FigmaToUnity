@@ -9,7 +9,7 @@ namespace Figma.Core.Assets
     using Internals;
     using static Internals.Const;
 
-    public class GradientWriter : IDisposable
+    internal class GradientWriter : IDisposable
     {
         #region Fields
         static readonly XmlWriterSettings xmlWriterSettings = new()

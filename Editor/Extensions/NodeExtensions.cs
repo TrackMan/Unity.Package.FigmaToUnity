@@ -9,16 +9,15 @@ using System.Text;
 namespace Figma
 {
     using Internals;
-    using static Internals.Const;
 
     [DebuggerStepThrough]
-    public static class NodeExtensions
+    internal static class NodeExtensions
     {
-        public const int maximumAllowedDepthLimit = 0x10000; // This is a random big number.
-        public const string maximumDepthLimitReachedExceptionMessage = "Maximum depth limit is exceeded.";
+        internal const int maximumAllowedDepthLimit = 0x10000; // This is a random big number.
+        internal const string maximumDepthLimitReachedExceptionMessage = "Maximum depth limit is exceeded.";
 
         #region Methods
-        public static IEnumerable<IBaseNodeMixin> Flatten(this IBaseNodeMixin root, Func<IBaseNodeMixin, bool> filter = null)
+        internal static IEnumerable<IBaseNodeMixin> Flatten(this IBaseNodeMixin root, Func<IBaseNodeMixin, bool> filter = null)
         {
             Stack<IBaseNodeMixin> nodes = new();
             nodes.Push(root);
@@ -51,7 +50,7 @@ namespace Figma
         internal static bool IsVisible(this IBaseNodeMixin node) => (node is not ISceneNodeMixin scene || !scene.visible.HasValueAndFalse()) && (node.parent == null || IsVisible(node.parent));
         internal static bool HasImage(this IBaseNodeMixin node) => node is IGeometryMixin geometry && geometry.fills.Any(x => x is ImagePaint);
 
-        public static void SetParent(this BaseNode node)
+        internal static void SetParent(this BaseNode node)
         {
             switch (node)
             {
@@ -74,7 +73,7 @@ namespace Figma
                     break;
             }
         }
-        public static string GetHash(this GradientPaint gradient)
+        internal static string GetHash(this GradientPaint gradient)
         {
             using SHA1CryptoServiceProvider sha1 = new();
             using MemoryStream stream = new();

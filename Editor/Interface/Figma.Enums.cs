@@ -83,4 +83,10 @@ namespace Figma.Internals
     public enum CounterAxisAlignContent { AUTO, SPACE_BETWEEN }
 
     public enum TextTruncation { DISABLED, ENDING }
+
+    public enum LineType { NONE, ORDERED, UNORDERED }
+
+    public enum TextWeight { BOLD, NORMAL }
+
+    public enum TextItalic { ITALIC, NORMAL }
 }

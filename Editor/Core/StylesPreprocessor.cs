@@ -36,6 +36,8 @@ namespace Figma.Core
             this.assetsInfo = assetsInfo;
 
             AddStyles(data.document, data.styles, false);
+            AddRichText(data.document);
+
             data.document.children.ForEach(x => AddStyles(x, data.styles, false));
 
             for (int i = 0; i < components.Count; i++)
@@ -108,6 +110,11 @@ namespace Figma.Core
                         this.styles.Add((style, new UssStyle(GetClassName(style.name, "s"), assetsInfo, style.Slot, style.styleType, node)));
                 }
             }
+        }
+        void AddRichText(IBaseNodeMixin node)
+        {
+            foreach (TextNode textNode in node.Flatten().OfType<TextNode>().Where(x => (x.lineTypes != null && x.lineTypes.Any()) || (x.styleOverrideTable != null  && x.styleOverrideTable.Any())))
+                textNode.characters = new RichText.TextBuilder(textNode).Build();
         }
         void AddTransitionStyles()
         {

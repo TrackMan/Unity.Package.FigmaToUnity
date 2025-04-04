@@ -10,7 +10,7 @@ namespace Figma.Core.Assets
     using Internals;
     using static Internals.Const;
 
-    class ImagesPostprocessor : AssetPostprocessor
+    internal class ImagesPostprocessor : AssetPostprocessor
     {
         #region Methods
         void OnPreprocessAsset()

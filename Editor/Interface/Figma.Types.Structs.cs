@@ -42,5 +42,7 @@ namespace Figma.Internals
         public double g;
         public double b;
         public double a;
+
+        public static explicit operator UnityEngine.Color(RGBA color) => new((float) color.r, (float) color.g, (float) color.b, (float) color.a);
     }
 }

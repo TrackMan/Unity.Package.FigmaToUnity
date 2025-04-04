@@ -69,32 +69,20 @@ namespace Figma.Internals
 
     public class SolidPaint : Paint
     {
-        public PaintType type;
         public RGBA color;
-        public bool? visible;
-        public number? opacity;
-        public BlendMode? blendMode;
         public Dictionary<string, VariableAlias> boundVariables;
     }
 
     public class GradientPaint : Paint
     {
-        public PaintType type;
         public ColorStop[] gradientStops;
-        public bool? visible;
-        public number? opacity;
-        public BlendMode? blendMode;
         public Vector[] gradientHandlePositions;
     }
 
     public class ImagePaint : Paint
     {
-        public PaintType type;
         public ScaleMode scaleMode;
         public number[,] imageTransform;
-        public bool? visible;
-        public number? opacity;
-        public BlendMode? blendMode;
         public string imageRef;
         public ImageFilter filters;
         public number? rotation;
@@ -102,6 +90,10 @@ namespace Figma.Internals
 
     public class Paint
     {
+        public PaintType type;
+        public number? opacity;
+        public BlendMode? blendMode;
+        public bool? visible;
         public string inheritFillStyleId;
         public Paint[] fills;
     }
@@ -359,14 +351,16 @@ namespace Figma.Internals
             public TextTruncation textTruncation;
             public int maxLines;
             public string fontStyle;
+            public TextWeight? semanticWeight;
+            public TextItalic? semanticItalic;
         }
 
         public string characters;
         public Style style;
-        public number[] characterStyleOverrides;
-        public Dictionary<number, Style> styleOverrideTable;
+        public int[] characterStyleOverrides;
+        public Dictionary<int, Style> styleOverrideTable;
         public number? layoutVersion;
-        public string[] lineTypes;
+        public LineType[] lineTypes;
         public int[] lineIndentations;
     }
 

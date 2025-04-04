@@ -210,14 +210,14 @@ namespace Figma
 
     enum FontWeight
     {
-        Thin = 0,
-        ExtraLight = 1,
-        Light = 2,
-        Regular = 3,
-        Medium = 4,
-        SemiBold = 5,
-        Bold = 6,
-        ExtraBold = 7,
-        Black = 8
+        Thin = 100,
+        ExtraLight = 200,
+        Light = 300,
+        Regular = 400,
+        Medium = 500,
+        SemiBold = 600,
+        Bold = 700,
+        ExtraBold = 800,
+        Black = 900
     }
 }
