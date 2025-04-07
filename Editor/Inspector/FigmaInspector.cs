@@ -92,13 +92,13 @@ namespace Figma.Inspectors
             async void GetNameAsync(string personalAccessToken)
             {
                 resolvingName = true;
-                TokenTest test = new(personalAccessToken);
-                bool result = await test.TestAsync();
+                using AuthTest auth = new(personalAccessToken);
+                await auth.AuthAsync();
 
-                if (!result)
+                if (!auth.IsAuthenticated)
                     return;
 
-                username = test.me.handle;
+                username = auth.me.handle;
                 PersonalAccessToken = personalAccessToken;
                 resolvingName = false;
             }
@@ -305,7 +305,7 @@ namespace Figma.Inspectors
 
                 AssetDatabase.StartAssetEditing();
                 AssetsInfo info = new(directory, relativeDirectory, uxmlName, fontDirectories);
-                FigmaDownloader figmaDownloader = new(PersonalAccessToken, fileKey, info);
+                using FigmaDownloader figmaDownloader = new(PersonalAccessToken, fileKey, info);
 
                 try
                 {

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -32,7 +31,6 @@ namespace Figma
         string imagesDirectoryPath;
         string framesDirectoryPath;
 
-        HttpClient httpClient;
         FigmaWriter figmaWriter;
         NodeMetadata nodeMetadata;
         NodesRegistry nodesRegistry;
@@ -77,16 +75,18 @@ namespace Figma
             if (visibleSceneNodes.Any())
                 idsString = $"?ids={string.Join(",", visibleSceneNodes)}";
 
+            Progress.SetDescription(progress, "Resolving Figma file");
             string json = await GetJsonAsync($"files/{fileKey}{idsString}", token);
 
             if (systemCopyBuffer)
                 GUIUtility.systemCopyBuffer = json;
 
-            Progress.Report(progress, 2, steps, "Parsing file");
+            Progress.Report(progress, 2, steps, "Parsing Figma file");
 
             Data data = await ConvertOnBackgroundAsync<Data>(json, token);
             data.document.SetParent();
 
+            Progress.SetDescription(progress, "Creating entities");
             nodeMetadata = new NodeMetadata(data.document, frames, filter);
             nodesRegistry = new NodesRegistry(data, nodeMetadata);
             stylesPreprocessor = new StylesPreprocessor(data, assetsInfo);
@@ -96,19 +96,18 @@ namespace Figma
             await DownloadDocumentsAsync(token);
 
             if (downloadImages)
-                using (httpClient = new HttpClient())
-                {
-                    Progress.Report(progress, 4, steps, "Downloading images");
-                    Progress.SetDescription(progress, "Writing Gradients");
-                    await WriteGradientsAsync(token);
-                    Progress.SetDescription(progress, "Downloading image fills");
-                    await GetImageFillsAsync(progress, nodesRegistry.ImageFills, token);
-                    Progress.SetDescription(progress, $"Downloading {KnownFormats.png} files");
-                    await GetImageNodesAsync(progress, nodesRegistry.Pngs, UxmlDownloadImages.RenderAsPng, KnownFormats.png, token);
-                    Progress.SetDescription(progress, $"Downloading {KnownFormats.svg} files");
-                    await GetImageNodesAsync(progress, nodesRegistry.Svgs, UxmlDownloadImages.RenderAsSvg, KnownFormats.svg, token);
-                    await assetsInfo.cachedAssets.Save();
-                }
+            {
+                Progress.Report(progress, 4, steps, "Downloading images");
+                Progress.SetDescription(progress, "Writing Gradients");
+                await WriteGradientsAsync(token);
+                Progress.SetDescription(progress, "Downloading image fills");
+                await GetImageFillsAsync(progress, nodesRegistry.ImageFills, token);
+                Progress.SetDescription(progress, $"Downloading {KnownFormats.png} files");
+                await GetImageNodesAsync(progress, nodesRegistry.Pngs, UxmlDownloadImages.RenderAsPng, KnownFormats.png, token);
+                Progress.SetDescription(progress, $"Downloading {KnownFormats.svg} files");
+                await GetImageNodesAsync(progress, nodesRegistry.Svgs, UxmlDownloadImages.RenderAsSvg, KnownFormats.svg, token);
+                await assetsInfo.cachedAssets.Save();
+            }
 
             Progress.SetStepLabel(progress, string.Empty);
 
@@ -212,7 +211,6 @@ namespace Figma
             Progress.SetStepLabel(progress, url);
 
             using HttpRequestMessage request = new(HttpMethod.Get, url);
-            headers.ForEach(x => request.Headers.Add(x.Key, x.Value));
 
             if (fileExists && assetsInfo.cachedAssets.Map.TryGetValue(nodeID, out string etag))
                 request.Headers.Add("If-None-Match", $"\"{etag}\"");
@@ -229,7 +227,7 @@ namespace Figma
                 return;
             assetsInfo.modifiedContent.Add(path);
 
-            if (response.StatusCode == HttpStatusCode.OK && !isResolved)
+            if (response.IsSuccessStatusCode && !isResolved)
             {
                 byte[] bytes = await response.Content.ReadAsByteArrayAsync();
                 if (bytes.Length == 0)
