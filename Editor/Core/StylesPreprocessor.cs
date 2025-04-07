@@ -26,8 +26,8 @@ namespace Figma.Core
         #endregion
 
         #region Properties
-        public IReadOnlyList<(StyleSlot slot, UssStyle style)> Styles => styles;
-        public IReadOnlyDictionary<IBaseNodeMixin, UssStyle> NodeStyleMap => nodeStyleMap;
+        internal IReadOnlyList<(StyleSlot slot, UssStyle style)> Styles => styles;
+        internal IReadOnlyDictionary<IBaseNodeMixin, UssStyle> NodeStyleMap => nodeStyleMap;
         #endregion
 
         internal StylesPreprocessor(Data data, AssetsInfo assetsInfo)
@@ -37,14 +37,13 @@ namespace Figma.Core
 
             AddStyles(data.document, data.styles, false);
             AddRichText(data.document);
-
-            data.document.children.ForEach(x => AddStyles(x, data.styles, false));
+            InheritStyles(data.document);
 
             for (int i = 0; i < components.Count; i++)
+            {
                 AddStyles(components[i], componentsStyles[i], true);
-
-            InheritStyles(data.document);
-            data.document.children.ForEach(InheritStyles);
+                AddRichText(components[i]);
+            }
 
             AddTransitionStyles();
         }
@@ -113,7 +112,8 @@ namespace Figma.Core
         }
         void AddRichText(IBaseNodeMixin node)
         {
-            foreach (TextNode textNode in node.Flatten().OfType<TextNode>().Where(x => (x.lineTypes != null && x.lineTypes.Any()) || (x.styleOverrideTable != null  && x.styleOverrideTable.Any())))
+            foreach (TextNode textNode in node.Flatten().OfType<TextNode>().Where(x => x.lineTypes is { Length: > 1 } && x.lineTypes.Any(lineType => lineType is LineType.ORDERED or LineType.UNORDERED) ||
+                                                                                       (x.styleOverrideTable != null  && x.styleOverrideTable.Any())))
                 textNode.characters = new RichText.TextBuilder(textNode).Build();
         }
         void AddTransitionStyles()
