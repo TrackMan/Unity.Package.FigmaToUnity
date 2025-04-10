@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using UnityEngine;
 
 namespace Figma.Core
 {
@@ -35,21 +36,21 @@ namespace Figma.Core
             this.data = data;
             this.assetsInfo = assetsInfo;
 
-            AddStyles(data.document, data.styles, false);
+            AddStyles(data.document, data.styles);
             AddRichText(data.document);
-            InheritStyles(data.document);
 
             for (int i = 0; i < components.Count; i++)
             {
-                AddStyles(components[i], componentsStyles[i], true);
+                AddStyles(components[i], componentsStyles[i]);
                 AddRichText(components[i]);
             }
 
+            InheritStyles(data.document);
             AddTransitionStyles();
         }
 
         #region Methods
-        void AddStyles(BaseNode root, Dictionary<string, Style> styles, bool insideComponent)
+        void AddStyles(IBaseNodeMixin root, Dictionary<string, Style> styles)
         {
             string GetClassName(string name, string prefix = "n")
             {
@@ -71,14 +72,15 @@ namespace Figma.Core
                 return name;
             }
 
+            HashSet<IBaseNodeMixin> insideComponents = new();
+
             foreach (IBaseNodeMixin node in root.Flatten())
             {
-                insideComponent = insideComponent || node is ComponentNode;
+                bool insideComponent = node is ComponentNode || insideComponents.Contains(node.parent);
 
                 if (!insideComponent)
                 {
                     UssStyle style = new(GetClassName(node.name), assetsInfo, node);
-
                     if (node is ComponentSetNode)
                     {
                         // Removing annoying borders for ComponentSetNode
@@ -89,7 +91,10 @@ namespace Figma.Core
                     nodeStyleMap[node] = style;
                 }
                 else
+                {
+                    insideComponents.Add(node);
                     componentStyleMap[node] = new UssStyle(GetClassName(node.name), assetsInfo, node);
+                }
 
                 if (node is not IBlendMixin { styles: not null } blend)
                     continue;
@@ -113,7 +118,7 @@ namespace Figma.Core
         void AddRichText(IBaseNodeMixin node)
         {
             foreach (TextNode textNode in node.Flatten().OfType<TextNode>().Where(x => x.lineTypes is { Length: > 1 } && x.lineTypes.Any(lineType => lineType is LineType.ORDERED or LineType.UNORDERED) ||
-                                                                                       (x.styleOverrideTable != null  && x.styleOverrideTable.Any())))
+                                                                                       (x.styleOverrideTable != null && x.styleOverrideTable.Any())))
                 textNode.characters = new RichText.TextBuilder(textNode).Build();
         }
         void AddTransitionStyles()
@@ -224,16 +229,13 @@ namespace Figma.Core
 
         #region Support Methods
         IBaseNodeMixin FindNode(string id) => data.document.Flatten().FirstOrDefault(x => x.id == id);
-        internal IReadOnlyList<UssStyle> GetStyles(BaseNode root) =>
+        internal IReadOnlyList<UssStyle> GetStyles(IBaseNodeMixin root) =>
             root.Flatten(node => node.IsVisible() && node is not ComponentSetNode)
-                .Select(node => componentStyleMap.TryGetValue(node, out UssStyle style) ||
-                                nodeStyleMap.TryGetValue(node, out style)
-                            ? style
-                            : null)
+                .Select(node => componentStyleMap.TryGetValue(node, out UssStyle style) || nodeStyleMap.TryGetValue(node, out style) ? style : null)
                 .Where(style => style is not null)
                 .ToList();
 
-        void InheritStyles(BaseNode root)
+        void InheritStyles(IBaseNodeMixin root)
         {
             List<UssStyle> styles = new();
 

@@ -167,7 +167,7 @@ namespace Figma.Core.Uxml
                 {
                     // Since this code only runs from Parallel, outside of Unity scope
                     // We cannot use Debug.Log() without returning to Unity's thread
-                    SyncContextUtil.UnitySynchronizationContext.Post(_ => Debug.LogWarning(BuildTargetMessage($"Target {nameof(Component)} for node", instanceNode.name, "is not found")), null);
+                    SyncContextUtil.UnitySynchronizationContext.Post(_ => Debug.LogWarning(BuildTargetMessage($"Target {nameof(Component)} for node", instanceNode.GetFullPath(), "is not found")), null);
                     WriteDefaultFrameNode(instanceNode, writer);
                 }
             }

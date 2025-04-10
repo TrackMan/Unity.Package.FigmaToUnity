@@ -104,6 +104,28 @@ namespace Figma
 
             return hashBuilder.ToString();
         }
+        internal static string GetFullPath(this IBaseNodeMixin node)
+        {
+            List<string> names = new(8);
+            names.Add(node.name);
+
+            int depth = 0;
+            while (node != null)
+            {
+                if (depth++ >= maximumAllowedDepthLimit)
+                    throw new InvalidOperationException(maximumDepthLimitReachedExceptionMessage);
+
+                node = node.parent;
+
+                if (node == null)
+                    break;
+
+                names.Add(node.name);
+            }
+
+            names.Reverse();
+            return PathExtensions.CombinePath(names.ToArray());
+        }
         #endregion
     }
 }
