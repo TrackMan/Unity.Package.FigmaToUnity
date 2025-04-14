@@ -18,7 +18,6 @@ using PackageInfo = UnityEditor.PackageManager.PackageInfo;
 
 namespace Figma.Inspectors
 {
-    using Core;
     using Core.Assets;
     using Attributes;
     using Internals;
@@ -58,10 +57,7 @@ namespace Figma.Inspectors
         #endregion
 
         #region Methods
-        void Awake()
-        {
-            icon = AssetDatabase.LoadAssetAtPath<Texture2D>($"{PackageInfo.FindForAssembly(typeof(Figma).Assembly)?.assetPath}/Editor/Assets/icon.png");
-        }
+        void Awake() => icon = AssetDatabase.LoadAssetAtPath<Texture2D>($"{PackageInfo.FindForAssembly(typeof(Figma).Assembly)?.assetPath}/Editor/Assets/icon.png");
         void OnEnable()
         {
             target = (Figma)base.target;
@@ -203,7 +199,7 @@ namespace Figma.Inspectors
             }
 
             if (selection.Any(x => !x.Value) && selection.Any(x => x.Value))
-                EditorGUILayout.HelpBox("Selection mode does clean up unused content. In order to get rid of unused content, \"Select All\" and \"Update\"", MessageType.Warning);
+                EditorGUILayout.HelpBox("Selection mode does not clean up unused content. In order to get rid of unused content, \"Select All\" and \"Update\"", MessageType.Warning);
 
             if (selection.Count > 0 && selection.All(x => !x.Value))
                 EditorGUILayout.HelpBox("Nothing is selected for Update.", MessageType.Error);
@@ -236,7 +232,7 @@ namespace Figma.Inspectors
                 Type elementType = frame.GetType();
                 UxmlAttribute uxml = elementType.GetCustomAttribute<UxmlAttribute>();
 
-                if (uxml is null || (!string.IsNullOrWhiteSpace(searchBar) && !uxml.Root.Contains(searchBar)))
+                if (uxml is null || (!string.IsNullOrWhiteSpace(searchBar) && !uxml.Root.ToLower().Contains(searchBar.ToLower())))
                     continue;
 
                 using (new EditorGUILayout.HorizontalScope())
