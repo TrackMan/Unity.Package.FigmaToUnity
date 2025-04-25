@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
-using UnityEngine;
 
 namespace Figma.Core
 {
@@ -80,7 +79,7 @@ namespace Figma.Core
 
                 if (!insideComponent)
                 {
-                    UssStyle style = new(GetClassName(node.name), assetsInfo, node);
+                    UssStyle style = new(GetClassName(node.name), assetsInfo, (BaseNode)node);
                     if (node is ComponentSetNode)
                     {
                         // Removing annoying borders for ComponentSetNode
@@ -93,7 +92,7 @@ namespace Figma.Core
                 else
                 {
                     insideComponents.Add(node);
-                    componentStyleMap[node] = new UssStyle(GetClassName(node.name), assetsInfo, node);
+                    componentStyleMap[node] = new UssStyle(GetClassName(node.name), assetsInfo, (BaseNode)node);
                 }
 
                 if (node is not IBlendMixin { styles: not null } blend)
@@ -111,7 +110,7 @@ namespace Figma.Core
 
                     StyleSlot style = new(text, slot, styles[value]);
                     if (!this.styles.Any(x => x.slot.Text == text && x.slot.Slot == slot && x.slot.key == styleKey))
-                        this.styles.Add((style, new UssStyle(GetClassName(style.name, "s"), assetsInfo, style.Slot, style.styleType, node)));
+                        this.styles.Add((style, new UssStyle(GetClassName(style.name, "s"), assetsInfo, (BaseNode)node, style)));
                 }
             }
         }

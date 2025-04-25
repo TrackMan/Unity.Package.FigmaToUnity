@@ -44,13 +44,13 @@ namespace Figma.Core.Uss
         {
             return value.unit switch
             {
-                Unit.Pixel => $"{(int)Math.Round(value.value)}px",
-                Unit.Degrees => $"{value.value.ToString("F2", Const.Culture).Replace(".00", string.Empty)}deg",
-                Unit.Percent => $"{value.value.ToString("F2", Const.Culture).Replace(".00", string.Empty)}%",
+                Unit.Pixel => value.value == 0.0 ? "0" : $"{(int)Math.Round(value.value)}px",
+                Unit.Degrees => value.value == 0.0 ? "0" : $"{value.value.ToString("F2", Const.Culture).Replace(".00", string.Empty)}deg",
+                Unit.Percent => value.value == 0.0 ? "0" : $"{value.value.ToString("F2", Const.Culture).Replace(".00", string.Empty)}%",
                 Unit.Auto => "auto",
                 Unit.None => "none",
                 Unit.Initial => "initial",
-                Unit.Default => "0px",
+                Unit.Default => "0",
                 _ => throw new ArgumentException(nameof(value))
             };
         }

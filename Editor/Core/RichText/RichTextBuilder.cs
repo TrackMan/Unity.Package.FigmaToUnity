@@ -115,9 +115,9 @@ namespace Figma.Core.RichText
         {
             string text = node.characters;
             TextNode.Style baseStyle = node.style;
-            int[] charOverrides = node.characterStyleOverrides ?? Array.Empty<int>();
-            Dictionary<int, TextNode.Style> styleTable = node.styleOverrideTable ?? new Dictionary<int, TextNode.Style>();
-            LineType[] lineTypes = node.lineTypes ?? Array.Empty<LineType>();
+            int[] charOverrides = node.characterStyleOverrides;
+            Dictionary<int, TextNode.Style> styleTable = node.styleOverrideTable;
+            LineType[] lineTypes = node.lineTypes;
             int[] lineIndents = node.lineIndentations ?? Array.Empty<int>();
 
             int textLength = text.Length;
@@ -167,14 +167,14 @@ namespace Figma.Core.RichText
                 if (charStyle != null)
                 {
                     tags[TagType.Bold].Set(charStyle.fontWeight >= (int)FontWeight.Bold);
-                    tags[TagType.Italic].Set(charStyle.italic is true);
+                    tags[TagType.Italic].Set(charStyle.italic);
                     tags[TagType.Underline].Set(charStyle.textDecoration is TextDecoration.UNDERLINE);
-                    tags[TagType.Strikethrough].Set( charStyle.textDecoration is TextDecoration.STRIKETHROUGH);
+                    tags[TagType.Strikethrough].Set(charStyle.textDecoration is TextDecoration.STRIKETHROUGH);
 
                     SolidPaint paint = charStyle.fills?.OfType<SolidPaint>().FirstOrDefault();
                     tags[TagType.Color].Set(paint != null, paint == null ? null : "#" + ColorUtility.ToHtmlStringRGBA((Color)paint.color));
-                    tags[TagType.FontWeight].Set(charStyle.fontWeight.HasValue, charStyle.fontWeight.ToString());
-                    tags[TagType.FontSize].Set(charStyle.fontSize.HasValue, charStyle.fontSize.ToString());
+                    tags[TagType.FontWeight].Set(charStyle.fontWeight != (double)FontWeight.Regular, charStyle.fontWeight.ToString());
+                    tags[TagType.FontSize].Set(true, charStyle.fontSize.ToString());
                 }
 
                 stringBuilder.Append(ch);

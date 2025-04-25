@@ -16,11 +16,6 @@ namespace Figma
         #endregion
 
         #region Methods
-        internal static bool IsEmptyOrTrue(this bool? value) => !value.HasValue || value.Value;
-        internal static bool HasValueAndTrue(this bool? value) => value == true;
-        internal static bool HasValueAndFalse(this bool? value) => value == false;
-        internal static bool HasPositive(this double? value) => value is > 0;
-        internal static bool IsValue<T>(this T? source, T dest) where T : struct, Enum => source.HasValue && source.Value.Equals(dest);
         internal static int ToBit(this bool value) => value ? 1 : 0;
 
         internal static IEnumerable<T> IndexRedundantNames<T>(this IReadOnlyList<T> items, Func<T, string> getName, Action<T, string> setName, Func<int, string> postfixConverter)
@@ -91,6 +86,7 @@ namespace Figma
                 avgColor.r += color.r;
                 avgColor.g += color.g;
                 avgColor.b += color.b;
+                avgColor.a += color.a;
                 count++;
             }
 
@@ -99,6 +95,7 @@ namespace Figma
             avgColor.r /= count;
             avgColor.g /= count;
             avgColor.b /= count;
+            avgColor.a /= count;
             return avgColor;
         }
         #endregion

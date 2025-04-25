@@ -84,8 +84,8 @@ namespace Figma.Core.Assets
             writer.WriteAttributeString("height", "100");
             writer.WriteAttributeString("fill", "url(#gradient)");
 
-            if (gradient.opacity.HasValue)
-                writer.WriteAttributeString("fill-opacity", gradient.opacity.Value.ToString("F2", Culture));
+            if (gradient.opacity < 1.0)
+                writer.WriteAttributeString("fill-opacity", gradient.opacity.ToString("F2", Culture));
 
             await writer.WriteEndElementAsync();
             token.ThrowIfCancellationRequested();

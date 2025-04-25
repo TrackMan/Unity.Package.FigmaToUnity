@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -12,7 +11,10 @@ namespace Figma.Core.Uss
 
     internal class UssStyle : BaseUssStyle
     {
+        /// Problem with figma 2 Unity is that, Unity’s box-sizing property is always border-box, while figma's is a content-box with changing borders. See the MDN documentation https://developer.mozilla.org/en-US/docs/Web/CSS/box-sizing
+
         #region Const
+        public const double tolerance = 0.01;
         internal static readonly UssStyle overrideClass = new("unity-base-override")
         {
             alignItems = Align.Center,
@@ -139,48 +141,66 @@ namespace Figma.Core.Uss
         #region Constructors
         public UssStyle(string name) : base(name) { }
         public UssStyle(string name, AssetsInfo assetsInfo) : this(name) => this.assetsInfo = assetsInfo;
-        public UssStyle(string name, AssetsInfo assetsInfo, string slot, StyleType type, IBaseNodeMixin node) : this(name, assetsInfo)
+        public UssStyle(string name, AssetsInfo assetsInfo, BaseNode node, StyleSlot styleSlot) : this(name, assetsInfo)
         {
-            if (type == StyleType.FILL && node is IGeometryMixin geometry)
+            switch (styleSlot.styleType)
             {
-                if (slot == "fill")
-                    if (node is TextNode)
+                case StyleType.FILL when node is IGeometryMixin geometry:
+                    switch (styleSlot.Slot)
                     {
-                        Name += "-Text";
-                        AddTextFillStyle(geometry.fills);
+                        case "fill":
+                        {
+                            if (node is TextNode)
+                                Name += "-Text";
+                            AddFill(geometry);
+                            break;
+                        }
+
+                        case "stroke":
+                            Name += node is TextNode ? "-TextStroke" : "-Border";
+                            AddStrokeColor(geometry);
+                            break;
                     }
-                    else
-                        AddFillStyle(geometry.fills);
-                else if (slot == "stroke")
-                    if (node is TextNode)
-                        Name += "-TextStroke";
-                    else
-                    {
-                        Name += "-Border";
-                        AddStrokeFillStyle(geometry.strokes);
-                    }
+
+                    break;
+
+                case StyleType.TEXT when node is TextNode text:
+                    AddText(text);
+                    break;
+
+                case StyleType.EFFECT when node is IBlendMixin blend:
+                    AddBlend(blend);
+                    break;
+
+                case StyleType.GRID or StyleType.NONE:
+                    LogWarningIgnoredFigmaProperty(node, $"{nameof(styleSlot)} {nameof(styleSlot.styleType)} with {styleSlot.styleType}");
+                    break;
+
+                default:
+                    throw new NotSupportedException();
             }
-            else if (type == StyleType.TEXT && node is TextNode text)
-                AddTextStyle(text.style);
-            else if (type == StyleType.EFFECT && node is IBlendMixin blend)
-                AddNodeEffects(blend.effects);
         }
-        public UssStyle(string name, AssetsInfo assetsInfo, IBaseNodeMixin node) : this(name, assetsInfo)
+        public UssStyle(string name, AssetsInfo assetsInfo, BaseNode node) : this(name, assetsInfo)
         {
-            if (node is FrameNode frame) AddFrameNode(frame);
-            if (node is GroupNode group) AddGroupNode(group);
-            if (node is SliceNode slice) AddSliceNode(slice);
-            if (node is RectangleNode rectangle) AddRectangleNode(rectangle);
-            if (node is LineNode line) AddLineNode(line);
-            if (node is EllipseNode ellipse) AddEllipseNode(ellipse);
-            if (node is RegularPolygonNode regularPolygon) AddRegularPolygonNode(regularPolygon);
-            if (node is StarNode star) AddStarNode(star);
-            if (node is VectorNode vector) AddVectorNode(vector);
-            if (node is TextNode text) AddTextNode(text);
-            if (node is ComponentSetNode set) AddComponentSetNode(set);
-            if (node is ComponentNode component) AddComponentNode(component);
-            if (node is InstanceNode instance) AddInstanceNode(instance);
-            if (node is BooleanOperationNode booleanOperation) AddBooleanOperationNode(booleanOperation);
+            if (node.IsSvgNode())
+            {
+                AddSvg(assetsInfo, node); // AddSvg has to be called first in the constructor, because it overwrites its own boundingbox
+            }
+            else
+            {
+                if (node is IGeometryMixin geometry)
+                    AddGeometry(geometry);
+                AddBorderRadius(node);
+            }
+
+            if (node is IBlendMixin blend)
+                AddBlend(blend);
+            if (node is ILayoutMixin layout && !node.IsRootNode())
+                AddLayout(layout);
+            if (node is IDefaultFrameMixin frame)
+                AddFrame(frame);
+            if (node is TextNode text)
+                AddText(text);
         }
         #endregion
 
@@ -190,536 +210,299 @@ namespace Figma.Core.Uss
             style.Attributes.ForEach(x => Attributes[x.Key] = x.Value);
             return this;
         }
-        void AddDefaultFrameNode(DefaultFrameNode node)
+        void AddFrame(IDefaultFrameMixin frame)
         {
-            AddCorner(node, node);
-
-            AddFrame(node);
-            AddDefaultShapeNode(node);
-
-            if (node.clipsContent.HasValueAndTrue())
+            if (frame.clipsContent)
                 overflow = Visibility.Hidden;
-        }
-        void AddDefaultShapeNode(DefaultShapeNode node)
-        {
-            AddBoxModel(node, node, node, node);
-            AddLayout(node, node);
-            AddBlend(node);
-            AddGeometry(node, node, node);
-        }
-        void AddFrameNode(FrameNode node) => AddDefaultFrameNode(node);
-        void AddGroupNode(GroupNode node) => AddDefaultFrameNode(node);
-        void AddSliceNode(SliceNode node)
-        {
-            AddBoxModel(node, node, null, node);
-            AddLayout(node, node);
-        }
-        void AddRectangleNode(RectangleNode node)
-        {
-            AddCorner(node, node);
-            AddDefaultShapeNode(node);
-        }
-        void AddLineNode(LineNode node) => AddDefaultShapeNode(node);
-        void AddEllipseNode(EllipseNode node) => AddDefaultShapeNode(node);
-        void AddRegularPolygonNode(RegularPolygonNode node)
-        {
-            AddCorner(node, node);
-            AddDefaultShapeNode(node);
-        }
-        void AddStarNode(StarNode node)
-        {
-            AddCorner(node, node);
-            AddDefaultShapeNode(node);
-        }
-        void AddVectorNode(VectorNode node)
-        {
-            AddCorner(node, node);
 
-            AddDefaultShapeNode(node);
-        }
-        void AddTextNode(TextNode node)
-        {
-            void FixWhiteSpace() => whiteSpace = node.absoluteBoundingBox.height / node.style.fontSize < 2 ? Wrap.Nowrap : Wrap.Normal;
+            LayoutDouble4 correctedPadding = frame.GetCorrectedPadding();
+            if (correctedPadding.Any())
+                padding = correctedPadding.ToLength4Property();
 
-            AddDefaultShapeNode(node);
+            if (frame.layoutMode is LayoutMode.NONE)
+                return;
 
-            FixWhiteSpace();
-            AddTextStyle(node.style);
-        }
-        void AddComponentSetNode(ComponentSetNode node) => AddDefaultFrameNode(node);
-        void AddComponentNode(ComponentNode node) => AddDefaultFrameNode(node);
-        void AddInstanceNode(InstanceNode node) => AddDefaultFrameNode(node);
-        void AddBooleanOperationNode(BooleanOperationNode node) => AddDefaultFrameNode(node);
-
-        void AddFrame(IDefaultFrameMixin mixin)
-        {
-            void AddPadding()
-            {
-                double[] padding = { mixin.paddingTop ?? 0, mixin.paddingRight ?? 0, mixin.paddingBottom ?? 0, mixin.paddingLeft ?? 0 };
-
-                if (padding.Any(x => x != 0))
-                    this.padding = padding;
-            }
-            static string GetNodeFullPath(BaseNode node) => node is null ? string.Empty : Path.Combine(GetNodeFullPath(node.parent), node.name);
-            void AddAutoLayout()
-            {
-                switch (mixin.layoutMode)
-                {
-                    case LayoutMode.HORIZONTAL:
-                        flexDirection = FlexDirection.Row;
-                        justifyContent = JustifyContent.FlexStart;
-                        alignItems = Align.FlexStart;
-
-                        if (mixin.layoutWrap is LayoutWrap.WRAP) flexWrap = FlexWrap.Wrap;
-                        if (mixin.layoutWrap is LayoutWrap.NO_WRAP)
-                        {
-                            flexWrap = FlexWrap.Nowrap;
-                            // This should be removed.
-                            if (mixin.layoutAlign is LayoutAlign.STRETCH && mixin.primaryAxisSizingMode is PrimaryAxisSizingMode.FIXED)
-                            {
-                                flexWrap = FlexWrap.Wrap;
-                                string path = GetNodeFullPath(mixin as BaseNode);
-                                Debug.LogWarning(Extensions.BuildTargetMessage("Set Flex Wrap to Wrap in your Figma Document", path));
-                            }
-                        }
-
-                        break;
-
-                    case LayoutMode.VERTICAL:
-                        flexDirection = FlexDirection.Column;
-                        justifyContent = JustifyContent.FlexStart;
-                        alignItems = Align.FlexStart;
-                        if (mixin.layoutAlign != LayoutAlign.STRETCH && mixin.primaryAxisSizingMode.IsValue(PrimaryAxisSizingMode.FIXED))
-                        {
-                            // Figma doesn't support wrap at vertical layout, then we forcibly set it.
-                            flexWrap = FlexWrap.Wrap;
-                        }
-
-                        break;
-                }
-
-                if (mixin.primaryAxisAlignItems.HasValue)
-                    justifyContent = mixin.primaryAxisAlignItems.Value switch
-                    {
-                        PrimaryAxisAlignItems.MIN => JustifyContent.FlexStart,
-                        PrimaryAxisAlignItems.CENTER => JustifyContent.Center,
-                        PrimaryAxisAlignItems.MAX => JustifyContent.FlexEnd,
-                        PrimaryAxisAlignItems.SPACE_BETWEEN => JustifyContent.SpaceBetween,
-                        _ => throw new NotSupportedException()
-                    };
-
-                if (mixin.counterAxisAlignItems.HasValue)
-                    alignItems = mixin.counterAxisAlignItems.Value switch
-                    {
-                        CounterAxisAlignItems.MIN => Align.FlexStart,
-                        CounterAxisAlignItems.CENTER => Align.Center,
-                        CounterAxisAlignItems.MAX => Align.FlexEnd,
-                        CounterAxisAlignItems.BASELINE => Align.Stretch,
-                        _ => throw new NotSupportedException()
-                    };
-
-                if (mixin.itemSpacing.HasPositive())
-                    itemSpacing = mixin.itemSpacing;
-            }
-
-            AddPadding();
-
-            if (mixin.layoutMode.HasValue)
-                AddAutoLayout();
-        }
-        void AddLayout(ILayoutMixin mixin, IBaseNodeMixin @base)
-        {
-            if (@base is IDefaultFrameMixin frame && IsMostlyHorizontal(frame))
+            if (frame.layoutWrap is LayoutWrap.WRAP)
+                flexWrap = FlexWrap.Wrap;
+            if (frame.layoutMode is LayoutMode.HORIZONTAL)
                 flexDirection = FlexDirection.Row;
-            if (@base.parent is IDefaultFrameMixin { layoutMode: not null } && mixin.layoutAlign == LayoutAlign.STRETCH)
-                alignSelf = Align.Stretch;
-        }
-        void AddBlend(IBlendMixin mixin)
-        {
-            if (mixin.opacity.HasValue)
-                opacity = mixin.opacity;
 
-            if (mixin is TextNode)
-                AddTextNodeEffects(mixin.effects);
+            justifyContent = frame.primaryAxisAlignItems switch
+            {
+                PrimaryAxisAlignItems.MIN => JustifyContent.FlexStart,
+                PrimaryAxisAlignItems.CENTER => JustifyContent.Center,
+                PrimaryAxisAlignItems.MAX => JustifyContent.FlexEnd,
+                PrimaryAxisAlignItems.SPACE_BETWEEN => JustifyContent.SpaceBetween,
+                _ => throw new NotSupportedException()
+            };
+
+            alignItems = frame.counterAxisAlignItems switch
+            {
+                CounterAxisAlignItems.MIN => Align.FlexStart,
+                CounterAxisAlignItems.CENTER => Align.Center,
+                CounterAxisAlignItems.MAX => Align.FlexEnd,
+                CounterAxisAlignItems.BASELINE => Align.FlexEnd,
+                _ => throw new NotSupportedException()
+            };
+
+            if (frame.itemSpacing > 0.0)
+                itemSpacing = frame.itemSpacing;
+        }
+        void AddGeometry(IGeometryMixin geometry)
+        {
+            AddFill(geometry);
+
+            if (!geometry.HasBorder())
+                return;
+
+            AddStrokeColor(geometry);
+            if (geometry.individualStrokeWeights != null)
+            {
+                if (geometry.individualStrokeWeights.left > 0)
+                    borderLeftWidth = geometry.individualStrokeWeights.left;
+                if (geometry.individualStrokeWeights.right > 0)
+                    borderRightWidth = geometry.individualStrokeWeights.right;
+                if (geometry.individualStrokeWeights.top > 0)
+                    borderTopWidth = geometry.individualStrokeWeights.top;
+                if (geometry.individualStrokeWeights.bottom > 0)
+                    borderBottomWidth = geometry.individualStrokeWeights.bottom;
+            }
             else
-                AddNodeEffects(mixin.effects);
+            {
+                borderWidth = geometry.strokeWeight;
+            }
         }
-        void AddGeometry(IGeometryMixin mixin, ILayoutMixin layout, IBaseNodeMixin @base)
+        void AddLayout(ILayoutMixin layout)
         {
-            void AddBackgroundImageForVectorNode()
+            void SetPositioning(IDefaultFrameMixin parent)
             {
-                (bool valid, string url) = @base.HasImage() ? assetsInfo.GetAssetPath(@base.id, KnownFormats.png) : assetsInfo.GetAssetPath(@base.id, KnownFormats.svg);
-                if (valid)
-                    backgroundImage = Url(url);
-            }
-            void AddBorderWidth()
-            {
-                if (mixin.individualStrokeWeights != null)
-                {
-                    if (mixin.individualStrokeWeights.left > 0) borderLeftWidth = mixin.individualStrokeWeights.left;
-                    if (mixin.individualStrokeWeights.right > 0) borderRightWidth = mixin.individualStrokeWeights.right;
-                    if (mixin.individualStrokeWeights.top > 0) borderTopWidth = mixin.individualStrokeWeights.top;
-                    if (mixin.individualStrokeWeights.bottom > 0) borderBottomWidth = mixin.individualStrokeWeights.bottom;
-                }
-                else if (mixin.strokeWeight > 0) borderWidth = mixin.strokeWeight;
-            }
-            void AddBorderRadius(IRectangleCornerMixin rectangleCornerMixin, ICornerMixin cornerMixin)
-            {
-                void AddRadius(double minValue, double value)
-                {
-                    if (rectangleCornerMixin.rectangleCornerRadii == null)
-                    {
-                        if (cornerMixin.cornerRadius.HasPositive())
-                            borderRadius = Math.Min(minValue, cornerMixin!.cornerRadius!.Value) + value;
-                    }
-                    else
-                    {
-                        for (int i = 0; i < rectangleCornerMixin.rectangleCornerRadii.Length; ++i)
-                            rectangleCornerMixin.rectangleCornerRadii[i] = Math.Min(minValue, rectangleCornerMixin.rectangleCornerRadii[i]) + value;
-                        borderRadius = rectangleCornerMixin.rectangleCornerRadii;
-                    }
-                }
+                Rect frameBorderBox = layout.GetBorderBox();
+                Rect parentContentBox = parent.GetContentBox();
+                double x = frameBorderBox.x - parentContentBox.x;
+                double y = frameBorderBox.y - parentContentBox.y;
+                double r = parentContentBox.width - frameBorderBox.width - x;
+                double b = parentContentBox.height - frameBorderBox.height - y;
 
-                double value = double.NaN;
-                switch (mixin.strokeAlign.Value)
-                {
-                    case StrokeAlign.INSIDE:
-                        return;
-
-                    case StrokeAlign.CENTER:
-                        value = mixin.strokeWeight.Value / 2;
-                        break;
-
-                    case StrokeAlign.OUTSIDE:
-                        value = mixin.strokeWeight.Value;
-                        break;
-                }
-
-                double minBorderRadius = Math.Min(layout.absoluteBoundingBox.width / 2, layout.absoluteBoundingBox.height / 2);
-                AddRadius(minBorderRadius, value);
-
-                if (borderRadius == new Length4Property(Unit.Pixel))
-                    Attributes.Remove("border-radius");
-            }
-            void AddRotation()
-            {
-                if ((layout.relativeTransform[0][0] == 1 && layout.relativeTransform[0][0] == 0 &&
-                     layout.relativeTransform[0][0] == 0 && layout.relativeTransform[1][1] == 1) || !layout.relativeTransform[0][0].HasValue ||
-                    !layout.relativeTransform[0][1].HasValue || !layout.relativeTransform[1][0].HasValue || !layout.relativeTransform[1][1].HasValue)
-                    return;
-
-                float m00 = (float)layout.relativeTransform[0][0].Value;
-                float m01 = (float)layout.relativeTransform[0][1].Value;
-                int rotation = Mathf.RoundToInt(Mathf.Rad2Deg * Mathf.Acos(m00 / Mathf.Sqrt(m00 * m00 + m01 * m01)));
-                if (rotation != 0)
-                    rotate = new LengthProperty(rotation, Unit.Degrees);
-            }
-
-            if (@base.IsSvgNode())
-            {
-                AddBackgroundImageForVectorNode();
-                return;
-            }
-
-            if (layout.relativeTransform != null)
-                AddRotation();
-
-            if (mixin is TextNode)
-            {
-                AddTextFillStyle(mixin.fills);
-                return;
-            }
-
-            AddFillStyle(mixin.fills);
-
-            if (mixin.strokes.Length == 0)
-                return;
-
-            AddStrokeFillStyle(mixin.strokes);
-
-            if (!mixin.strokeWeight.HasValue)
-                return;
-
-            AddBorderWidth();
-
-            if (mixin.strokeAlign.HasValue)
-                AddBorderRadius(mixin as IRectangleCornerMixin, mixin as ICornerMixin);
-        }
-
-        void AddCorner(ICornerMixin cornerMixin, IRectangleCornerMixin rectangleCornerMixin) =>
-            borderRadius = rectangleCornerMixin.rectangleCornerRadii ?? (cornerMixin.cornerRadius.HasPositive() ? cornerMixin.cornerRadius : borderRadius);
-
-        void AddBoxModel(ILayoutMixin layout, IConstraintMixin constraint, IGeometryMixin geometry, IBaseNodeMixin baseNode)
-        {
-            void AdjustSvgSize()
-            {
-                (bool valid, int width, int height) = assetsInfo.GetAssetSize(baseNode.id, KnownFormats.svg);
-
-                if (valid && width > 0 && height > 0)
-                    layout.absoluteBoundingBox = new Rect(layout.absoluteBoundingBox.x, layout.absoluteBoundingBox.y, width, height);
-
-                if (geometry.strokes.Length == 0 || geometry.strokeWeight is not > 0)
-                    return;
-
-                layout.absoluteBoundingBox = new Rect(layout.absoluteBoundingBox.x - geometry.strokeWeight.Value / 2, layout.absoluteBoundingBox.y, layout.absoluteBoundingBox.width, layout.absoluteBoundingBox.height);
-
-                if (geometry.strokeCap is null or StrokeCap.NONE)
-                    return;
-
-                layout.absoluteBoundingBox = new Rect(layout.absoluteBoundingBox.x, layout.absoluteBoundingBox.y - geometry.strokeWeight.Value / 2, layout.absoluteBoundingBox.width, layout.absoluteBoundingBox.height);
-            }
-            void AddSizeFromConstraint(IDefaultFrameMixin parent, LengthProperty widthProperty, LengthProperty heightProperty)
-            {
-                ConstraintHorizontal horizontal = constraint.constraints.horizontal;
-                ConstraintVertical vertical = constraint.constraints.vertical;
-                Rect rect = layout.absoluteBoundingBox;
-                Rect parentRect = parent.absoluteBoundingBox;
-
-                double borderDelta = 0;
-
-                // unity doesn't support external, and center borders
-                if (parent.strokes.Length > 0 && parent.strokeWeight is not null)
-                {
-                    switch (parent.strokeAlign)
-                    {
-                        case StrokeAlign.INSIDE:
-                            borderDelta = parent.strokeWeight.Value;
-                            break;
-
-                        case StrokeAlign.CENTER:
-                            borderDelta = parent.strokeWeight.Value / 2;
-                            break;
-
-                        case StrokeAlign.OUTSIDE:
-                            borderDelta = parent.strokeWeight.Value;
-                            break;
-                    }
-                }
-
-                position = Position.Absolute;
-
-                switch (horizontal)
+                switch (layout.constraints.horizontal)
                 {
                     case ConstraintHorizontal.LEFT:
-                        left = -(parentRect - rect).left - borderDelta;
-                        width = widthProperty;
+                        left = x;
                         break;
 
                     case ConstraintHorizontal.RIGHT:
-                        right = (parentRect - rect).right - borderDelta;
-                        width = widthProperty;
+                        right = r;
                         break;
 
                     case ConstraintHorizontal.LEFT_RIGHT:
-                        left = -(parentRect - rect).left - borderDelta;
-                        right = (parentRect - rect).right - borderDelta;
+                        left = x;
+                        right = r;
                         break;
 
                     case ConstraintHorizontal.CENTER:
-                        width = widthProperty;
-                        left = new LengthProperty((rect.halfWidth - (parentRect - rect).left - borderDelta) / (parentRect.width - borderDelta * 2) * 100.0, Unit.Percent);
-                        Length2Property translateProperty = translate;
-                        translateProperty[0] = new LengthProperty(-50, Unit.Percent);
-                        translate = translateProperty;
+                        if (parent.layoutMode is LayoutMode.VERTICAL or LayoutMode.NONE)
+                            alignSelf = Align.Center;
+                        else if (parent.primaryAxisAlignItems is not PrimaryAxisAlignItems.CENTER)
+                            LogWarningImpossibleDesign((IBaseNodeMixin)layout, $"Has center constraint on {nameof(LayoutMode.HORIZONTAL)} axis, but parent doesnt align items center it has {parent.layoutMode}.");
+                        if (parent.HasBorder() && parent.strokeAlign is not StrokeAlign.OUTSIDE)
+                            LogWarningImpossibleDesign((IBaseNodeMixin)layout, $"Center constraint should only be combined with parent that has {nameof(StrokeAlign.OUTSIDE)} border. Parent has {parent.strokeAlign}. The scaling will be off by a few pixels when growing");
+
+                        double cx = parentContentBox.halfWidth - frameBorderBox.halfWidth - x;
+                        if (Math.Abs(cx) >= tolerance)
+                            translate = new Length2Property(new LengthProperty[] { -cx, 0.0 });
+
                         break;
 
-                    case ConstraintHorizontal.SCALE when parentRect.width != 0:
-                        left = new LengthProperty((-(parentRect - rect).left - borderDelta) / (parentRect.width - borderDelta * 2) * 100, Unit.Percent);
-                        right = new LengthProperty(((parentRect - rect).right - borderDelta) / (parentRect.width - borderDelta * 2) * 100, Unit.Percent);
+                    case ConstraintHorizontal.SCALE when parentContentBox.width > 0.0:
+                        left = new LengthProperty(100.0 * x / parentContentBox.width, Unit.Percent);
+                        right = new LengthProperty(100.0 * r / parentContentBox.width, Unit.Percent);
                         break;
 
                     case ConstraintHorizontal.SCALE:
-                        left = new LengthProperty(0, Unit.Percent);
-                        right = new LengthProperty(0, Unit.Percent);
                         break;
+
+                    default:
+                        throw new NotSupportedException();
                 }
 
-                switch (vertical)
+                switch (layout.constraints.vertical)
                 {
                     case ConstraintVertical.TOP:
-                        top = -(parentRect - rect).top - borderDelta;
-                        height = heightProperty;
+                        top = y;
                         break;
 
                     case ConstraintVertical.BOTTOM:
-                        bottom = (parentRect - rect).bottom - borderDelta;
-                        height = heightProperty;
+                        bottom = b;
                         break;
 
                     case ConstraintVertical.TOP_BOTTOM:
-                        top = -(parentRect - rect).top - borderDelta;
-                        bottom = (parentRect - rect).bottom - borderDelta;
+                        top = y;
+                        bottom = b;
                         break;
 
                     case ConstraintVertical.CENTER:
-                        height = heightProperty;
-                        top = new LengthProperty((rect.halfHeight - (parentRect - rect).top - borderDelta) / (parentRect.height - borderDelta * 2) * 100.0, Unit.Percent);
-                        Length2Property translateProperty = translate;
-                        translateProperty[1] = new LengthProperty(-50, Unit.Percent);
-                        translate = translateProperty;
+                        if (parent.layoutMode is not LayoutMode.HORIZONTAL)
+                            alignSelf = Align.Center;
+                        else if (parent.primaryAxisAlignItems is not PrimaryAxisAlignItems.CENTER)
+                            LogWarningImpossibleDesign((IBaseNodeMixin)layout, $"Has center constraint on {nameof(LayoutMode.VERTICAL)} axis, but parent doesnt align items center it has {parent.layoutMode}");
+                        if (parent.HasBorder() && parent.strokeAlign is not StrokeAlign.OUTSIDE)
+                            LogWarningImpossibleDesign((IBaseNodeMixin)layout, $"Center constraint should only be combined with parent that has {nameof(StrokeAlign.OUTSIDE)} border. Parent has {parent.strokeAlign}. The scaling will be off by a few pixels when growing");
+
+                        double cy = parentContentBox.halfHeight - frameBorderBox.halfHeight - y;
+                        if (Math.Abs(cy) >= tolerance)
+                            translate = new Length2Property(new[] { translate[0], -cy });
                         break;
 
-                    case ConstraintVertical.SCALE when parentRect.height != 0:
-                        top = new LengthProperty((-(parentRect - rect).top - borderDelta) / (parentRect.height - borderDelta * 2) * 100, Unit.Percent);
-                        bottom = new LengthProperty(((parentRect - rect).bottom - borderDelta) / (parentRect.height - borderDelta * 2) * 100, Unit.Percent);
+                    case ConstraintVertical.SCALE when parentContentBox.height > 0.0:
+                        top = new LengthProperty(100.0 * y / parentContentBox.height, Unit.Percent);
+                        bottom = new LengthProperty(100.0 * b / parentContentBox.height, Unit.Percent);
                         break;
 
                     case ConstraintVertical.SCALE:
-                        top = new LengthProperty(0, Unit.Percent);
-                        bottom = new LengthProperty(0, Unit.Percent);
                         break;
-                }
-            }
-            void AddItemSpacing(IDefaultFrameMixin parent, double itemSpacing)
-            {
-                if (baseNode == parent.children.LastOrDefault(x => x.IsVisible()))
-                    return;
-
-                if (parent!.layoutMode!.Value == LayoutMode.HORIZONTAL && parent.primaryAxisAlignItems is not PrimaryAxisAlignItems.SPACE_BETWEEN)
-                    marginRight = itemSpacing;
-
-                if (parent!.layoutMode!.Value != LayoutMode.HORIZONTAL)
-                    marginBottom = itemSpacing;
-            }
-            void OverwriteSizeFromTextNode(TextNode node)
-            {
-                switch (node.style.textAutoResize)
-                {
-                    case TextAutoResize.WIDTH_AND_HEIGHT:
-                        width = Unit.Auto;
-                        return;
-
-                    case TextAutoResize.HEIGHT:
-                        height = Unit.Auto;
-                        return;
 
                     default:
-                        if (node.style.textTruncation == TextTruncation.ENDING)
-                        {
-                            textOverflow = TextOverflow.Ellipsis;
-                            overflow = Visibility.Hidden;
-                        }
-
-                        break;
+                        throw new NotSupportedException();
                 }
             }
-
-            if (layout.minWidth.HasValue) minWidth = layout.minWidth.Value;
-            if (layout.minHeight.HasValue) minHeight = layout.minHeight.Value;
-            if (layout.maxWidth.HasValue) maxWidth = layout.maxWidth.Value;
-            if (layout.maxHeight.HasValue) maxHeight = layout.maxHeight.Value;
-            if (baseNode.IsSvgNode()) AdjustSvgSize();
-
-            if (!baseNode.IsRootNode())
+            bool BoxSizingCorrection(IDefaultFrameMixin parent)
             {
-                IDefaultFrameMixin parent = (IDefaultFrameMixin)baseNode.parent;
-                if (parent.layoutMode is not null && baseNode is IDefaultFrameMixin { layoutPositioning: null } or not IDefaultFrameMixin)
+                // When strokesIncludedInLayout it's the same as box-sizing: border-box
+                if (parent.strokesIncludedInLayout)
+                    return false;
+
+                // We modify position of elements to emulate negative padding. However, in UI Toolkit child cant to grow bigger than its parent.
+                LayoutDouble4 parentNegativePadding = parent.GetCorrectedPadding().OnlyNegativeValues();
+
+                bool anyHorizontal = parentNegativePadding.left < -tolerance || parentNegativePadding.right < -tolerance;
+                bool anyVertical = parentNegativePadding.top < -tolerance || parentNegativePadding.bottom < -tolerance;
+                bool wrongHorizontal = layout.layoutSizingHorizontal is LayoutSizing.FILL && anyHorizontal;
+                bool wrongVertical = layout.layoutSizingVertical is LayoutSizing.FILL && anyVertical;
+                if (wrongHorizontal || wrongVertical)
                 {
-                    bool growing = layout.layoutGrow is > 0;
-
-                    LayoutMode direction;
-                    bool primaryFixed;
-                    bool counterFixed;
-                    if (baseNode is IDefaultFrameMixin { layoutMode: not null } frame)
-                    {
-                        bool stretching = frame.layoutAlign is LayoutAlign.STRETCH;
-                        (bool primaryGrowing, bool counterGrowing) = frame.layoutMode == parent.layoutMode ? (growing, stretching) : (stretching, growing);
-                        (bool primarySizingFixed, bool counterSizingFixed) = (frame.primaryAxisSizingMode is PrimaryAxisSizingMode.FIXED, frame.counterAxisSizingMode is CounterAxisSizingMode.FIXED);
-                        (primaryFixed, counterFixed) = (primarySizingFixed && !primaryGrowing, counterSizingFixed && !counterGrowing);
-                        direction = frame.layoutMode.Value;
-                    }
-                    else
-                    {
-                        bool stretching = layout.layoutAlign is LayoutAlign.STRETCH;
-                        (primaryFixed, counterFixed) = (!growing, !stretching);
-                        direction = parent.layoutMode.Value;
-                    }
-
-                    if (direction is not LayoutMode.VERTICAL and not LayoutMode.HORIZONTAL) Debug.LogWarning(Extensions.BuildTargetMessage("Direction layout for", $"{parent.name}/{Name}", $" is {direction}, undefined behaviour"));
-                    (bool widthFixed, bool heightFixed) = direction is LayoutMode.HORIZONTAL ? (primaryFixed, counterFixed) : (counterFixed, primaryFixed);
-
-                    if (growing) flexGrow = 1;
-                    if (widthFixed) width = layout.absoluteBoundingBox.width;
-                    if (heightFixed) height = layout.absoluteBoundingBox.height;
-                    if (parent.itemSpacing is not null) AddItemSpacing(parent, parent.itemSpacing.Value);
+                    LogWarningImpossibleDesign((IBaseNodeMixin)layout, $"{nameof(LayoutSizing.FILL)} on node with child bounding box being outside parents content, Unity auto layout doesn't allow child to outgrow parents content. " +
+                                                                       $"Wrong {(wrongHorizontal && wrongVertical ? "Horizontal and Vertical" : wrongHorizontal ? "Horizontal" : "Vertical")} axis. " +
+                                                                       $"Element has ({layout.layoutSizingHorizontal}, {layout.layoutSizingVertical}), parent has border {parent.strokeAlign} with width {(string)parent.GetBorderWidths().ToLength4Property()}. " +
+                                                                       "Unity wont grow child above parent. Possible fixes:" +
+                                                                       $"\n1: Change {nameof(IDefaultFrameMixin.strokesIncludedInLayout)} in Auto layout settings to included." +
+                                                                       $"\n2: Use {nameof(LayoutSizing.FIXED)} or {nameof(LayoutSizing.HUG)}\n3: increase padding, currently missing {(string)(-parentNegativePadding).ToLength4Property()} more padding to make them not overlap." +
+                                                                       $"\n3: make parent border {nameof(StrokeAlign.OUTSIDE)}");
+                    return false;
                 }
-                else
+
+                bool horizontal = parent.layoutMode is LayoutMode.HORIZONTAL;
+                double primary = parent.primaryAxisAlignItems switch
                 {
-                    bool widthFixed;
-                    bool heightFixed;
-                    if (baseNode is IDefaultFrameMixin { layoutMode: not null } frame)
-                    {
-                        (bool primarySizingFixed, bool counterSizingFixed) = (frame.primaryAxisSizingMode is PrimaryAxisSizingMode.FIXED, frame.counterAxisSizingMode is CounterAxisSizingMode.FIXED);
-                        (widthFixed, heightFixed) = frame.layoutMode is LayoutMode.HORIZONTAL ? (primarySizingFixed, counterSizingFixed) : (counterSizingFixed, primarySizingFixed);
-                    }
-                    else
-                    {
-                        (widthFixed, heightFixed) = (true, true);
-                    }
+                    PrimaryAxisAlignItems.MIN or PrimaryAxisAlignItems.SPACE_BETWEEN => 1.0 * (horizontal ? parentNegativePadding.left : parentNegativePadding.top),
+                    PrimaryAxisAlignItems.MAX => -1.0 * (horizontal ? parentNegativePadding.right : parentNegativePadding.bottom),
+                    PrimaryAxisAlignItems.CENTER => 0.5 * (horizontal ? parentNegativePadding.left - parentNegativePadding.right : parentNegativePadding.top - parentNegativePadding.bottom),
+                    _ => 0.0
+                };
+                double counter = parent.counterAxisAlignItems switch
+                {
+                    CounterAxisAlignItems.MIN => 1.0 * (horizontal ? parentNegativePadding.top : parentNegativePadding.left),
+                    CounterAxisAlignItems.MAX => -1.0 * (horizontal ? parentNegativePadding.bottom : parentNegativePadding.right),
+                    CounterAxisAlignItems.CENTER => 0.5 * (horizontal ? parentNegativePadding.top - parentNegativePadding.bottom : parentNegativePadding.left - parentNegativePadding.right),
+                    _ => 0.0
+                };
 
-                    AddSizeFromConstraint(parent, widthFixed ? layout.absoluteBoundingBox.width : Unit.Auto, heightFixed ? layout.absoluteBoundingBox.height : Unit.Auto);
+                (double leftCorrection, double topCorrection) = horizontal ? (primary, counter) : (counter, primary);
+                if (Math.Abs(topCorrection) > tolerance)
+                    top = topCorrection;
+                if (Math.Abs(leftCorrection) > tolerance)
+                    left = leftCorrection;
+
+                return true;
+            }
+            IDefaultFrameMixin parent = (IDefaultFrameMixin)((IBaseNodeMixin)layout).parent;
+
+            bool ignoreAutoLayout = layout is IDefaultFrameMixin { layoutPositioning: LayoutPositioning.ABSOLUTE };
+            bool forceAutoHorizontal = false;
+            bool forceAutoVertical = false;
+            if (parent.layoutMode is LayoutMode.NONE || ignoreAutoLayout)
+            {
+                forceAutoHorizontal = layout.constraints.horizontal is ConstraintHorizontal.SCALE or ConstraintHorizontal.LEFT_RIGHT;
+                forceAutoVertical = layout.constraints.vertical is ConstraintVertical.SCALE or ConstraintVertical.TOP_BOTTOM;
+
+                position = Position.Absolute;
+                SetPositioning(parent);
+            }
+            else
+            {
+                LayoutDouble4 margin4 = new();
+
+                if (BoxSizingCorrection(parent))
+                    margin4 -= (layout as IGeometryMixin).GetOutsideBorderWidths();
+                if (Math.Abs(parent.itemSpacing) > tolerance && parent.primaryAxisAlignItems is not PrimaryAxisAlignItems.SPACE_BETWEEN && layout != parent.children.LastOrDefault(x => x.IsVisible()))
+                {
+                    if (parent.layoutMode is LayoutMode.HORIZONTAL)
+                        margin4.right += parent.itemSpacing;
+                    else
+                        margin4.bottom += parent.itemSpacing;
                 }
+
+                if (margin4.Any())
+                    margin = margin4.ToLength4Property();
+                LayoutSizing primarySizing = parent.layoutMode is LayoutMode.HORIZONTAL ? layout.layoutSizingHorizontal : layout.layoutSizingVertical;
+                if (primarySizing is LayoutSizing.FIXED or LayoutSizing.HUG)
+                    flexShrink = 0.0; // Shrink clamps child to parent. Figma ignores this when using fixed or hug.
             }
 
-            if (baseNode is TextNode textNode && textNode.style.textAutoResize.HasValue)
-                OverwriteSizeFromTextNode(textNode);
-        }
-        void AddFillStyle(IEnumerable<Paint> fills)
-        {
-            foreach (Paint fill in fills)
+            if (layout.layoutGrow > 0)
+                flexGrow = 1;
+            if (layout.layoutAlign is LayoutAlign.STRETCH)
+                alignSelf = Align.Stretch;
+
+            Rect borderBox = layout.GetBorderBox(); // Unity uses border-box
+            if (layout.layoutSizingHorizontal is LayoutSizing.FIXED && !forceAutoHorizontal)
+                width = borderBox.width;
+            if (layout.layoutSizingVertical is LayoutSizing.FIXED && !forceAutoVertical)
+                height = borderBox.height;
+
+            if (layout.minWidth != null)
+                minWidth = layout.minWidth.Value;
+            if (layout.minHeight != null)
+                minHeight = layout.minHeight.Value;
+            if (layout.maxWidth != null)
+                maxWidth = layout.maxWidth.Value;
+            if (layout.maxHeight != null)
+                maxHeight = layout.maxHeight.Value;
+
+            const double rad2deg = 180.0 / Math.PI;
+            if (Math.Abs(layout.rotation) > tolerance && !((IBaseNodeMixin)layout).IsSvgNode())
+                rotate = new LengthProperty(layout.rotation * rad2deg, Unit.Degrees);
+
+            if (layout is TextNode { style: { textAutoResize: TextAutoResize.WIDTH_AND_HEIGHT } } text)
             {
-                if (fill is SolidPaint solid && solid.visible.IsEmptyOrTrue())
-                    backgroundColor = new ColorProperty(solid.color, solid.opacity);
+                height = text.style.lineHeightPx; // Unity text only aligns correctly when height is 1.2 times font size. Figma allows any text height
 
-                if (fill is GradientPaint gradient && gradient.visible.IsEmptyOrTrue())
+                const double idealLineHeightFactor = 1.2;
+                if (parent.counterAxisAlignItems is CounterAxisAlignItems.BASELINE) // Baseline is not supported by unity, so we emulate it
                 {
-                    (bool valid, string url) = assetsInfo.GetAssetPath(gradient.GetHash(), KnownFormats.svg);
-                    if (valid) backgroundImage = Url(url);
-                }
-
-                if (fill is ImagePaint image && image.visible.IsEmptyOrTrue())
-                {
-                    (bool valid, string url) = assetsInfo.GetAssetPath(image.imageRef, KnownFormats.png);
-                    if (valid) backgroundImage = Url(url);
-
-                    unityBackgroundSize = image.scaleMode switch
+                    double baselineOffset = text.style.textAlignVertical switch
                     {
-                        ScaleMode.FILL => BackgroundSizeType.Cover,
-                        ScaleMode.FIT => BackgroundSizeType.Contain,
-                        _ => unityBackgroundSize
+                        TextAlignVertical.TOP => text.style.fontSize - text.style.lineHeightPx, // wierd but it works
+                        TextAlignVertical.CENTER => 0.0,
+                        TextAlignVertical.BOTTOM => -(Math.Floor(text.style.fontSize / 5.0) + 2.0), // magic formula gotten through trial and error
+                        _ => throw new NotSupportedException()
                     };
+                    if (Math.Abs(baselineOffset) > tolerance)
+                        bottom = baselineOffset;
                 }
-            }
-        }
-        void AddTextFillStyle(IEnumerable<Paint> fills)
-        {
-            foreach (SolidPaint solid in fills.Where(x => x is SolidPaint solid && solid.visible.IsEmptyOrTrue()).Cast<SolidPaint>())
-                color = new ColorProperty(solid.color, solid.opacity);
-        }
-        void AddStrokeFillStyle(IEnumerable<Paint> strokes)
-        {
-            foreach (Paint stroke in strokes)
-            {
-                if (stroke is SolidPaint solid && solid.visible.IsEmptyOrTrue())
-                    borderColor = new ColorProperty(solid.color, solid.opacity);
-
-                // Unity doesnt support gradient border color
-                if (stroke is GradientPaint gradient && gradient.visible.IsEmptyOrTrue())
+                else if (text.style.lineHeightPx <= text.style.fontSize * idealLineHeightFactor) // Figma centers text when lineheight is too small
                 {
-                    RGBA avgColor = gradient.gradientStops.Select(stop => stop.color).GetAverageColor();
-                    borderColor = new ColorProperty(avgColor, avgColor.a);
+                    text.style.textAlignVertical = TextAlignVertical.CENTER;
                 }
             }
         }
-        void AddTextStyle(TextNode.Style style)
+        void AddText(TextNode text)
         {
-            bool TryGetFontWithExtension(string font, out string resource, out string url)
+            TextNode.Style style = text.style;
+            bool TryGetFontWithExtension(string font, out string resource)
             {
                 (bool ttf, string ttfPath) = assetsInfo.GetAssetPath(font, KnownFormats.ttf);
                 if (ttf)
                 {
                     resource = Url(ttfPath);
-                    url = ttfPath;
                     return true;
                 }
 
@@ -727,43 +510,42 @@ namespace Figma.Core.Uss
                 if (otf)
                 {
                     resource = Url(otfPath);
-                    url = otfPath;
                     return true;
                 }
 
                 resource = Resource("Inter-Regular");
-                url = ttfPath;
                 return false;
             }
 
-            void AddUnityFont()
+            (string, string) GetFont()
             {
-                string weightPostfix = style.fontWeight.HasValue
-                    ? ((FontWeight) style.fontWeight).ToString()
-                    : style.fontPostScriptName.Contains('-')
-                        ? style.fontPostScriptName.Split('-')[1].Replace("Index", string.Empty)
+                string fontPostScriptName = style.fontPostScriptName ?? (style.fontFamily == "Inter" ? "Inter-Regular" : null);
+
+                if (fontPostScriptName == null)
+                    return (null, null);
+
+                string weightPostfix = style.fontWeight > 0
+                    ? Enum.GetValues(typeof(FontWeight)).GetValue((int)(style.fontWeight / 100) - 1).ToString()
+                    : fontPostScriptName.Contains('-')
+                        ? fontPostScriptName.Split('-')[1].Replace("Index", string.Empty)
                         : string.Empty;
-                string italicPostfix = style.italic.HasValue && style.italic.Value || style.fontPostScriptName.Contains(FontStyle.Italic.ToString()) ? FontStyle.Italic.ToString() : string.Empty;
+                string italicPostfix = style.italic || fontPostScriptName.Contains(nameof(FontStyle.Italic)) ? nameof(FontStyle.Italic) : string.Empty;
 
-                bool valid;
+                string fontName = $"{style.fontFamily}-{weightPostfix}{italicPostfix}";
+                if (!TryGetFontWithExtension(fontName, out string font) && !TryGetFontWithExtension(fontPostScriptName, out font))
+                    Debug.LogWarning(Extensions.BuildTargetMessage("Cannot find Font", fontName, string.Empty));
 
-                if (!TryGetFontWithExtension($"{style.fontFamily}-{weightPostfix}{italicPostfix}", out string resource, out string url) && !TryGetFontWithExtension(style.fontPostScriptName, out resource, out url))
-                    Debug.LogWarning(Extensions.BuildTargetMessage("Cannot find Font", $"{style.fontFamily}-{weightPostfix}{italicPostfix}", string.Empty));
-
-                unityFont = resource;
-                (valid, url) = assetsInfo.GetAssetPath($"{style.fontFamily}-{weightPostfix}{italicPostfix}", KnownFormats.asset);
-
-                if (valid)
-                    unityFontDefinition = Url(url);
+                (bool valid, string fontDefinition) = assetsInfo.GetAssetPath(fontName, KnownFormats.asset);
+                return (font, valid ? fontDefinition : null);
             }
-            void AddTextAlign()
+            EnumProperty<TextAlign> GetTextAlignment()
             {
                 string horizontal = style.textAlignHorizontal switch
                 {
                     TextAlignHorizontal.LEFT => "left",
                     TextAlignHorizontal.RIGHT => "right",
                     TextAlignHorizontal.CENTER => "center",
-                    TextAlignHorizontal.JUSTIFIED => "center",
+                    TextAlignHorizontal.JUSTIFIED => throw new NotSupportedException(),
                     _ => throw new NotSupportedException()
                 };
                 string vertical = style.textAlignVertical switch
@@ -773,40 +555,192 @@ namespace Figma.Core.Uss
                     TextAlignVertical.CENTER => "middle",
                     _ => throw new NotSupportedException()
                 };
-                unityTextAlign = $"{vertical}-{horizontal}";
+                return $"{vertical}-{horizontal}";
             }
 
-            if (style.textAutoResize is TextAutoResize.NONE or TextAutoResize.HEIGHT) whiteSpace = Wrap.Normal;
-            if (style.fontSize.HasValue) fontSize = style.fontSize;
-            if (style.fontPostScriptName.NullOrEmpty() && style.fontFamily == "Inter") style.fontPostScriptName = "Inter-Regular";
-            if (style.fontPostScriptName.NotNullOrEmpty()) AddUnityFont();
-            if (style.textAlignVertical.HasValue && style.textAlignHorizontal.HasValue) AddTextAlign();
+            if (style.textTruncation is TextTruncation.ENDING)
+            {
+                textOverflow = TextOverflow.Ellipsis;
+                overflow = Visibility.Hidden;
+            }
+
+            if (style.textAutoResize is TextAutoResize.NONE || (style.textAutoResize is TextAutoResize.HEIGHT && style.maxLines is not 1))
+                whiteSpace = Wrap.Normal;
+            unityTextAlign = GetTextAlignment();
+            fontSize = style.fontSize;
+            (string font, string fontDefinition) = GetFont();
+            if (font != null)
+                unityFont = font;
+            if (fontDefinition != null)
+                unityFontDefinition = Url(fontDefinition);
         }
-        void AddTextNodeEffects(IEnumerable<Effect> effects)
+        void AddBlend(IBlendMixin blend)
         {
-            foreach (ShadowEffect effect in effects.Where(x => x is ShadowEffect { visible: true }).Cast<ShadowEffect>())
-                textShadow = new ShadowProperty(effect.offset.x, effect.offset.y, effect.radius, effect.color);
+            if (blend.opacity < 1.0 - tolerance)
+                opacity = blend.opacity;
+
+            IEnumerable<ShadowEffect> effects = blend.effects.OfType<ShadowEffect>().Where(x => x.visible);
+            ShadowEffect effect = effects.FirstOrDefault();
+            if (effect == null)
+                return;
+
+            if (effects.Count() > 1)
+                LogWarningIgnoredFigmaProperty((IBaseNodeMixin)blend, $"More than 1 effects, we support 1 effect per element, this has {effects.Count()}");
+
+            ShadowProperty shadow = new(effect.offset.x, effect.offset.y, effect.radius, effect.color);
+            if (blend is TextNode text)
+            {
+                if (effect.type is EffectType.DROP_SHADOW)
+                    textShadow = shadow;
+                else
+                    LogWarningImpossibleDesign(text, $"Cant use {effect.type} for text we can only use {nameof(EffectType.DROP_SHADOW)}");
+            }
+            else
+            {
+                boxShadow = shadow;
+                LogWarningIgnoredFigmaProperty((IBaseNodeMixin)blend, "Effects on elements, we support effects on text only");
+            }
         }
-        void AddNodeEffects(IEnumerable<Effect> effects)
+        void AddBorderRadius(BaseNode node)
         {
-            foreach (ShadowEffect effect in effects.Where(x => x is ShadowEffect { visible: true }).Cast<ShadowEffect>())
-                boxShadow = new ShadowProperty(effect.offset.x, effect.offset.y, effect.radius, effect.color);
+            // Unity makes each corner as round as possible while figma limits borders to max 50% of size. In Figma when a corner is bigger than the rest that corner can make other corner less round, we dont know how to recreate that effect in unity
+            // Figma makes outside borders have radius equal to radius + border
+            double maxBorderRadius = node is ILayoutMixin layout ? Math.Min(layout.GetBorderBox().width, layout.GetBorderBox().height) * 0.5 : double.MaxValue;
+            LayoutDouble4 outsideBorder = node is IGeometryMixin geometry ? geometry.GetOutsideBorderWidths() : new LayoutDouble4();
+            if (node is ICornerMixin { cornerRadius: > 0 } corner)
+            {
+                LayoutDouble4 rad = outsideBorder + new LayoutDouble4(corner.cornerRadius.Value);
+                LayoutDouble4 radius = new(Math.Min(maxBorderRadius, rad.top), Math.Min(maxBorderRadius, rad.left), Math.Min(maxBorderRadius, rad.bottom), Math.Min(maxBorderRadius, rad.right));
+                borderRadius = radius.ToLength4Property();
+            }
+            else if (node is IRectangleCornerMixin { rectangleCornerRadii: not null } rectangleCorner && rectangleCorner.rectangleCornerRadii.Any(x => x > 0.0))
+            {
+                double GetBorderCorrection(double radius, double border) => radius == 0.0 ? 0.0 : Math.Min(maxBorderRadius, radius + border);
+                double[] radii = rectangleCorner.rectangleCornerRadii;
+                LayoutDouble4 radius = new(GetBorderCorrection(radii[0], outsideBorder.top), GetBorderCorrection(radii[1], outsideBorder.right), GetBorderCorrection(radii[2], outsideBorder.bottom), GetBorderCorrection(radii[3], outsideBorder.left));
+                borderRadius = radius.ToLength4Property();
+            }
+        }
+        void AddSvg(AssetsInfo assetsInfo, BaseNode svg)
+        {
+            ILayoutMixin layout = (ILayoutMixin)svg;
+            Rect boundingBox = layout.absoluteBoundingBox;
+            (bool validSvg, int svgWidth, int svgHeight) = assetsInfo.GetAssetSize(svg.id, KnownFormats.svg);
+            if (validSvg && svgWidth > 0 && svgHeight > 0)
+            {
+                boundingBox.width = svgWidth;
+                boundingBox.height = svgHeight;
+            }
+
+            IGeometryMixin geometry = (IGeometryMixin)svg;
+            if (geometry.HasBorder())
+            {
+                boundingBox.x -= geometry.strokeWeight / 2.0;
+                if (geometry.strokeCap is not StrokeCap.NONE)
+                    boundingBox.y -= geometry.strokeWeight / 2.0;
+            }
+
+            layout.absoluteBoundingBox = boundingBox;
+            string extension = svg.HasImage() ? KnownFormats.png : KnownFormats.svg;
+            (bool valid, string url) = assetsInfo.GetAssetPath(svg.id, extension);
+            if (valid)
+                backgroundImage = Url(url);
         }
         #endregion
 
         #region Support Methods
+        void AddFill(IGeometryMixin geometry)
+        {
+            bool valid = false;
+            string url = string.Empty;
+            RGBA finalColor = new();
+            foreach (Paint fill in geometry.fills.Where(x => x.visible).Reverse())
+            {
+                switch (fill)
+                {
+                    case SolidPaint solid:
+                        solid.color.a = solid.opacity;
+                        finalColor = finalColor.BlendWith(solid.color);
+                        break;
+
+                    case GradientPaint gradient:
+                        if (geometry is TextNode)
+                        {
+                            RGBA average = gradient.gradientStops.Select(stop => stop.color).GetAverageColor();
+                            average.a = gradient.opacity;
+                            finalColor = finalColor.BlendWith(average);
+                        }
+                        else
+                        {
+                            (valid, url) = assetsInfo.GetAssetPath(gradient.GetHash(), KnownFormats.svg);
+                        }
+
+                        break;
+
+                    case ImagePaint image:
+                        if (geometry is TextNode text)
+                        {
+                            LogWarningImpossibleDesign(text, $"{nameof(TextElement)} with images, unity places images in background, while figma puts them inside the text");
+                            break;
+                        }
+
+                        (valid, url) = assetsInfo.GetAssetPath(image.imageRef, KnownFormats.png);
+
+                        unityBackgroundSize = image.scaleMode switch
+                        {
+                            ScaleMode.FILL => BackgroundSizeType.Cover,
+                            ScaleMode.FIT => BackgroundSizeType.Contain,
+                            _ => unityBackgroundSize
+                        };
+                        break;
+                }
+
+                if (geometry is TextNode)
+                    color = new ColorProperty(finalColor);
+                else
+                    backgroundColor = new ColorProperty(finalColor);
+                if (valid)
+                    backgroundImage = Url(url);
+            }
+        }
+        void AddStrokeColor(IGeometryMixin geometry)
+        {
+            if (geometry is TextNode)
+            {
+                LogWarningIgnoredFigmaProperty((IBaseNodeMixin)geometry, "Stroke on text"); // Stroke on text might not be possible at all as unity makes inside stroke and figma outside stroke
+                return;
+            }
+
+            RGBA finalColor = new();
+            foreach (Paint stroke in geometry.strokes.Where(x => x.visible).Reverse())
+            {
+                RGBA color = stroke switch
+                {
+                    SolidPaint solid => solid.color,
+                    GradientPaint gradient => gradient.gradientStops.Select(stop => stop.color).GetAverageColor(),
+                    _ => throw new NotSupportedException()
+                };
+                color.a = stroke.opacity;
+                finalColor = finalColor.BlendWith(color);
+            }
+
+            borderColor = finalColor;
+        }
         internal static List<UssStyle> MakeTransitionStyles(UssStyle root, UssStyle idle, UssStyle hover = null, UssStyle active = null)
         {
             List<UssStyle> transitions = new() { new UssStyle(root.Name) { Target = idle, opacity = 1 } };
 
-            if (hover != null) transitions.Add(new UssStyle(root.Name) { Target = idle, PseudoClass = PseudoClass.Hover, opacity = 0 });
-            if (active != null) transitions.Add(new UssStyle(root.Name) { Target = idle, PseudoClass = PseudoClass.Active, opacity = 0 });
+            if (hover != null)
+                transitions.Add(new UssStyle(root.Name) { Target = idle, PseudoClass = PseudoClass.Hover, opacity = 0 });
+            if (active != null)
+                transitions.Add(new UssStyle(root.Name) { Target = idle, PseudoClass = PseudoClass.Active, opacity = 0 });
 
             if (hover != null)
             {
                 transitions.Add(new UssStyle(root.Name) { Target = hover, opacity = 0 });
                 transitions.Add(new UssStyle(root.Name) { Target = hover, PseudoClass = PseudoClass.Hover, opacity = 1 });
-                if (active != null) transitions.Add(new UssStyle(root.Name) { Target = hover, PseudoClass = PseudoClass.Active, opacity = 0 });
+                if (active != null)
+                    transitions.Add(new UssStyle(root.Name) { Target = hover, PseudoClass = PseudoClass.Active, opacity = 0 });
             }
 
             if (active != null)
@@ -821,20 +755,8 @@ namespace Figma.Core.Uss
 
             return transitions;
         }
-        static bool IsMostlyHorizontal(IDefaultFrameMixin mixin)
-        {
-            (int horizontalCenterCount, int verticalCenterCount) = CenterChildrenCount(mixin);
-            return horizontalCenterCount > verticalCenterCount;
-        }
-        static (int, int) CenterChildrenCount(IDefaultFrameMixin mixin)
-        {
-            if (mixin.layoutMode.HasValue)
-                return (0, 0);
-
-            int horizontalCenterCount = mixin.children.Cast<IConstraintMixin>().Count(x => x.constraints.horizontal == ConstraintHorizontal.CENTER);
-            int verticalCenterCount = mixin.children.Cast<IConstraintMixin>().Count(x => x.constraints.vertical == ConstraintVertical.CENTER);
-            return (horizontalCenterCount, verticalCenterCount);
-        }
+        static void LogWarningIgnoredFigmaProperty(IBaseNodeMixin node, string message) => Debug.LogWarning(Extensions.BuildTargetMessage("Ignored figma property", $"{node.parent?.name}/{node.name}", $"No support for {message}. Not implemented."));
+        static void LogWarningImpossibleDesign(IBaseNodeMixin node, string message) => Debug.LogWarning(Extensions.BuildTargetMessage("Wrong figma design", $"{node.parent?.name}/{node.name}", $"{message}. We cant create this in Unity."));
         #endregion
     }
 }

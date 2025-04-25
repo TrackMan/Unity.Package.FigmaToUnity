@@ -47,7 +47,7 @@ namespace Figma
         internal static bool IsRootNode(this IBaseNodeMixin node) => node is DocumentNode or CanvasNode or ComponentNode || node.parent is CanvasNode or ComponentNode;
         internal static bool IsSvgNode(this IBaseNodeMixin node) => node is LineNode or EllipseNode or RegularPolygonNode or StarNode or VectorNode ||
                                                                     (node is BooleanOperationNode && node.Flatten().Any(x => x is not BooleanOperationNode && IsVisible(x) && IsSvgNode(x)));
-        internal static bool IsVisible(this IBaseNodeMixin node) => (node is not ISceneNodeMixin scene || !scene.visible.HasValueAndFalse()) && (node.parent == null || IsVisible(node.parent));
+        internal static bool IsVisible(this IBaseNodeMixin node) => (node is not ISceneNodeMixin scene || scene.visible) && (node.parent == null || node.parent.IsVisible());
         internal static bool HasImage(this IBaseNodeMixin node) => node is IGeometryMixin geometry && geometry.fills.Any(x => x is ImagePaint);
 
         internal static void SetParent(this BaseNode node)

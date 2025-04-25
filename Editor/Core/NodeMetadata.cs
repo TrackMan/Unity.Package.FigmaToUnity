@@ -225,7 +225,7 @@ namespace Figma
                 {
                     static bool IsVisible(IBaseNodeMixin mixin)
                     {
-                        if (mixin is ISceneNodeMixin scene && scene.visible.HasValueAndFalse())
+                        if (mixin is ISceneNodeMixin { visible: false })
                             return false;
 
                         return mixin.parent is null || IsVisible(mixin.parent);
@@ -257,7 +257,7 @@ namespace Figma
                 {
                     static bool IsVisible(IBaseNodeMixin mixin)
                     {
-                        if (mixin is ISceneNodeMixin scene && scene.visible.HasValueAndFalse())
+                        if (mixin is ISceneNodeMixin { visible: false })
                             return false;
 
                         return mixin.parent is null || IsVisible(mixin.parent);

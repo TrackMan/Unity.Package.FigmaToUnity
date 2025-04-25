@@ -32,6 +32,8 @@ namespace Figma.Internals
 
     public enum TriggerType { ON_CLICK, ON_HOVER, ON_PRESS, DRAG, AFTER_TIMEOUT, MOUSE_ENTER, MOUSE_LEAVE, MOUSE_UP, MOUSE_DOWN, ON_KEY_DOWN, ON_KEY_UP }
 
+    public enum TriggerDevice { KEYBOARD, XBOX_ONE, PS4, SWITCH_PRO, UNKNOWN_CONTROLLER }
+
     public enum EasingType { EASE_IN, EASE_OUT, EASE_IN_AND_OUT, LINEAR, SLOW, CUSTOM_SPRING }
 
     public enum LayoutAlign { CENTER, MIN, MAX, STRETCH, INHERIT }
@@ -44,9 +46,9 @@ namespace Figma.Internals
 
     public enum LayoutMode { NONE, HORIZONTAL, VERTICAL }
 
-    public enum PrimaryAxisSizingMode { FIXED, AUTO }
+    public enum PrimaryAxisSizingMode { AUTO, FIXED }
 
-    public enum CounterAxisSizingMode { FIXED, AUTO }
+    public enum CounterAxisSizingMode { AUTO, FIXED }
 
     public enum PrimaryAxisAlignItems { MIN, CENTER, MAX, SPACE_BETWEEN }
 
@@ -62,7 +64,7 @@ namespace Figma.Internals
 
     public enum TextAlignVertical { TOP, CENTER, BOTTOM }
 
-    public enum TextAutoResize { NONE, WIDTH_AND_HEIGHT, HEIGHT, TRUNCATE }
+    public enum TextAutoResize { NONE, WIDTH_AND_HEIGHT, HEIGHT }
 
     public enum BooleanOperation { UNION, INTERSECT, SUBTRACT, EXCLUDE }
 

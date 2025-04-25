@@ -31,13 +31,9 @@ namespace Figma.Core.Uss
         public static implicit operator Length4Property(Unit unit) => new(unit);
         public static implicit operator Length4Property(double? value) => new(new LengthProperty[] { value!.Value });
         public static implicit operator Length4Property(double value) => new(new LengthProperty[] { value });
-        public static implicit operator Length4Property(double[] values) => new(values.Select(x => (LengthProperty) x).ToArray());
-        public static implicit operator Length4Property(string value) => new(value.Split(" ", StringSplitOptions.RemoveEmptyEntries)
-                                                                                  .Select(x => (LengthProperty)x)
-                                                                                  .ToArray());
-        public static implicit operator string(Length4Property value) => value is { unit: Unit.None, properties: not null }
-            ? string.Join(" ", value.properties.Select(p => (string)p))
-            : new LengthProperty(value.unit);
+        public static implicit operator Length4Property(double[] values) => new(values.Select(x => (LengthProperty)x).ToArray());
+        public static implicit operator Length4Property(string value) => new(value.Split(" ", StringSplitOptions.RemoveEmptyEntries).Select(x => (LengthProperty)x).ToArray());
+        public static implicit operator string(Length4Property value) => value is { unit: Unit.None, properties: not null } ? string.Join(" ", value.properties.Select(p => (string)p)) : new LengthProperty(value.unit);
 
         public static Length4Property operator +(Length4Property a) => a;
         public static Length4Property operator -(Length4Property a) => new(a.properties.Select(x => -x).ToArray());

@@ -12,7 +12,6 @@ using System.Collections.Generic;
 namespace Figma.Internals
 {
     using VariableAlias = Object;
-    using number = Double;
 
     #region Datatype
     public class ShadowEffect : Effect
@@ -20,8 +19,8 @@ namespace Figma.Internals
         public EffectType type;
         public RGBA color;
         public Vector offset;
-        public number radius;
-        public number? spread;
+        public double radius;
+        public double? spread;
         public bool visible;
         public BlendMode blendMode;
         public bool? showShadowBehindNode;
@@ -30,7 +29,7 @@ namespace Figma.Internals
     public class BlurEffect : Effect
     {
         public EffectType type;
-        public number radius;
+        public double radius;
         public bool visible;
     }
 
@@ -38,10 +37,10 @@ namespace Figma.Internals
 
     public class IndividualStrokeWeights
     {
-        public number top;
-        public number right;
-        public number bottom;
-        public number left;
+        public double top;
+        public double right;
+        public double bottom;
+        public double left;
     }
 
     public class Constraints
@@ -52,60 +51,60 @@ namespace Figma.Internals
 
     public class ColorStop
     {
-        public number position;
+        public double position;
         public RGBA color;
     }
 
     public class ImageFilter
     {
-        public number? exposure;
-        public number? contrast;
-        public number? saturation;
-        public number? temperature;
-        public number? tint;
-        public number? highlights;
-        public number? shadows;
+        public double? exposure;
+        public double? contrast;
+        public double? saturation;
+        public double? temperature;
+        public double? tint;
+        public double? highlights;
+        public double? shadows;
     }
 
     public class SolidPaint : Paint
     {
+        public PaintType type;
         public RGBA color;
         public Dictionary<string, VariableAlias> boundVariables;
     }
 
     public class GradientPaint : Paint
     {
+        public PaintType type;
         public ColorStop[] gradientStops;
         public Vector[] gradientHandlePositions;
     }
 
     public class ImagePaint : Paint
     {
+        public PaintType type;
         public ScaleMode scaleMode;
-        public number[,] imageTransform;
+        public double[,] imageTransform;
         public string imageRef;
         public ImageFilter filters;
-        public number? rotation;
+        public double? rotation;
     }
 
     public class Paint
     {
-        public PaintType type;
-        public number? opacity;
-        public BlendMode? blendMode;
-        public bool? visible;
-        public string inheritFillStyleId;
-        public Paint[] fills;
+        public bool visible = true;
+        public double opacity = 1.0;
+        public BlendMode blendMode;
     }
 
     public class RowsColsLayoutGrid : LayoutGrid
     {
         public Pattern pattern;
         public Alignment alignment;
-        public number gutterSize;
-        public number count;
-        public number? sectionSize;
-        public number? offset;
+        public double gutterSize;
+        public double count;
+        public double? sectionSize;
+        public double? offset;
         public bool? visible;
         public RGBA? color;
     }
@@ -113,13 +112,13 @@ namespace Figma.Internals
     public class GridLayoutGrid : LayoutGrid
     {
         public Pattern pattern;
-        public number sectionSize;
+        public double sectionSize;
         public bool? visible;
         public RGBA? color;
         public Alignment? alignment;
-        public number? gutterSize;
-        public number count;
-        public number? offset;
+        public double? gutterSize;
+        public double count;
+        public double? offset;
     }
 
     public class LayoutGrid { }
@@ -127,7 +126,7 @@ namespace Figma.Internals
     public class ExportSettingsConstraints
     {
         public ExportSettingsConstraintsType type;
-        public number value;
+        public double value;
     }
 
     public class ExportSettingsImage : ExportSettings
@@ -191,17 +190,17 @@ namespace Figma.Internals
     {
         public TransitionType type;
         public Easing easing;
-        public number? duration;
+        public double? duration;
     }
 
     public class Trigger
     {
         public TriggerType type;
-        public number? delay;
-        public object device;
-        public object keyCodes;
-        // Possibly Obsolete
-        public number? timeout;
+        public double? delay;
+        public TriggerDevice? device;
+        public double[] keyCodes;
+        public double? timeout;
+        public double? mediaHitTime;
     }
 
     public class Easing
@@ -217,9 +216,9 @@ namespace Figma.Internals
 
     public class ArcData
     {
-        public number startingAngle;
-        public number endingAngle;
-        public number innerRadius;
+        public double startingAngle;
+        public double endingAngle;
+        public double innerRadius;
     }
 
     public class FlowStartingPoint
@@ -260,21 +259,24 @@ namespace Figma.Internals
 
     public class GroupNode : DefaultFrameNode { }
 
-    public class SliceNode : SceneNode, IConstraintMixin, ILayoutMixin, IExportMixin
+    public class SliceNode : SceneNode, ILayoutMixin, IExportMixin
     {
         #region Mixin
         public Constraints constraints { get; set; }
 
         public LayoutAlign layoutAlign { get; set; }
-        public number? layoutGrow { get; set; }
+        public double layoutGrow { get; set; }
+        public LayoutSizing layoutSizingHorizontal { get; set; }
+        public LayoutSizing layoutSizingVertical { get; set; }
         public Rect absoluteBoundingBox { get; set; }
+        public double rotation { get; set; }
         public Rect absoluteRenderBounds { get; set; }
-        public number?[][] relativeTransform { get; set; }
+        public double[][] relativeTransform { get; set; }
         public Vector? size { get; set; }
-        public number? minWidth { get; set; }
-        public number? minHeight { get; set; }
-        public number? maxWidth { get; set; }
-        public number? maxHeight { get; set; }
+        public double? minWidth { get; set; }
+        public double? minHeight { get; set; }
+        public double? maxWidth { get; set; }
+        public double? maxHeight { get; set; }
         public ExportSettings[] exportSettings { get; set; }
         #endregion
     }
@@ -282,9 +284,9 @@ namespace Figma.Internals
     public class RectangleNode : DefaultShapeNode, ICornerMixin, IRectangleCornerMixin
     {
         #region Mixin
-        public number? cornerRadius { get; set; }
+        public double? cornerRadius { get; set; }
 
-        public number[] rectangleCornerRadii { get; set; }
+        public double[] rectangleCornerRadii { get; set; }
         #endregion
     }
 
@@ -298,25 +300,24 @@ namespace Figma.Internals
     public class RegularPolygonNode : DefaultShapeNode, ICornerMixin, IRectangleCornerMixin
     {
         #region Mixin
-        public number? cornerRadius { get; set; }
-        public number[] rectangleCornerRadii { get; set; }
+        public double? cornerRadius { get; set; }
+        public double[] rectangleCornerRadii { get; set; }
         #endregion
     }
 
     public class StarNode : DefaultShapeNode, ICornerMixin, IRectangleCornerMixin
     {
         #region Mixin
-        public number? cornerRadius { get; set; }
-
-        public number[] rectangleCornerRadii { get; set; }
+        public double? cornerRadius { get; set; }
+        public double[] rectangleCornerRadii { get; set; }
         #endregion
     }
 
     public class VectorNode : DefaultShapeNode, ICornerMixin, IRectangleCornerMixin
     {
         #region Mixin
-        public number? cornerRadius { get; set; }
-        public number[] rectangleCornerRadii { get; set; }
+        public double? cornerRadius { get; set; }
+        public double[] rectangleCornerRadii { get; set; }
         public Dictionary<int, Paint> fillOverrideTable { get; set; }
         #endregion
     }
@@ -325,24 +326,23 @@ namespace Figma.Internals
     {
         public class Style
         {
-            public string fontFamily;
-            public string fontPostScriptName;
-            public number? paragraphSpacing;
-            public bool? italic;
-            public number? fontWeight;
-            public number? fontSize;
-            public TextCase? textCase;
-            public TextDecoration? textDecoration;
-            public TextAlignHorizontal? textAlignHorizontal;
-            public TextAlignVertical? textAlignVertical;
-            public TextAutoResize? textAutoResize;
-            public number? letterSpacing;
+            public string fontFamily; // not null
+            public string fontPostScriptName; // can be null
+            public double paragraphSpacing;
+            public bool italic;
+            public double fontWeight;
+            public double fontSize;
+            public TextCase textCase;
+            public TextDecoration textDecoration;
+            public TextAlignHorizontal textAlignHorizontal;
+            public TextAlignVertical textAlignVertical;
+            public TextAutoResize textAutoResize;
+            public double letterSpacing;
             public Paint[] fills;
-            public Dictionary<string, number> opentypeFlags;
-            public number? lineHeightPx;
-            public number? listSpacing;
-            public number? lineHeightPercent;
-            public number? lineHeightPercentFontSize;
+            public Dictionary<string, double> opentypeFlags;
+            public double lineHeightPx;
+            public double? listSpacing;
+            public double? lineHeightPercentFontSize;
             public string lineHeightUnit;
             public Dictionary<string, string> hyperlink;
             public string inheritFillStyleId;
@@ -359,7 +359,7 @@ namespace Figma.Internals
         public Style style;
         public int[] characterStyleOverrides;
         public Dictionary<int, Style> styleOverrideTable;
-        public number? layoutVersion;
+        public double? layoutVersion;
         public LineType[] lineTypes;
         public int[] lineIndentations;
     }
@@ -416,8 +416,7 @@ namespace Figma.Internals
 
     public class DefaultShapeNode : SceneNode, IDefaultShapeMixin, ITransitionMixin
     {
-        public number[] strokeDashes;
-        public number? rotation;
+        public double[] strokeDashes;
         public Rect absoluteRenderBounds;
 
         #region Mixin
@@ -426,81 +425,76 @@ namespace Figma.Internals
         public Constraints constraints { get; set; }
 
         public LayoutAlign layoutAlign { get; set; }
-        public number? layoutGrow { get; set; }
+        public double layoutGrow { get; set; }
         public Rect absoluteBoundingBox { get; set; }
-        public number?[][] relativeTransform { get; set; }
+        public double rotation { get; set; }
+
+        // only if geometry=paths
+        public double[][] relativeTransform { get; set; }
         public Vector? size { get; set; }
 
-        public number? opacity { get; set; }
+        public double opacity { get; set; } = 1.0;
         public BlendMode blendMode { get; set; }
-        public bool? isMask { get; set; }
-        public bool? isMaskOutline { get; set; }
+        public bool isMask { get; set; }
         public Effect[] effects { get; set; }
         public Dictionary<string, string> styles { get; set; }
-        public bool? preserveRatio { get; set; }
+        public bool preserveRatio { get; set; }
 
         public Paint[] fills { get; set; }
         public object[] fillGeometry { get; set; }
         public Paint[] strokes { get; set; }
-        public number? strokeWeight { get; set; }
+        public double strokeWeight { get; set; }
         public IndividualStrokeWeights individualStrokeWeights { get; set; }
-        public StrokeAlign? strokeAlign { get; set; }
-        public StrokeCap? strokeCap { get; set; }
-        public StrokeJoin? strokeJoin { get; set; }
+        public StrokeAlign strokeAlign { get; set; }
+        public StrokeCap strokeCap { get; set; }
+        public StrokeJoin strokeJoin { get; set; }
         public object[] strokeGeometry { get; set; }
-        public number? strokeMiterAngle { get; set; }
-        public number? cornerSmoothing { get; set; }
+        public double strokeMiterAngle { get; set; } = 28.96;
+        public double cornerSmoothing { get; set; }
 
         public Reaction[] reactions { get; set; }
 
         public ExportSettings[] exportSettings { get; set; }
 
         public string transitionNodeID { get; set; }
-        public number? transitionDuration { get; set; }
+        public double? transitionDuration { get; set; }
         public EasingType? transitionEasing { get; set; }
         public Interactions[] interactions { get; set; }
 
         public ComponentPropertyReferences componentPropertyReferences { get; set; }
 
-        public LayoutPositioning? layoutPositioning { get; set; }
+        public LayoutPositioning layoutPositioning { get; set; }
         public MaskType? maskType { get; set; }
-        public number? minWidth { get; set; }
-        public number? minHeight { get; set; }
-        public number? maxWidth { get; set; }
-        public number? maxHeight { get; set; }
+        public double? minWidth { get; set; }
+        public double? minHeight { get; set; }
+        public double? maxWidth { get; set; }
+        public double? maxHeight { get; set; }
         #endregion
     }
 
     public class DefaultFrameNode : DefaultShapeNode, IDefaultFrameMixin
     {
         #region Mixin
-        public LayoutMode? layoutMode { get; set; }
-        public PrimaryAxisSizingMode? primaryAxisSizingMode { get; set; }
-        public CounterAxisSizingMode? counterAxisSizingMode { get; set; }
-        public object primaryAxisSpacing { get; set; }
-        public object counterAxisSpacing { get; set; }
-        public PrimaryAxisAlignItems? primaryAxisAlignItems { get; set; }
-        public CounterAxisAlignItems? counterAxisAlignItems { get; set; }
-        public object primaryAxisAlignContent { get; set; }
+        public LayoutMode layoutMode { get; set; }
+        public PrimaryAxisSizingMode primaryAxisSizingMode { get; set; }
+        public CounterAxisSizingMode counterAxisSizingMode { get; set; }
+        public PrimaryAxisAlignItems primaryAxisAlignItems { get; set; }
+        public CounterAxisAlignItems counterAxisAlignItems { get; set; }
         public CounterAxisAlignContent counterAxisAlignContent { get; set; }
-        public number? paddingLeft { get; set; }
-        public number? paddingTop { get; set; }
-        public number? paddingRight { get; set; }
-        public number? paddingBottom { get; set; }
-        public number? itemSpacing { get; set; }
+        public double paddingLeft { get; set; }
+        public double paddingTop { get; set; }
+        public double paddingRight { get; set; }
+        public double paddingBottom { get; set; }
+        public double itemSpacing { get; set; }
         public LayoutGrid[] layoutGrids { get; set; }
-        public bool? clipsContent { get; set; }
-        public OverflowDirection? overflowDirection { get; set; }
+        public bool clipsContent { get; set; }
+        public OverflowDirection overflowDirection { get; set; }
+        public LayoutWrap layoutWrap { get; set; }
         public bool itemReverseZIndex { get; set; }
-        public LayoutWrap? layoutWrap { get; set; }
         public bool strokesIncludedInLayout { get; set; }
 
-        public Paint[] background { get; set; }
-        public RGBA? backgroundColor { get; set; }
-
-        public number? cornerRadius { get; set; }
-
-        public number[] rectangleCornerRadii { get; set; }
+        public double? cornerRadius { get; set; }
+        public double[] rectangleCornerRadii { get; set; }
 
         public SceneNode[] children { get; set; }
         #endregion
@@ -522,8 +516,7 @@ namespace Figma.Internals
     public class SceneNode : BaseNode, ISceneNodeMixin
     {
         #region Properties
-        public bool? visible { get; set; }
-        public bool? locked { get; set; }
+        public bool visible { get; set; } = true;
         public Dictionary<string, VariableAlias> boundVariables { get; set; }
         #endregion
     }
@@ -580,7 +573,7 @@ namespace Figma.Internals
             }
 
             public bool error;
-            public number status;
+            public double status;
             public Meta meta;
             public string i18n;
         }
@@ -588,7 +581,7 @@ namespace Figma.Internals
         public DocumentNode document;
         public Dictionary<string, Component> components;
         public Dictionary<string, Component> componentSets;
-        public number schemaVersion;
+        public double schemaVersion;
         public Dictionary<string, Style> styles;
         public string name;
         public DateTime lastModified;
@@ -611,7 +604,7 @@ namespace Figma.Internals
             public ComponentNode document;
             public Dictionary<string, Component> components;
             public Dictionary<string, Component> componentSets;
-            public number schemaVersion;
+            public double schemaVersion;
             public Dictionary<string, Style> styles;
         }
 
@@ -633,9 +626,9 @@ namespace Figma.Internals
 
     public class EasingFunctionSpring
     {
-        public number? mass;
-        public number? stiffness;
-        public number? damping;
+        public double? mass;
+        public double? stiffness;
+        public double? damping;
     }
     #endregion
 }
