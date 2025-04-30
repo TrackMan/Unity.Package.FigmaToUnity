@@ -1,6 +1,5 @@
 ﻿using System.Linq;
 using UnityEngine;
-using UnityEngine.Serialization;
 using UnityEngine.UIElements;
 
 namespace Figma
@@ -13,11 +12,11 @@ namespace Figma
     public class Figma : MonoBehaviour
     {
         #region Fields
-        [SerializeField, FormerlySerializedAs("title")] string fileKey; // TODO: #219196 Remove FormerlySerializedAs attribute after transition
+        [SerializeField] string fileKey;
         [SerializeField] bool filter;
         [SerializeField] bool reorder;
         [SerializeField] bool waitFrameBeforeRebuild = true;
-        [SerializeField, FormerlySerializedAs("fontsDirs")] string[] fontDirectories; // TODO: #219196 Remove FormerlySerializedAs attribute after transition
+        [SerializeField] string[] fontDirectories;
         #endregion
 
         #region Properties

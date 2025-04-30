@@ -313,7 +313,7 @@ namespace Figma.Inspectors
                 finally
                 {
                     if (prune)
-                        figmaDownloader.CleanDirectories();
+                        figmaDownloader.RemoveEmptyDirectories();
                 }
 
                 document.visualTreeAsset = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(PathExtensions.CombinePath(info.relativeDirectory, $"{uxmlName}.{KnownFormats.uxml}"));
@@ -336,8 +336,7 @@ namespace Figma.Inspectors
             {
                 Progress.UnregisterCancelCallback(progress);
 
-                if (stopwatch.IsRunning)
-                    stopwatch.Stop();
+                stopwatch.Reset();
 
                 AssetDatabase.StopAssetEditing();
                 AssetDatabase.Refresh();

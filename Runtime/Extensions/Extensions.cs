@@ -17,7 +17,7 @@ namespace Figma.Internals
                 action(element);
         }
 #if UNITY_EDITOR
-        internal static string BuildTargetMessage(string message, string target, string end = null) => $"{message} [<color={(UnityEditor.EditorGUIUtility.isProSkin ? "yellow" : "aaaa00")}>{target}</color>] {end ?? string.Empty}";
+        internal static string BuildTargetMessage(string message, string target, string end = null) => $"{message} [<color={(UnityEditor.EditorGUIUtility.isProSkin ? "yellow" : "#aaaa00")}>{target}</color>] {end ?? string.Empty}";
 #else
         internal static string BuildTargetMessage(string message, string target, string end = null) => $"{message} [{target}] {end ?? string.Empty}";
 #endif

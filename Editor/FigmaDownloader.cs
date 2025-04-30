@@ -126,6 +126,7 @@ namespace Figma
                     FileUtil.DeleteFileOrDirectory(file);
 
                     string meta = $"{file}.{KnownFormats.meta}";
+
                     if (File.Exists(meta))
                         FileUtil.DeleteFileOrDirectory(meta);
                 }
@@ -142,22 +143,55 @@ namespace Figma
             string[] imagesExtensions = { $"*.{KnownFormats.svg}", $"*.{KnownFormats.png}" };
             CleanDirectory(imagesDirectoryPath, imagesExtensions);
         }
-        public void CleanDirectories()
+        public void RemoveEmptyDirectories()
         {
-            void RemoveEmptyDirectory(string path)
+            void RemoveDirectoryWithMeta(string path)
             {
-                // This should be recursive, but it is good as is.
-                if (Directory.Exists(path) && Directory.GetFiles(path).Length == 0 && Directory.GetDirectories(path).Length == 0)
-                    FileUtil.DeleteFileOrDirectory(path);
+                FileUtil.DeleteFileOrDirectory(path);
+                string meta = $"{path}.{KnownFormats.meta}";
+
+                if (File.Exists(meta))
+                    FileUtil.DeleteFileOrDirectory(meta);
             }
 
-            RemoveEmptyDirectory(componentsDirectoryPath);
-            RemoveEmptyDirectory(elementsDirectoryPath);
-            RemoveEmptyDirectory(framesDirectoryPath);
-            RemoveEmptyDirectory(imagesDirectoryPath);
+            void RemoveEmptyDirectory(string path, bool recursive)
+            {
+                if (!Directory.Exists(path))
+                    return;
 
-            if (Directory.Exists(framesDirectoryPath))
-                Directory.EnumerateDirectories(framesDirectoryPath).ForEach(RemoveEmptyDirectory);
+                if (recursive)
+                {
+                    Stack<string> directories = new();
+                    directories.Push(path);
+                    int depth = 0;
+
+                    while (directories.Count > 0)
+                    {
+                        if (depth++ > NodeExtensions.maximumAllowedDepthLimit)
+                            throw new InvalidOperationException(NodeExtensions.maximumDepthLimitReachedExceptionMessage);
+
+                        path = directories.Pop();
+
+                        if (!Directory.EnumerateFileSystemEntries(path).Any())
+                            RemoveDirectoryWithMeta(path);
+                        else
+                            foreach (string subDirectory in Directory.EnumerateDirectories(path))
+                                directories.Push(subDirectory);
+                    }
+                }
+                else
+                {
+                    if (Directory.EnumerateFileSystemEntries(path).Any())
+                        return;
+
+                    RemoveDirectoryWithMeta(path);
+                }
+            }
+
+            RemoveEmptyDirectory(componentsDirectoryPath, false);
+            RemoveEmptyDirectory(elementsDirectoryPath, false);
+            RemoveEmptyDirectory(framesDirectoryPath, true);
+            RemoveEmptyDirectory(imagesDirectoryPath, false);
         }
         #endregion
 
