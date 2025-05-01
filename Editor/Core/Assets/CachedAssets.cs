@@ -31,8 +31,8 @@ namespace Figma.Core.Assets
         #endregion
 
         #region Methods
-        internal async Task Load(CancellationToken token) => Map = File.Exists(targetFilePath) ? JsonUtility.FromJson<Dictionary<string, string>>(await File.ReadAllTextAsync(targetFilePath, token)) : new();
-        internal async Task Save() => await File.WriteAllTextAsync(targetFilePath, JsonUtility.ToJson(Map, prettyPrint: true));
+        internal async Task LoadAsync(CancellationToken token) => Map = File.Exists(targetFilePath) ? JsonUtility.FromJson<Dictionary<string, string>>(await File.ReadAllTextAsync(targetFilePath, token)) : new();
+        internal async Task SaveAsync() => await File.WriteAllTextAsync(targetFilePath, JsonUtility.ToJson(Map, prettyPrint: true));
         #endregion
     }
 }

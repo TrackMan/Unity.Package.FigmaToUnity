@@ -51,7 +51,7 @@ namespace Figma
 
             int steps = downloadImages ? 5 : 4;
 
-            await assetsInfo.cachedAssets.Load(token);
+            await assetsInfo.cachedAssets.LoadAsync(token);
 
             Progress.Report(progress, 1, steps, "Downloading file");
 
@@ -106,7 +106,7 @@ namespace Figma
                 await GetImageNodesAsync(progress, nodesRegistry.Pngs, UxmlDownloadImages.RenderAsPng, KnownFormats.png, token);
                 Progress.SetDescription(progress, $"Downloading {KnownFormats.svg} files");
                 await GetImageNodesAsync(progress, nodesRegistry.Svgs, UxmlDownloadImages.RenderAsSvg, KnownFormats.svg, token);
-                await assetsInfo.cachedAssets.Save();
+                await assetsInfo.cachedAssets.SaveAsync();
             }
 
             Progress.SetStepLabel(progress, string.Empty);
