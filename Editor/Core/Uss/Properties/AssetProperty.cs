@@ -28,8 +28,8 @@ namespace Figma.Core.Uss
             resource = null;
             unit = default;
 
-            if (value.StartsWith("url")) url = value;
-            else if (value.StartsWith("resource")) resource = value;
+            if (value.StartsWith(nameof(url))) url = value;
+            else if (value.StartsWith(nameof(resource))) resource = value;
             else throw new NotSupportedException();
         }
         #endregion

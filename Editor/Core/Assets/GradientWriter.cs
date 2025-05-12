@@ -37,7 +37,7 @@ namespace Figma.Core.Assets
             {
                 case PaintType.GRADIENT_LINEAR:
                     writer.WriteStartElement("linearGradient");
-                    writer.WriteAttributeString("id", "gradient");
+                    writer.WriteAttributeString("id", nameof(gradient));
                     for (int i = 0; i < Mathf.Max(gradient.gradientHandlePositions.Length, 2); ++i)
                     {
                         writer.WriteAttributeString($"x{i + 1}", gradient.gradientHandlePositions[i].x.ToString("F2", Culture));
@@ -49,7 +49,7 @@ namespace Figma.Core.Assets
                 case PaintType.GRADIENT_RADIAL:
                 case PaintType.GRADIENT_DIAMOND:
                     writer.WriteStartElement("radialGradient");
-                    writer.WriteAttributeString("id", "gradient");
+                    writer.WriteAttributeString("id", nameof(gradient));
                     writer.WriteAttributeString("fx", gradient.gradientHandlePositions[0].x.ToString("F2", Culture));
                     writer.WriteAttributeString("fy", gradient.gradientHandlePositions[0].y.ToString("F2", Culture));
                     writer.WriteAttributeString("cx", gradient.gradientHandlePositions[0].x.ToString("F2", Culture));
@@ -67,7 +67,7 @@ namespace Figma.Core.Assets
 
             foreach (ColorStop stop in gradient.gradientStops)
             {
-                writer.WriteStartElement("stop");
+                writer.WriteStartElement(nameof(stop));
                 writer.WriteAttributeString("offset", stop.position.ToString("F2", Culture));
                 writer.WriteAttributeString("style", $"stop-color:rgb({(byte)(stop.color.r * 255)},{(byte)(stop.color.g * 255)},{(byte)(stop.color.b * 255)});stop-opacity:{stop.color.a.ToString("F2", Culture)}");
                 await writer.WriteEndElementAsync();

@@ -24,10 +24,10 @@ namespace Figma.Core.Uss
         ShadowProperty(string value)
         {
             Match match = regex.Match(value);
-            offsetHorizontal = match.Groups["offsetHorizontal"].Value;
-            offsetVertical = match.Groups["offsetVertical"].Value;
-            blurRadius = match.Groups["blurRadius"].Value;
-            color = match.Groups["color"].Value;
+            offsetHorizontal = match.Groups[nameof(offsetHorizontal)].Value;
+            offsetVertical = match.Groups[nameof(offsetVertical)].Value;
+            blurRadius = match.Groups[nameof(blurRadius)].Value;
+            color = match.Groups[nameof(color)].Value;
         }
         #endregion
 

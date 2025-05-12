@@ -106,11 +106,10 @@ namespace Figma
         }
         internal static string GetFullPath(this IBaseNodeMixin node)
         {
-            List<string> names = new(8);
-            names.Add(node.name);
+            List<string> names = new(8) { node.name };
 
             int depth = 0;
-            while (node != null)
+            while (node is not null)
             {
                 if (depth++ >= maximumAllowedDepthLimit)
                     throw new InvalidOperationException(maximumDepthLimitReachedExceptionMessage);

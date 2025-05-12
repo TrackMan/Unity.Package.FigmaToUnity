@@ -131,7 +131,7 @@ namespace Figma.Core.Uxml
                     TextCase.LOWER => textNode.characters.ToLower(Culture),
                     _ => textNode.characters
                 };
-                writer.xmlWriter.WriteAttributeString("text", text);
+                writer.xmlWriter.WriteAttributeString(nameof(text), text);
                 writer.EndElement();
             }
             void WriteDefaultFrameNode(DefaultFrameNode defaultFrameNode, UxmlWriter writer)

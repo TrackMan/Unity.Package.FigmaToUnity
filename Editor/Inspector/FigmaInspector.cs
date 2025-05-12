@@ -183,7 +183,7 @@ namespace Figma.Inspectors
                 }
                 else if (selection.Any(x => x.Value))
                 {
-                    bool update = GUILayout.Button(new GUIContent("Update", DocumentsOnlyIcon, downloadTooltip), GUILayout.Height(20));
+                    bool update = GUILayout.Button(new GUIContent(nameof(Update), DocumentsOnlyIcon, downloadTooltip), GUILayout.Height(20));
                     bool downloadImages = GUILayout.Button(new GUIContent("Update with Images", DocumentWithImagesIcon, downloadTooltip), GUILayout.Width(184), GUILayout.Height(20));
                     bool resetTargetUxml = GUILayout.Button(new GUIContent(DirectoryIcon), GUILayout.Width(36));
 

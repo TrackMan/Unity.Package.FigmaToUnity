@@ -26,7 +26,7 @@ namespace Figma.Core.Uxml
         internal readonly string filePath;
         internal readonly XmlWriter xmlWriter;
         #endregion
-        
+
         #region Constructors
         public UxmlWriter(string directory, string fileName)
         {
@@ -121,7 +121,7 @@ namespace Figma.Core.Uxml
 
         public void WriteUssStyleReference(string path)
         {
-            StartElement("Style", ("src", path));
+            StartElement(nameof(Style), ("src", path));
             EndElement();
         }
         public void WriteTemplate(string templateName, string templatePath)

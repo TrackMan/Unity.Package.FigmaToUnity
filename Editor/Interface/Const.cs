@@ -10,7 +10,7 @@ namespace Figma.Internals
         // Directories
         public const string fontsDirectoryName = "Fonts";
         public const string framesDirectoryName = "Frames";
-        public const string imagesDirectoryName = "Images";
+        public const string imagesDirectoryName = nameof(Images);
         public const string elementsDirectoryName = "Elements";
         public const string componentsDirectoryName = "Components";
 

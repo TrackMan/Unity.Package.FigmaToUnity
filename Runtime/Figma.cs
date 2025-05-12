@@ -7,7 +7,6 @@ namespace Figma
     using Attributes;
 
     [DefaultExecutionOrder(-10)]
-    [AddComponentMenu("Figma/Figma")]
     [RequireComponent(typeof(UIDocument))]
     public class Figma : MonoBehaviour
     {

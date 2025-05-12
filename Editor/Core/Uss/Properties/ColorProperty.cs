@@ -31,8 +31,8 @@ namespace Figma.Core.Uss
             hex = null;
             name = null;
 
-            if (value.StartsWith("rgba")) rgba = value;
-            else if (value.StartsWith("rgb")) rgb = value;
+            if (value.StartsWith(nameof(rgba))) rgba = value;
+            else if (value.StartsWith(nameof(rgb))) rgb = value;
             else if (value.StartsWith('#')) hex = value;
             else name = value;
         }

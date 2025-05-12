@@ -40,18 +40,18 @@ namespace Figma.Core.Uss
         #region Properties
         // Box model
         // Dimensions
-        LengthProperty width { get => Get("width"); set => Set("width", value); }
-        LengthProperty height { get => Get("height"); set => Set("height", value); }
+        LengthProperty width { get => Get(nameof(width)); set => Set(nameof(width), value); }
+        LengthProperty height { get => Get(nameof(height)); set => Set(nameof(height), value); }
         LengthProperty minWidth { get => Get("min-width"); set => Set("min-width", value); }
         LengthProperty minHeight { get => Get("min-height"); set => Set("min-height", value); }
         LengthProperty maxWidth { get => Get("max-width"); set => Set("max-width", value); }
         LengthProperty maxHeight { get => Get("max-height"); set => Set("max-height", value); }
         // Margins
-        LengthProperty marginLeft { get => Get1("margin-left", "margin", 0); set => Set4("margin-left", value, "margin", 0); }
-        LengthProperty marginTop { get => Get1("margin-top", "margin", 1); set => Set4("margin-top", value, "margin", 1); }
-        LengthProperty marginRight { get => Get1("margin-right", "margin", 2); set => Set4("margin-right", value, "margin", 2); }
-        LengthProperty marginBottom { get => Get1("margin-bottom", "margin", 3); set => Set4("margin-bottom", value, "margin", 3); }
-        Length4Property margin { get => Get4("margin", "margin-left", "margin-top", "margin-right", "margin-bottom"); set => Set1("margin", value, "margin-left", "margin-top", "margin-right", "margin-bottom"); }
+        LengthProperty marginLeft { get => Get1("margin-left", nameof(margin), 0); set => Set4("margin-left", value, nameof(margin), 0); }
+        LengthProperty marginTop { get => Get1("margin-top", nameof(margin), 1); set => Set4("margin-top", value, nameof(margin), 1); }
+        LengthProperty marginRight { get => Get1("margin-right", nameof(margin), 2); set => Set4("margin-right", value, nameof(margin), 2); }
+        LengthProperty marginBottom { get => Get1("margin-bottom", nameof(margin), 3); set => Set4("margin-bottom", value, nameof(margin), 3); }
+        Length4Property margin { get => Get4(nameof(margin), "margin-left", "margin-top", "margin-right", "margin-bottom"); set => Set1(nameof(margin), value, "margin-left", "margin-top", "margin-right", "margin-bottom"); }
         // Borders
         LengthProperty borderLeftWidth { get => Get1("border-left-width", "border-width", 0); set => Set4("border-left-width", value, "border-width", 0); }
         LengthProperty borderTopWidth { get => Get1("border-top-width", "border-width", 1); set => Set4("border-top-width", value, "border-width", 1); }
@@ -59,18 +59,18 @@ namespace Figma.Core.Uss
         LengthProperty borderBottomWidth { get => Get1("border-bottom-width", "border-width", 3); set => Set4("border-bottom-width", value, "border-width", 3); }
         Length4Property borderWidth { get => Get4("border-width", "border-left-width", "border-top-width", "border-right-width", "border-bottom-width"); set => Set1("border-width", value, "border-left-width", "border-top-width", "border-right-width", "border-bottom-width"); }
         // Padding
-        LengthProperty paddingLeft { get => Get1("padding-left", "padding", 0); set => Set4("padding-left", value, "padding", 0); }
-        LengthProperty paddingTop { get => Get1("padding-top", "padding", 1); set => Set4("padding-top", value, "padding", 1); }
-        LengthProperty paddingRight { get => Get1("padding-right", "padding", 2); set => Set4("padding-right", value, "padding", 2); }
-        LengthProperty paddingBottom { get => Get1("padding-bottom", "padding", 3); set => Set4("padding-bottom", value, "padding", 3); }
-        Length4Property padding { get => Get4("padding", "padding-left", "padding-top", "padding-right", "padding-bottom"); set => Set1("padding", value, "padding-left", "padding-top", "padding-right", "padding-bottom"); }
+        LengthProperty paddingLeft { get => Get1("padding-left", nameof(padding), 0); set => Set4("padding-left", value, nameof(padding), 0); }
+        LengthProperty paddingTop { get => Get1("padding-top", nameof(padding), 1); set => Set4("padding-top", value, nameof(padding), 1); }
+        LengthProperty paddingRight { get => Get1("padding-right", nameof(padding), 2); set => Set4("padding-right", value, nameof(padding), 2); }
+        LengthProperty paddingBottom { get => Get1("padding-bottom", nameof(padding), 3); set => Set4("padding-bottom", value, nameof(padding), 3); }
+        Length4Property padding { get => Get4(nameof(padding), "padding-left", "padding-top", "padding-right", "padding-bottom"); set => Set1(nameof(padding), value, "padding-left", "padding-top", "padding-right", "padding-bottom"); }
 
         // Flex
         // Items
         NumberProperty flexGrow { get => Get("flex-grow"); set => Set("flex-grow", value); }
         NumberProperty flexShrink { get => Get("flex-shrink"); set => Set("flex-shrink", value); }
         LengthProperty flexBasis { get => Get("flex-basis"); set => Set("flex-basis", value); }
-        FlexProperty flex { get => Get("flex"); set => Set("flex", value); }
+        FlexProperty flex { get => Get(nameof(flex)); set => Set(nameof(flex), value); }
         EnumProperty<Align> alignSelf { get => Get("align-self"); set => Set("align-self", value); }
         NumberProperty itemSpacing { get => Get("--item-spacing"); set => Set("--item-spacing", value); }
         // Containers
@@ -80,13 +80,13 @@ namespace Figma.Core.Uss
         EnumProperty<Align> alignItems { get => Get("align-items"); set => Set("align-items", value); }
         EnumProperty<JustifyContent> justifyContent { get => Get("justify-content"); set => Set("justify-content", value); }
         // Positioning
-        EnumProperty<Position> position { get => Get("position"); set => Set("position", value); }
-        LengthProperty left { get => Get("left"); set => Set("left", value); }
-        LengthProperty top { get => Get("top"); set => Set("top", value); }
-        LengthProperty right { get => Get("right"); set => Set("right", value); }
-        LengthProperty bottom { get => Get("bottom"); set => Set("bottom", value); }
-        LengthProperty rotate { get => Get("rotate"); set => Set("rotate", value); }
-        Length2Property translate { get => GetDefault("translate", "0 0"); set => Set("translate", value); }
+        EnumProperty<Position> position { get => Get(nameof(position)); set => Set(nameof(position), value); }
+        LengthProperty left { get => Get(nameof(left)); set => Set(nameof(left), value); }
+        LengthProperty top { get => Get(nameof(top)); set => Set(nameof(top), value); }
+        LengthProperty right { get => Get(nameof(right)); set => Set(nameof(right), value); }
+        LengthProperty bottom { get => Get(nameof(bottom)); set => Set(nameof(bottom), value); }
+        LengthProperty rotate { get => Get(nameof(rotate)); set => Set(nameof(rotate), value); }
+        Length2Property translate { get => GetDefault(nameof(translate), "0 0"); set => Set(nameof(translate), value); }
 
         // Drawing
         // Background
@@ -110,14 +110,14 @@ namespace Figma.Core.Uss
         LengthProperty borderBottomRightRadius { get => Get1("border-bottom-right-radius", "border-radius", 3); set => Set4("border-bottom-right-radius", value, "border-radius", 3); }
         Length4Property borderRadius { get => Get4("border-radius", "border-top-left-radius", "border-top-right-radius", "border-bottom-left-radius", "border-bottom-right-radius"); set => Set1("border-radius", value, "border-top-left-radius", "border-top-right-radius", "border-bottom-left-radius", "border-bottom-right-radius"); }
         // Appearance
-        EnumProperty<Visibility> overflow { get => Get("overflow"); set => Set("overflow", value); }
+        EnumProperty<Visibility> overflow { get => Get(nameof(overflow)); set => Set(nameof(overflow), value); }
         EnumProperty<OverflowClip> unityOverflowClipBox { get => Get("-unity-overflow-clip-box"); set => Set("-unity-overflow-clip-box", value); }
-        NumberProperty opacity { get => Get("opacity"); set => Set("opacity", value); }
-        EnumProperty<Visibility> visibility { get => Get("visibility"); set => Set("visibility", value); }
-        EnumProperty<Display> display { get => Get("display"); set => Set("display", value); }
+        NumberProperty opacity { get => Get(nameof(opacity)); set => Set(nameof(opacity), value); }
+        EnumProperty<Visibility> visibility { get => Get(nameof(visibility)); set => Set(nameof(visibility), value); }
+        EnumProperty<Display> display { get => Get(nameof(display)); set => Set(nameof(display), value); }
 
         // Text
-        ColorProperty color { get => Get("color"); set => Set("color", value); }
+        ColorProperty color { get => Get(nameof(color)); set => Set(nameof(color), value); }
         AssetProperty unityFont { get => Get("-unity-font"); set => Set("-unity-font", value); }
         AssetProperty unityFontDefinition { get => Get("-unity-font-definition"); set => Set("-unity-font-definition", value); }
         LengthProperty fontSize { get => Get("font-size"); set => Set("font-size", value); }
@@ -128,7 +128,7 @@ namespace Figma.Core.Uss
         EnumProperty<TextOverflow> textOverflow { get => Get("text-overflow"); set => Set("text-overflow", value); }
 
         // Cursor
-        CursorProperty cursor { get => Get("cursor"); set => Set("cursor", value); }
+        CursorProperty cursor { get => Get(nameof(cursor)); set => Set(nameof(cursor), value); }
 
         // Effects
         ShadowProperty boxShadow { get => Get("--box-shadow"); set => Set("--box-shadow", value); }
@@ -527,7 +527,7 @@ namespace Figma.Core.Uss
                 string weightPostfix = style.fontWeight > 0
                     ? Enum.GetValues(typeof(FontWeight)).GetValue((int)(style.fontWeight / 100) - 1).ToString()
                     : fontPostScriptName.Contains('-')
-                        ? fontPostScriptName.Split('-')[1].Replace("Index", string.Empty)
+                        ? fontPostScriptName.Split('-')[1].Replace(nameof(Index), string.Empty)
                         : string.Empty;
                 string italicPostfix = style.italic || fontPostScriptName.Contains(nameof(FontStyle.Italic)) ? nameof(FontStyle.Italic) : string.Empty;
 
@@ -542,8 +542,8 @@ namespace Figma.Core.Uss
             {
                 string horizontal = style.textAlignHorizontal switch
                 {
-                    TextAlignHorizontal.LEFT => "left",
-                    TextAlignHorizontal.RIGHT => "right",
+                    TextAlignHorizontal.LEFT => nameof(left),
+                    TextAlignHorizontal.RIGHT => nameof(right),
                     TextAlignHorizontal.CENTER => "center",
                     TextAlignHorizontal.JUSTIFIED => throw new NotSupportedException(),
                     _ => throw new NotSupportedException()

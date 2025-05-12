@@ -17,7 +17,7 @@ namespace Figma.Inspectors
         #endregion
 
         #region Methods
-        internal async Task AuthAsync() => me = await GetAsync<Me>("me", CancellationToken.None);
+        internal async Task AuthAsync() => me = await GetAsync<Me>(nameof(me), CancellationToken.None);
         #endregion
     }
 }

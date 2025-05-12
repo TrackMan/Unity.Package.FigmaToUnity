@@ -1,5 +1,4 @@
 using System.Linq;
-using UnityEngine;
 using UnityEngine.UIElements;
 using Random = UnityEngine.Random;
 
@@ -8,7 +7,6 @@ namespace Figma.Samples
     using Attributes;
 
     [Uxml("TestPage/TestFrame", UxmlDownloadImages.Everything, UxmlElementTypeIdentification.ByElementType)]
-    [AddComponentMenu("Figma/Samples/Test")]
     public class Test : Element
     {
         const int minCircles = 1;
