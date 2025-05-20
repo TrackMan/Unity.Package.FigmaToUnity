@@ -30,7 +30,7 @@ namespace Figma
         #region Support Methods
         protected async Task<T> ConvertOnBackgroundAsync<T>(string json, CancellationToken token) where T : class => await Task.Run(() => Task.FromResult(JsonUtility.FromJson<T>(json)), token);
         protected async Task<T> GetAsync<T>(string get, CancellationToken token = default) where T : class => await ConvertOnBackgroundAsync<T>(await GetJsonAsync(get, token), token);
-        protected async Task<string> GetJsonAsync(string get, CancellationToken token = default) => await HttpGetAsync($"{Const.api}/{get}", token);
+        protected async Task<string> GetJsonAsync(string get, CancellationToken token = default) => await HttpGetAsync($"{Internals.Const.api}/{get}", token);
         async Task<string> HttpGetAsync(string url, CancellationToken token = default)
         {
             using HttpRequestMessage request = new(HttpMethod.Get, url);

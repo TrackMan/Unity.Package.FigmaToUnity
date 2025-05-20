@@ -1,7 +1,5 @@
 namespace Figma.Core.Uss
 {
-    using Internals;
-
     /// <summary>
     /// Represents a whole number.
     /// </summary>

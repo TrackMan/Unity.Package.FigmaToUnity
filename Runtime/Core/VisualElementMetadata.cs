@@ -241,10 +241,10 @@ namespace Figma
                 return result;
 
             if (throwException)
-                throw new KeyNotFoundException(Extensions.BuildTargetMessage($"Cannot find {typeof(T).Name}", path));
+                throw new KeyNotFoundException(Extensions.BuildTargetMessage($"Cannot find {typeof(T).Name}", $"{value.GetFullPath()}{Path.DirectorySeparatorChar}{path}"));
 
             if (!silent)
-                Debug.LogWarning(Extensions.BuildTargetMessage($"[{nameof(VisualElementMetadata)}] Cannot find {typeof(T).Name}", path));
+                Debug.LogWarning(Extensions.BuildTargetMessage($"[{nameof(VisualElementMetadata)}] Cannot find {typeof(T).Name}", $"{value.GetFullPath()}{Path.DirectorySeparatorChar}{path}"));
 
             return null;
         }
@@ -853,7 +853,7 @@ namespace Figma
                     if (queryRoot != null && !queryRoot.Path.NullOrEmpty() && queryRoot.Path != query.Path)
                         queryRootElement = targetRoot.Find<VisualElement>(queryRoot.Path, false) ?? targetRoot;
 
-                    VisualElement value = queryRootElement.Find<VisualElement>(query.Path, !query.Nullable);
+                    VisualElement value = queryRootElement.Find<VisualElement>(query.Path, !query.Nullable, !query.Nullable);
 
                     if (query.ReplaceElementPath.NotNullOrEmpty())
                     {

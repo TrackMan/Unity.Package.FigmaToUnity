@@ -310,18 +310,16 @@ namespace Figma
                 return search;
             }
 
-            string GetFullPath(IBaseNodeMixin node) => node.parent != null ? CombinePath(GetFullPath(node.parent), node.name) : node.name;
-
             IBaseNodeMixin result = Search(value, path).FirstOrDefault();
 
             if (result != null)
                 return result;
 
             if (throwException)
-                throw new Exception(Internals.Extensions.BuildTargetMessage("Cannot find node at", CombinePath(GetFullPath(value), path)));
+                throw new Exception(Internals.Extensions.BuildTargetMessage("Cannot find node at", CombinePath(value.GetFullPath(), path)));
 
             if (!silent)
-                Debug.LogWarning(Internals.Extensions.BuildTargetMessage("Cannot find node at", CombinePath(GetFullPath(value), path)));
+                Debug.LogWarning(Internals.Extensions.BuildTargetMessage("Cannot find node at", CombinePath(value.GetFullPath(), path)));
 
             return null;
         }

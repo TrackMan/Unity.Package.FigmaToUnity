@@ -1,5 +1,3 @@
-using System.Globalization;
-
 namespace Figma.Internals
 {
     public static class Const
@@ -16,7 +14,6 @@ namespace Figma.Internals
 
         // Uxml
         public const string uxmlNamespace = "UnityEngine.UIElements";
-        public const string indentCharacters = "    ";
 
         // Fallback written data
         /// <summary>
@@ -59,10 +56,6 @@ namespace Figma.Internals
 		stroke=""#FFF"" stroke-width=""6"" stroke-linecap=""round"" />
 	<circle cx=""64"" cy=""100"" r=""6"" fill=""#FFF"" />
 </svg>";
-
-        public static readonly CultureInfo Culture = CultureInfo.GetCultureInfo("en-US");
-
-        public const int initialCollectionCapacity = 128;
     }
 
     public static class KnownFormats

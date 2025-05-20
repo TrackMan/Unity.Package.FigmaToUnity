@@ -106,8 +106,8 @@ namespace Figma
 
                 while (nodes.Count > 0)
                 {
-                    if (i++ >= NodeExtensions.maximumAllowedDepthLimit)
-                        throw new System.InvalidOperationException(NodeExtensions.maximumDepthLimitReachedExceptionMessage);
+                    if (i++ >= Const.maximumAllowedDepthLimit)
+                        throw new System.InvalidOperationException(Const.maximumDepthLimitReachedExceptionMessage);
 
                     BaseNode node = nodes.Pop();
 

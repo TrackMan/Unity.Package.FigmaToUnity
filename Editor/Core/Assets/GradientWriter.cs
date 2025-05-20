@@ -7,7 +7,7 @@ using UnityEngine;
 namespace Figma.Core.Assets
 {
     using Internals;
-    using static Internals.Const;
+    using static Const;
 
     internal class GradientWriter : IDisposable
     {

@@ -7,7 +7,7 @@ namespace Figma.Core
     using Assets;
     using Uss;
     using Internals;
-    using static Internals.Const;
+    using static Const;
 
     internal class StylesPreprocessor
     {

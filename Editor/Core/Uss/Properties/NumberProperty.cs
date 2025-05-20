@@ -1,7 +1,5 @@
 namespace Figma.Core.Uss
 {
-    using Internals;
-    
     /// <summary>
     /// Represents either an integer or a number with a fractional component.
     /// </summary>

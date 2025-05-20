@@ -8,7 +8,7 @@ using UnityEngine;
 namespace Figma.Core.Uxml
 {
     using Internals;
-    using static Internals.Const;
+    using static Const;
     using static Internals.Extensions;
     using static Internals.PathExtensions;
 

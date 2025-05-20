@@ -4,6 +4,7 @@ using System.Linq;
 namespace Figma.Core
 {
     using Internals;
+    using Const = Const;
 
     internal sealed class NodesRegistry
     {

@@ -6,6 +6,7 @@ using UnityEngine.UIElements;
 namespace Figma.Core.Uxml
 {
     using Internals;
+    using static Const;
     using static Internals.Const;
     using static Internals.PathExtensions;
 
@@ -107,7 +108,7 @@ namespace Figma.Core.Uxml
 
             if (ussClasses.NotNullOrEmpty())
                 xmlWriter.WriteAttributeString("class", ussClasses);
-            if (pickingMode != PickingMode.Position.ToString())
+            if (pickingMode != nameof(PickingMode.Position))
                 xmlWriter.WriteAttributeString("picking-mode", pickingMode);
         }
         public void StartElement(string type, params (string name, string value)[] attributes)

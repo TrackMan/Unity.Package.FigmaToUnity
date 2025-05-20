@@ -5,6 +5,8 @@ using UnityEngine.UIElements;
 
 namespace Figma
 {
+    using Internals;
+
     public static class VisualElementExtensions
     {
         #region Fields
@@ -107,6 +109,23 @@ namespace Figma
             for (int j = i; j < elements.Count; ++j) elements[j].As<TVisualElement>().Hide();
         }
         public static T As<T>(this object value) => (T)value;
+        public static string GetFullPath(this VisualElement element)
+        {
+            string result = string.Empty;
+
+            int depth = 0;
+
+            while (element != null)
+            {
+                if (depth++ > Const.maximumAllowedDepthLimit)
+                    throw new InvalidOperationException(Const.maximumDepthLimitReachedExceptionMessage);
+
+                result = string.IsNullOrEmpty(result) ? element.name : element.name + PathExtensions.pathSeparator + result;
+                element = element.parent;
+            }
+
+            return result;
+        }
         #endregion
     }
 }

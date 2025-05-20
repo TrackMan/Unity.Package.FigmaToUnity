@@ -2,8 +2,6 @@ using System;
 
 namespace Figma.Core.Uss
 {
-    using Internals;
-
     /// <summary>
     /// Represents a distance value.
     /// </summary>

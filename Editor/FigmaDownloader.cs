@@ -167,8 +167,8 @@ namespace Figma
 
                     while (directories.Count > 0)
                     {
-                        if (depth++ > NodeExtensions.maximumAllowedDepthLimit)
-                            throw new InvalidOperationException(NodeExtensions.maximumDepthLimitReachedExceptionMessage);
+                        if (depth++ > Const.maximumAllowedDepthLimit)
+                            throw new InvalidOperationException(Const.maximumDepthLimitReachedExceptionMessage);
 
                         path = directories.Pop();
 

@@ -13,9 +13,6 @@ namespace Figma
     [DebuggerStepThrough]
     internal static class NodeExtensions
     {
-        internal const int maximumAllowedDepthLimit = 0x10000; // This is a random big number.
-        internal const string maximumDepthLimitReachedExceptionMessage = "Maximum depth limit is exceeded.";
-
         #region Methods
         internal static IEnumerable<IBaseNodeMixin> Flatten(this IBaseNodeMixin root, Func<IBaseNodeMixin, bool> filter = null)
         {
@@ -29,8 +26,8 @@ namespace Figma
 
             while (nodes.Count > 0)
             {
-                if (depth++ >= maximumAllowedDepthLimit)
-                    throw new InvalidOperationException(maximumDepthLimitReachedExceptionMessage);
+                if (depth++ >= Const.maximumAllowedDepthLimit)
+                    throw new InvalidOperationException(Const.maximumDepthLimitReachedExceptionMessage);
 
                 IBaseNodeMixin node = nodes.Pop();
 
@@ -106,24 +103,19 @@ namespace Figma
         }
         internal static string GetFullPath(this IBaseNodeMixin node)
         {
-            List<string> names = new(8) { node.name };
-
+            string result = string.Empty;
             int depth = 0;
-            while (node is not null)
+
+            while (node != null)
             {
-                if (depth++ >= maximumAllowedDepthLimit)
-                    throw new InvalidOperationException(maximumDepthLimitReachedExceptionMessage);
+                if (depth++ >= Const.maximumAllowedDepthLimit)
+                    throw new InvalidOperationException(Const.maximumDepthLimitReachedExceptionMessage);
 
+                result = string.IsNullOrEmpty(result) ? node.name : node.name + PathExtensions.pathSeparator + result;
                 node = node.parent;
-
-                if (node == null)
-                    break;
-
-                names.Add(node.name);
             }
 
-            names.Reverse();
-            return PathExtensions.CombinePath(names.ToArray());
+            return result;
         }
         #endregion
     }
