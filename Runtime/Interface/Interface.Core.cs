@@ -11,6 +11,7 @@ namespace Figma
         void Sync(VisualElement parent, IEnumerable<TData> data);
         void Initialize(int index) { }
         bool IsVisible(int index, TData data);
+        void Cleanup() { }
         #endregion
     }
 
@@ -20,6 +21,7 @@ namespace Figma
         void Sync(VisualElement parent, TCreationData creationData, IEnumerable<TData> data);
         void Initialize(int index, TCreationData creationData);
         bool IsVisible(int index, TData data);
+        void Cleanup() { }
         #endregion
     }
 }

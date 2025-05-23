@@ -70,6 +70,7 @@ namespace Figma
                 else
                 {
                     element = (TVisualElement)elements[i];
+                    element.Cleanup();
                 }
 
                 if (element.IsVisible(i, value)) element.Show();
@@ -78,7 +79,11 @@ namespace Figma
                 ++i;
             }
 
-            for (int j = i; j < elements.Count; ++j) elements[j].As<TVisualElement>().Hide();
+            for (int j = i; j < elements.Count; ++j)
+            {
+                elements[j].As<TVisualElement>().Cleanup();
+                elements[j].As<TVisualElement>().Hide();
+            }
         }
         public static void Sync<TVisualElement, TCreationData, TData>(this TVisualElement prefab, VisualElement parent, TCreationData creationData, IEnumerable<TData> data, Action<TVisualElement> onCreateElement = null) where TVisualElement : VisualElement, ISyncElement<TCreationData, TData>
         {
@@ -98,6 +103,7 @@ namespace Figma
                 else
                 {
                     element = (TVisualElement)elements[i];
+                    element.Cleanup();
                 }
 
                 if (element.IsVisible(i, value)) element.Show();
@@ -106,7 +112,11 @@ namespace Figma
                 ++i;
             }
 
-            for (int j = i; j < elements.Count; ++j) elements[j].As<TVisualElement>().Hide();
+            for (int j = i; j < elements.Count; ++j)
+            {
+                elements[j].As<TVisualElement>().Cleanup();
+                elements[j].As<TVisualElement>().Hide();
+            }
         }
         public static T As<T>(this object value) => (T)value;
         public static string GetFullPath(this VisualElement element)
