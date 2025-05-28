@@ -853,7 +853,7 @@ namespace Figma
                     if (queryRoot != null && !queryRoot.Path.NullOrEmpty() && queryRoot.Path != query.Path)
                         queryRootElement = targetRoot.Find<VisualElement>(queryRoot.Path, false) ?? targetRoot;
 
-                    VisualElement value = queryRootElement.Find<VisualElement>(query.Path, !query.Nullable, !query.Nullable);
+                    VisualElement value = queryRootElement.Find<VisualElement>(query.Path, !query.Nullable, query.Nullable);
 
                     if (query.ReplaceElementPath.NotNullOrEmpty())
                     {
