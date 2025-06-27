@@ -469,7 +469,10 @@ namespace Figma.Core.Uss
 
             const double rad2deg = 180.0 / Math.PI;
             if (Math.Abs(layout.rotation) > tolerance && !((IBaseNodeMixin)layout).IsSvgNode())
+            {
+                LogWarningImpossibleDesign(layout as IBaseNodeMixin, "Rotation and anchors are different in figma and unity. Its best to remove rotation from figma elements. In Figma rotation is applied and then constraints. In unity anchors are applied first. Meaning a full screen figma 1920x1080 becomes a 1080x1920 in unity.");
                 rotate = new LengthProperty(layout.rotation * rad2deg, Unit.Degrees);
+            }
 
             if (layout is TextNode { style: { textAutoResize: TextAutoResize.WIDTH_AND_HEIGHT } } text)
             {
