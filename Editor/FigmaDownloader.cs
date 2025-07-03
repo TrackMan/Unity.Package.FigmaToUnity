@@ -163,12 +163,11 @@ namespace Figma
                 {
                     Stack<string> directories = new();
                     directories.Push(path);
-                    int depth = 0;
 
-                    while (directories.Count > 0)
+                    for (int depth = 0; depth < Const.maximumAllowedDepthLimit; depth++)
                     {
-                        if (depth++ > Const.maximumAllowedDepthLimit)
-                            throw new InvalidOperationException(Const.maximumDepthLimitReachedExceptionMessage);
+                        if (directories.Count == 0)
+                            return;
 
                         path = directories.Pop();
 
@@ -178,14 +177,14 @@ namespace Figma
                             foreach (string subDirectory in Directory.EnumerateDirectories(path))
                                 directories.Push(subDirectory);
                     }
-                }
-                else
-                {
-                    if (Directory.EnumerateFileSystemEntries(path).Any())
-                        return;
 
-                    RemoveDirectoryWithMeta(path);
+                    throw new InvalidOperationException(Const.maximumDepthLimitReachedExceptionMessage);
                 }
+
+                if (Directory.EnumerateFileSystemEntries(path).Any())
+                    return;
+
+                RemoveDirectoryWithMeta(path);
             }
 
             RemoveEmptyDirectory(componentsDirectoryPath, false);

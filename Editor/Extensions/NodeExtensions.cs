@@ -18,16 +18,15 @@ namespace Figma
         {
             Stack<IBaseNodeMixin> nodes = new();
             nodes.Push(root);
-            int depth = 0;
 
             if (root is DocumentNode documentNode)
                 foreach (CanvasNode canvasNode in documentNode.children)
                     nodes.Push(canvasNode);
 
-            while (nodes.Count > 0)
+            for (int depth = 0; depth < Const.maximumAllowedDepthLimit; depth++)
             {
-                if (depth++ >= Const.maximumAllowedDepthLimit)
-                    throw new InvalidOperationException(Const.maximumDepthLimitReachedExceptionMessage);
+                if (nodes.Count == 0)
+                    yield break;
 
                 IBaseNodeMixin node = nodes.Pop();
 
@@ -40,6 +39,8 @@ namespace Figma
                     foreach (SceneNode child in parent.children)
                         nodes.Push(child);
             }
+
+            throw new InvalidOperationException(Const.maximumDepthLimitReachedExceptionMessage);
         }
         internal static bool IsRootNode(this IBaseNodeMixin node) => node is DocumentNode or CanvasNode or ComponentNode || node.parent is CanvasNode or ComponentNode;
         internal static bool IsSvgNode(this IBaseNodeMixin node) => node is LineNode or EllipseNode or RegularPolygonNode or StarNode or VectorNode ||
@@ -104,18 +105,17 @@ namespace Figma
         internal static string GetFullPath(this IBaseNodeMixin node)
         {
             string result = string.Empty;
-            int depth = 0;
 
-            while (node != null)
+            for (int depth = 0; depth < Const.maximumAllowedDepthLimit; depth++)
             {
-                if (depth++ >= Const.maximumAllowedDepthLimit)
-                    throw new InvalidOperationException(Const.maximumDepthLimitReachedExceptionMessage);
+                if (node == null)
+                    return result;
 
                 result = string.IsNullOrEmpty(result) ? node.name : node.name + PathExtensions.pathSeparator + result;
                 node = node.parent;
             }
 
-            return result;
+            throw new InvalidOperationException(Const.maximumDepthLimitReachedExceptionMessage);
         }
         #endregion
     }

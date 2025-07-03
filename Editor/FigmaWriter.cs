@@ -102,12 +102,11 @@ namespace Figma
             {
                 Stack<BaseNode> nodes = new();
                 nodes.Push(root);
-                int i = 0;
 
-                while (nodes.Count > 0)
+                for (int depth = 0; depth < Const.maximumAllowedDepthLimit; depth++)
                 {
-                    if (i++ >= Const.maximumAllowedDepthLimit)
-                        throw new System.InvalidOperationException(Const.maximumDepthLimitReachedExceptionMessage);
+                    if (nodes.Count == 0)
+                        return;
 
                     BaseNode node = nodes.Pop();
 
@@ -130,14 +129,14 @@ namespace Figma
                         templates[template] = CombinePath(directory, componentsDirectoryName, $"{template}.{KnownFormats.uxml}");
                     }
                     else if (nodeMetadata.GetTemplate(node) is (_, { } template) && template.NotNullOrEmpty())
-                    {
                         templates[template] = CombinePath(directory, elementsDirectoryName, $"{template}.{KnownFormats.uxml}");
-                    }
 
                     if (node is DefaultFrameNode frameNode)
                         foreach (SceneNode child in frameNode.children)
                             nodes.Push(child);
                 }
+
+                throw new System.InvalidOperationException(Const.maximumDepthLimitReachedExceptionMessage);
             }
 
             string rootDirectory = CombinePath(directory, framesDirectoryName, frameNode.parent.name);

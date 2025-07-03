@@ -123,18 +123,16 @@ namespace Figma
         {
             string result = string.Empty;
 
-            int depth = 0;
-
-            while (element != null)
+            for (int depth = 0; depth < Const.maximumAllowedDepthLimit; depth++)
             {
-                if (depth++ > Const.maximumAllowedDepthLimit)
-                    throw new InvalidOperationException(Const.maximumDepthLimitReachedExceptionMessage);
+                if (element == null)
+                    return result;
 
                 result = string.IsNullOrEmpty(result) ? element.name : element.name + PathExtensions.pathSeparator + result;
                 element = element.parent;
             }
 
-            return result;
+            throw new InvalidOperationException(Const.maximumDepthLimitReachedExceptionMessage);
         }
         #endregion
     }

@@ -715,16 +715,19 @@ namespace Figma
         #region Support Methods
         static VisualElement FindRoot(VisualElement value)
         {
-            while (true)
-            {
-                if (rootMetadata.ContainsKey(value))
-                    return value;
 
-                if (value.parent == null)
+            for (int depth = 0; depth < Const.maximumAllowedDepthLimit; depth++)
+            {
+                value = value.parent;
+
+                if (value == null)
                     return null;
 
-                value = value.parent;
+                if (rootMetadata.ContainsKey(value))
+                    return value;
             }
+
+            throw new InvalidOperationException(Const.maximumDepthLimitReachedExceptionMessage);
         }
         static (VisualElement value, string path) FindRoot(VisualElement value, string path)
         {
@@ -747,13 +750,15 @@ namespace Figma
             {
                 void Add<TEventType>(VisualElement element, string name, TrickleDown trickleDown) where TEventType : EventBase<TEventType>, new()
                 {
-                    if (!name.NotNullOrEmpty())
+                    if (name.NullOrEmpty())
                         return;
 
                     MethodInfo methodInfo = targetType.GetMethod(name, MethodsFlags);
 
                     if (methodInfo != null)
                         element.RegisterCallback((EventCallback<TEventType>)Delegate.CreateDelegate(typeof(EventCallback<TEventType>), target, methodInfo.Name, true), trickleDown);
+                    else
+                        Debug.LogWarning($"Method '<color=yellow>{name}</color>' for element [{value.GetFullPath()}] not found. Maybe the method is private in the base class or does not exist.");
                 }
 
                 Add<MouseCaptureOutEvent>(value, query.MouseCaptureOutEvent, query.UseTrickleDown);
@@ -822,13 +827,15 @@ namespace Figma
             }
             void AddClicked(VisualElement value, QueryAttribute query)
             {
-                if (!query.Clicked.NotNullOrEmpty() || value is not Button button)
+                if (query.Clicked.NullOrEmpty() || value is not Button button)
                     return;
 
                 MethodInfo methodInfo = targetType.GetMethod(query.Clicked, BindingFlags.NonPublic | BindingFlags.Instance);
 
                 if (methodInfo != null)
                     button.clicked += (Action)Delegate.CreateDelegate(typeof(Action), target, methodInfo.Name, true);
+                else
+                    Debug.LogWarning($"Method '<color=yellow>{query.Clicked}</color>' for element [{value.GetFullPath()}] not found. Maybe the method is private in the base class or does not exist.");
             }
             void AddTemplate(VisualElement value, QueryAttribute query)
             {
