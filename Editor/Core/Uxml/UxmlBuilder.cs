@@ -140,6 +140,10 @@ namespace Figma.Core.Uxml
                 defaultFrameNode.children.ForEach(child => WriteNodesRecursively(child, writer, isComponent));
                 writer.EndElement();
             }
+            void WriteBooleanOperationNode(BooleanOperationNode node, UxmlWriter writer)
+            {
+                WriteDefaultShapeNode(node, writer); // We shouldn't process children for vector boolean operation
+            }
             void WriteDefaultShapeNode(DefaultShapeNode defaultShapeNode, UxmlWriter writer, bool closeElement = true)
             {
                 string tooltip = null;
@@ -189,7 +193,7 @@ namespace Figma.Core.Uxml
             if (node is TextNode text) WriteTextNode(text, uxml);
             if (node is ComponentNode component) WriteDefaultFrameNode(component, uxml);
             if (node is InstanceNode instance) WriteInstanceNode(instance, uxml);
-            if (node is BooleanOperationNode booleanOperation) WriteDefaultFrameNode(booleanOperation, uxml);
+            if (node is BooleanOperationNode booleanOperation) WriteBooleanOperationNode(booleanOperation, uxml);
             if (node is SectionNode sectionNode) WriteDefaultFrameNode(sectionNode, uxml); // WriteSectionNode(sectionNode, uxml);
         }
         #endregion
