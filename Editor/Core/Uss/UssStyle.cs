@@ -241,7 +241,7 @@ namespace Figma.Core.Uss
                 CounterAxisAlignItems.MIN => Align.FlexStart,
                 CounterAxisAlignItems.CENTER => Align.Center,
                 CounterAxisAlignItems.MAX => Align.FlexEnd,
-                CounterAxisAlignItems.BASELINE => Align.FlexEnd,
+                CounterAxisAlignItems.BASELINE => Align.Center,
                 _ => throw new NotSupportedException()
             };
 
@@ -476,24 +476,20 @@ namespace Figma.Core.Uss
 
             if (layout is TextNode { style: { textAutoResize: TextAutoResize.WIDTH_AND_HEIGHT } } text)
             {
-                height = text.style.lineHeightPx; // Unity text only aligns correctly when height is 1.2 times font size. Figma allows any text height
-
-                const double idealLineHeightFactor = 1.2;
                 if (parent.counterAxisAlignItems is CounterAxisAlignItems.BASELINE) // Baseline is not supported by unity, so we emulate it
                 {
-                    double baselineOffset = text.style.textAlignVertical switch
-                    {
-                        TextAlignVertical.TOP => text.style.fontSize - text.style.lineHeightPx, // wierd but it works
-                        TextAlignVertical.CENTER => 0.0,
-                        TextAlignVertical.BOTTOM => -(Math.Floor(text.style.fontSize / 5.0) + 2.0), // magic formula gotten through trial and error
-                        _ => throw new NotSupportedException()
-                    };
+                    double maxSize = parent.children.OfType<TextNode>().Max(x => x.style.fontSize);
+                    const double fontSizeToOffset = 1.0 / 2.75; // Approximate value gotten through trail and error. This works when parent is CounterAxisCenter, siblings have same font family and height is set to auto. Otherwise its random if it works or not
+                    double baselineOffset = (maxSize - text.style.fontSize) * fontSizeToOffset;
                     if (Math.Abs(baselineOffset) > tolerance)
-                        bottom = baselineOffset;
+                        top = baselineOffset;
                 }
-                else if (text.style.lineHeightPx <= text.style.fontSize * idealLineHeightFactor) // Figma centers text when lineheight is too small
+                else
                 {
-                    text.style.textAlignVertical = TextAlignVertical.CENTER;
+                    const double idealLineHeightFactor = 1.2;
+                    height = text.style.lineHeightPx;                                           // Unity text only aligns correctly when height is 1.2 times font size. Figma allows any text height
+                    if (text.style.lineHeightPx <= text.style.fontSize * idealLineHeightFactor) // Figma centers text when lineheight is too small
+                        text.style.textAlignVertical = TextAlignVertical.CENTER;
                 }
             }
         }
