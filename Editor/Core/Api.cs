@@ -18,7 +18,7 @@ namespace Figma
         protected Api(string personalAccessToken, string fileKey)
         {
             this.fileKey = fileKey;
-            httpClient = new();
+            httpClient = new HttpClient();
             httpClient.DefaultRequestHeaders.Add("X-FIGMA-TOKEN", personalAccessToken);
         }
         #endregion

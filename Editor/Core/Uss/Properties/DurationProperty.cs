@@ -1,5 +1,4 @@
 using System;
-using Figma.Internals;
 
 namespace Figma.Core.Uss
 {
