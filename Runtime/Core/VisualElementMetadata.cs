@@ -179,55 +179,6 @@ namespace Figma
 
             return null;
         }
-        static VisualElement FindByPathRecursive(this VisualElement root, string path, string subPath = "")
-        {
-            if (root == null)
-                return null;
-
-            subPath = !string.IsNullOrEmpty(subPath) ? CombinePath(subPath, root.name) : root.name;
-
-            if (path == subPath)
-                return root;
-
-            if (!path.StartsWith(subPath + pathSeparator) && path != subPath)
-                return null;
-
-            foreach (VisualElement child in root.Children())
-            {
-                VisualElement result = FindByPathRecursive(child, path, subPath);
-                if (result != null)
-                    return result;
-            }
-
-            switch (root)
-            {
-                case TemplateContainer { contentContainer: not null } templateContainer:
-                {
-                    foreach (VisualElement child in templateContainer.Children().First().Children())
-                    {
-                        VisualElement result = FindByPathRecursive(child, path, subPath);
-                        if (result != null)
-                            return result;
-                    }
-
-                    break;
-                }
-
-                case ScrollView view:
-                {
-                    foreach (VisualElement child in view.contentContainer.Children())
-                    {
-                        VisualElement result = FindByPathRecursive(child, path, subPath);
-                        if (result != null)
-                            return result;
-                    }
-
-                    break;
-                }
-            }
-
-            return null;
-        }
         public static T Find<T>(this VisualElement value, string path, bool throwException = true, bool silent = false) where T : VisualElement
         {
             path = path.Replace('\\', pathSeparator);
@@ -710,9 +661,82 @@ namespace Figma
                 if (index >= lines) children[index - lines].style.marginRight = counterMargin;
             }
         }
+
+        public static IEnumerable<(FieldInfo field, string path)> GetAllElementsPaths(Type targetType)
+        {
+            UxmlAttribute attribute = targetType.GetCustomAttribute<UxmlAttribute>();
+            string root = attribute == null ? string.Empty : attribute.Root;
+
+            QueryAttribute queryRoot = null;
+
+            foreach (FieldInfo field in targetType.GetFields(FieldsFlags))
+            {
+                QueryAttribute query = field.GetCustomAttribute<QueryAttribute>();
+
+                if (query == null)
+                    continue;
+
+                if (query.StartRoot)
+                    queryRoot = query;
+
+                yield return (field, CombinePath(root, queryRoot?.Path, query.Path));
+
+                if (query.EndRoot)
+                    queryRoot = null;
+            }
+        }
         #endregion
 
         #region Support Methods
+        static VisualElement FindByPathRecursive(this VisualElement root, string path, string subPath = "")
+        {
+            if (root == null)
+                return null;
+
+            subPath = !string.IsNullOrEmpty(subPath) ? CombinePath(subPath, root.name) : root.name;
+
+            if (path == subPath)
+                return root;
+
+            if (!path.StartsWith(subPath + pathSeparator) && path != subPath)
+                return null;
+
+            foreach (VisualElement child in root.Children())
+            {
+                VisualElement result = FindByPathRecursive(child, path, subPath);
+                if (result != null)
+                    return result;
+            }
+
+            switch (root)
+            {
+                case TemplateContainer { contentContainer: not null } templateContainer:
+                {
+                    foreach (VisualElement child in templateContainer.Children().First().Children())
+                    {
+                        VisualElement result = FindByPathRecursive(child, path, subPath);
+                        if (result != null)
+                            return result;
+                    }
+
+                    break;
+                }
+
+                case ScrollView view:
+                {
+                    foreach (VisualElement child in view.contentContainer.Children())
+                    {
+                        VisualElement result = FindByPathRecursive(child, path, subPath);
+                        if (result != null)
+                            return result;
+                    }
+
+                    break;
+                }
+            }
+
+            return null;
+        }
         static VisualElement FindRoot(VisualElement value)
         {
 
