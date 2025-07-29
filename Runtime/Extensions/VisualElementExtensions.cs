@@ -128,7 +128,7 @@ namespace Figma
                 if (element == null)
                     return result;
 
-                result = string.IsNullOrEmpty(result) ? element.name : element.name + PathExtensions.pathSeparator + result;
+                result = string.IsNullOrEmpty(result) ? element.name : element.name + PathExtensions.unixPathSeperator + result;
                 element = element.parent;
             }
 

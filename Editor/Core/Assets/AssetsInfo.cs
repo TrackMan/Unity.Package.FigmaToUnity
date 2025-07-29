@@ -2,11 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
-using System.Reflection;
-using Unity.VectorGraphics.Editor;
 using UnityEditor;
-using UnityEngine;
-using Object = UnityEngine.Object;
 
 namespace Figma.Core.Assets
 {
@@ -37,57 +33,24 @@ namespace Figma.Core.Assets
         #endregion
 
         #region Methods
-        internal (bool exists, string path) GetAssetPath(string name, string extension)
+        internal bool GetAssetPath(string name, string extension, out string path)
         {
             switch (extension)
             {
                 case KnownFormats.otf or KnownFormats.ttf:
-                    string fontPath = GetFontPath(name, extension);
-                    return (fontPath.NotNullOrEmpty(), fontPath);
+                    path = GetFontPath(name, extension);
+                    return path.NotNullOrEmpty();
 
                 case KnownFormats.asset:
                     string fontAssetPath = GetFontPath(name, extension);
                     string fontDirectoryPath = Path.GetDirectoryName(fontAssetPath);
-                    string target = string.IsNullOrEmpty(fontDirectoryPath) ? $"{name} SDF.{extension}" : PathExtensions.CombinePath(fontDirectoryPath, $"{name} SDF.{extension}");
-                    return (fontAssetPath.NotNullOrEmpty(), target);
+                    path = string.IsNullOrEmpty(fontDirectoryPath) ? $"{name} SDF.{extension}" : PathExtensions.CombinePath(fontDirectoryPath, $"{name} SDF.{extension}");
+                    return path.NotNullOrEmpty();
 
                 case KnownFormats.png or KnownFormats.svg:
                     string mappedName = cachedAssets[name];
-                    string filename = PathExtensions.CombinePath(imagesDirectoryName, $"{mappedName}.{extension}");
-                    return (File.Exists(PathExtensions.CombinePath(directory, filename)), filename);
-
-                default:
-                    throw new NotSupportedException(extension);
-            }
-        }
-        internal (bool valid, int width, int height) GetAssetSize(string name, string extension)
-        {
-            (bool valid, string path) = GetAssetPath(name, extension);
-            switch (extension)
-            {
-                case KnownFormats.png:
-                    if (!valid)
-                        return (false, -1, -1);
-
-                    TextureImporter importer = (TextureImporter)AssetImporter.GetAtPath(PathExtensions.CombinePath(relativeDirectory, path));
-                    importer.GetSourceTextureWidthAndHeight(out int width, out int height);
-                    return (true, width, height);
-
-                case KnownFormats.svg:
-                    if (!valid)
-                        return (false, -1, -1);
-
-                    SVGImporter svgImporter = (SVGImporter)AssetImporter.GetAtPath(PathExtensions.CombinePath(relativeDirectory, path));
-                    Object vectorImage = AssetDatabase.LoadMainAssetAtPath(PathExtensions.CombinePath(relativeDirectory, path));
-
-                    if (!svgImporter || !vectorImage)
-                        return (false, -1, -1);
-
-                    if (vectorImage.GetType().GetField("size", BindingFlags.NonPublic | BindingFlags.Instance) is not { } fieldInfo)
-                        return (true, svgImporter ? svgImporter.TextureWidth : -1, svgImporter ? svgImporter.TextureHeight : -1);
-
-                    Vector2 size = (Vector2)fieldInfo.GetValue(vectorImage);
-                    return (true, Mathf.CeilToInt(size.x), Mathf.CeilToInt(size.y));
+                    path = PathExtensions.CombinePath(imagesDirectoryName, $"{mappedName}.{extension}");
+                    return File.Exists(PathExtensions.CombinePath(directory, path));
 
                 default:
                     throw new NotSupportedException(extension);
@@ -102,14 +65,15 @@ namespace Figma.Core.Assets
         {
             string localFontsPath = PathExtensions.CombinePath(fontsDirectoryName, $"{name}.{extension}");
 
-            if (File.Exists(FileUtil.GetPhysicalPath(PathExtensions.CombinePath(relativeDirectory, localFontsPath))))
-                return "/" + PathExtensions.CombinePath(relativeDirectory, localFontsPath);
+            string relativePath = PathExtensions.CombinePath(relativeDirectory, localFontsPath);
+            if (File.Exists(FileUtil.GetPhysicalPath(relativePath)))
+                return PathExtensions.unixPathSeperator + relativePath;
 
             foreach (string fontsDirectory in fontDirectories)
             {
                 string projectFontPath = PathExtensions.CombinePath(fontsDirectory, $"{name}.{extension}");
                 if (File.Exists(FileUtil.GetPhysicalPath(projectFontPath)))
-                    return "/" + projectFontPath;
+                    return PathExtensions.unixPathSeperator + projectFontPath;
             }
 
             return null;

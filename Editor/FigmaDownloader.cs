@@ -237,7 +237,7 @@ namespace Figma
         }
         async Task GetImageAsync(string nodeID, string url, string extension, int progress, CancellationToken token)
         {
-            (bool fileExists, string assetPath) = assetsInfo.GetAssetPath(nodeID, extension);
+            bool fileExists = assetsInfo.GetAssetPath(nodeID, extension, out string assetPath);
             if (assetsInfo.modifiedContent.Contains(assetsInfo.GetAbsolutePath(assetPath)))
                 return;
 
@@ -254,10 +254,11 @@ namespace Figma
             if (response.Headers.TryGetValues("ETag", out IEnumerable<string> values))
                 assetsInfo.cachedAssets[nodeID] = values.First().Trim('"');
 
-            assetPath = assetsInfo.GetAssetPath(nodeID, extension).path;
+            assetsInfo.GetAssetPath(nodeID, extension, out assetPath);
             string path = assetsInfo.GetAbsolutePath(assetPath);
             if (assetsInfo.modifiedContent.Contains(path))
                 return;
+
             assetsInfo.modifiedContent.Add(path);
 
             if (response.IsSuccessStatusCode && !isResolved)
@@ -288,8 +289,9 @@ namespace Figma
         {
             foreach ((string key, GradientPaint gradient) in nodesRegistry.Gradients)
             {
-                string xmlPath = assetsInfo.GetAbsolutePath(assetsInfo.GetAssetPath(key, KnownFormats.svg).path);
-                using GradientWriter writer = new(xmlPath);
+                assetsInfo.GetAssetPath(key, KnownFormats.svg, out string relativePath);
+                string xmlPath = assetsInfo.GetAbsolutePath(relativePath);
+                using GradientWriter writer = new GradientWriter(xmlPath);
                 await writer.WriteAsync(gradient, token);
                 assetsInfo.modifiedContent.Add(xmlPath);
             }

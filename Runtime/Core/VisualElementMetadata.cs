@@ -181,7 +181,7 @@ namespace Figma
         }
         public static T Find<T>(this VisualElement value, string path, bool throwException = true, bool silent = false) where T : VisualElement
         {
-            path = path.Replace('\\', pathSeparator);
+            path = path.Replace('\\', unixPathSeperator);
 
             T result = value.FindByPath(path).As<T>();
 
@@ -698,7 +698,7 @@ namespace Figma
             if (path == subPath)
                 return root;
 
-            if (!path.StartsWith(subPath + pathSeparator) && path != subPath)
+            if (!path.StartsWith(subPath + unixPathSeperator) && path != subPath)
                 return null;
 
             foreach (VisualElement child in root.Children())

@@ -498,15 +498,13 @@ namespace Figma.Core.Uss
             TextNode.Style style = text.style;
             bool TryGetFontWithExtension(string font, out string resource)
             {
-                (bool ttf, string ttfPath) = assetsInfo.GetAssetPath(font, KnownFormats.ttf);
-                if (ttf)
+                if (assetsInfo.GetAssetPath(font, KnownFormats.ttf, out string ttfPath))
                 {
                     resource = Url(ttfPath);
                     return true;
                 }
 
-                (bool otf, string otfPath) = assetsInfo.GetAssetPath(font, KnownFormats.otf);
-                if (otf)
+                if (assetsInfo.GetAssetPath(font, KnownFormats.otf, out string otfPath))
                 {
                     resource = Url(otfPath);
                     return true;
@@ -534,8 +532,8 @@ namespace Figma.Core.Uss
                 if (!TryGetFontWithExtension(fontName, out string font) && !TryGetFontWithExtension(fontPostScriptName, out font))
                     Debug.LogWarning(Extensions.BuildTargetMessage("Cannot find Font", fontName, string.Empty));
 
-                (bool valid, string fontDefinition) = assetsInfo.GetAssetPath(fontName, KnownFormats.asset);
-                return (font, valid ? fontDefinition : null);
+                bool exists = assetsInfo.GetAssetPath(fontName, KnownFormats.asset, out string path);
+                return (font, exists ? path : null);
             }
             EnumProperty<TextAlign> GetTextAlignment()
             {
@@ -622,16 +620,9 @@ namespace Figma.Core.Uss
         }
         void AddSvg(AssetsInfo assetsInfo, BaseNode svg)
         {
+            IGeometryMixin geometry = (IGeometryMixin)svg;
             ILayoutMixin layout = (ILayoutMixin)svg;
             Rect boundingBox = layout.absoluteBoundingBox;
-            (bool validSvg, int svgWidth, int svgHeight) = assetsInfo.GetAssetSize(svg.id, KnownFormats.svg);
-            if (validSvg && svgWidth > 0 && svgHeight > 0)
-            {
-                boundingBox.width = svgWidth;
-                boundingBox.height = svgHeight;
-            }
-
-            IGeometryMixin geometry = (IGeometryMixin)svg;
             if (geometry.HasBorder())
             {
                 boundingBox.x -= geometry.strokeWeight / 2.0;
@@ -641,8 +632,7 @@ namespace Figma.Core.Uss
 
             layout.absoluteBoundingBox = boundingBox;
             string extension = svg.HasImage() ? KnownFormats.png : KnownFormats.svg;
-            (bool valid, string url) = assetsInfo.GetAssetPath(svg.id, extension);
-            if (valid)
+            if (assetsInfo.GetAssetPath(svg.id, extension, out string url))
                 backgroundImage = Url(url);
         }
         #endregion
@@ -650,9 +640,9 @@ namespace Figma.Core.Uss
         #region Support Methods
         void AddFill(IGeometryMixin geometry)
         {
-            bool valid = false;
+            bool urlExists = false;
             string url = string.Empty;
-            RGBA finalColor = new();
+            RGBA finalColor = new RGBA();
             foreach (Paint fill in geometry.fills.Where(x => x.visible).Reverse())
             {
                 switch (fill)
@@ -671,7 +661,7 @@ namespace Figma.Core.Uss
                         }
                         else
                         {
-                            (valid, url) = assetsInfo.GetAssetPath(gradient.GetHash(), KnownFormats.svg);
+                            urlExists = assetsInfo.GetAssetPath(gradient.GetHash(), KnownFormats.svg, out url);
                         }
 
                         break;
@@ -683,7 +673,7 @@ namespace Figma.Core.Uss
                             break;
                         }
 
-                        (valid, url) = assetsInfo.GetAssetPath(image.imageRef, KnownFormats.png);
+                        urlExists = assetsInfo.GetAssetPath(image.imageRef, KnownFormats.png, out url);
 
                         unityBackgroundSize = image.scaleMode switch
                         {
@@ -698,7 +688,7 @@ namespace Figma.Core.Uss
                     color = new ColorProperty(finalColor);
                 else
                     backgroundColor = new ColorProperty(finalColor);
-                if (valid)
+                if (urlExists)
                     backgroundImage = Url(url);
             }
         }
