@@ -44,8 +44,9 @@ namespace Figma.Core.Assets
                 case KnownFormats.asset:
                     string fontAssetPath = GetFontPath(name, extension);
                     string fontDirectoryPath = Path.GetDirectoryName(fontAssetPath);
-                    path = string.IsNullOrEmpty(fontDirectoryPath) ? $"{name} SDF.{extension}" : PathExtensions.CombinePath(fontDirectoryPath, $"{name} SDF.{extension}");
-                    return path.NotNullOrEmpty();
+                    string file = $"{name} SDF.{extension}";
+                    path = fontDirectoryPath.NotNullOrEmpty() ? file : PathExtensions.CombinePath(fontDirectoryPath, file);
+                    return fontAssetPath.NotNullOrEmpty();
 
                 case KnownFormats.png or KnownFormats.svg:
                     string mappedName = cachedAssets[name];
@@ -63,7 +64,8 @@ namespace Figma.Core.Assets
         #region Support Methods
         string GetFontPath(string name, string extension)
         {
-            string localFontsPath = PathExtensions.CombinePath(fontsDirectoryName, $"{name}.{extension}");
+            string file = $"{name}.{extension}";
+            string localFontsPath = PathExtensions.CombinePath(fontsDirectoryName, file);
 
             string relativePath = PathExtensions.CombinePath(relativeDirectory, localFontsPath);
             if (File.Exists(FileUtil.GetPhysicalPath(relativePath)))
@@ -71,7 +73,7 @@ namespace Figma.Core.Assets
 
             foreach (string fontsDirectory in fontDirectories)
             {
-                string projectFontPath = PathExtensions.CombinePath(fontsDirectory, $"{name}.{extension}");
+                string projectFontPath = PathExtensions.CombinePath(fontsDirectory, file);
                 if (File.Exists(FileUtil.GetPhysicalPath(projectFontPath)))
                     return PathExtensions.unixPathSeperator + projectFontPath;
             }

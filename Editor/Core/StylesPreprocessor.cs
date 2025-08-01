@@ -98,19 +98,21 @@ namespace Figma.Core
                 if (node is not IBlendMixin { styles: not null } blend)
                     continue;
 
-                foreach ((string key, string value) in blend.styles)
+                foreach ((string styleType, string styleId) in blend.styles)
                 {
                     bool text = node.type == NodeType.TEXT;
-                    string slot = key;
+                    string slot = styleType;
 
-                    if (slot.EndsWith('s'))
+                    if (slot[^1] == 's') // Sometimes named 'fill' and sometimes 'fills'. We treat them equally.
                         slot = slot[..^1];
 
-                    string styleKey = styles[value].key;
-
-                    StyleSlot style = new(text, slot, styles[value]);
-                    if (!this.styles.Any(x => x.slot.Text == text && x.slot.Slot == slot && x.slot.key == styleKey))
-                        this.styles.Add((style, new UssStyle(GetClassName(style.name, "s"), assetsInfo, (BaseNode)node, style)));
+                    if (!this.styles.Any(x => x.slot.Text == text && x.slot.Slot == slot && x.slot.key == styles[styleId].key))
+                    {
+                        StyleSlot styleDescriptor = new StyleSlot(text, slot, styles[styleId]);
+                        string className = GetClassName(styleDescriptor.name, "s");
+                        UssStyle ussStyle = new UssStyle(className, assetsInfo, (BaseNode)node, styleDescriptor);
+                        this.styles.Add((styleDescriptor, ussStyle));
+                    }
                 }
             }
         }
@@ -267,22 +269,22 @@ namespace Figma.Core
                     foreach (KeyValuePair<string, string> keyValue in blend.styles)
                     {
                         bool text = node.type == NodeType.TEXT;
-                        string slot = keyValue.Key;
-                        if (slot.EndsWith('s'))
-                            slot = slot[..^1];
+                        string styleType = keyValue.Key;
+                        if (styleType[^1] == 's')
+                            styleType = styleType[..^1];
 
-                        string id = keyValue.Value;
+                        string styleId = keyValue.Value;
                         string key = null;
 
-                        if (data.styles.TryGetValue(id, out Style documentStyle))
+                        if (data.styles.TryGetValue(styleId, out Style documentStyle))
                             key = documentStyle.key;
 
                         foreach (Dictionary<string, Style> componentStyle in componentsStyles)
-                            if (componentStyle.TryGetValue(id, out Style value))
+                            if (componentStyle.TryGetValue(styleId, out Style value))
                                 key = value.key;
 
                         int index;
-                        if (key.NotNullOrEmpty() && (index = this.styles.FindIndex(x => x.slot.Text == text && x.slot.Slot == slot && x.slot.key == key)) >= 0)
+                        if (key.NotNullOrEmpty() && (index = this.styles.FindIndex(x => x.slot.Text == text && x.slot.Slot == styleType && x.slot.key == key)) >= 0)
                             styles.Add(this.styles[index].style);
                     }
 
@@ -329,24 +331,24 @@ namespace Figma.Core
                 foreach (KeyValuePair<string, string> keyValue in blend.styles)
                 {
                     bool text = node.type == NodeType.TEXT;
-                    string slot = keyValue.Key;
+                    string styleType = keyValue.Key;
 
-                    if (slot.EndsWith('s'))
-                        slot = slot[..^1];
+                    if (styleType[^1] == 's')
+                        styleType = styleType[..^1];
 
-                    string id = keyValue.Value;
+                    string styleId = keyValue.Value;
                     string key = null;
 
-                    if (data.styles.TryGetValue(id, out Style documentStyle))
+                    if (data.styles.TryGetValue(styleId, out Style documentStyle))
                         key = documentStyle.key;
 
                     foreach (Dictionary<string, Style> componentStyle in componentsStyles)
-                        if (componentStyle.TryGetValue(id, out Style value))
+                        if (componentStyle.TryGetValue(styleId, out Style value))
                             key = value.key;
 
                     int index;
 
-                    if (key.NotNullOrEmpty() && (index = this.styles.FindIndex(x => x.slot.Text == text && x.slot.Slot == slot && x.slot.key == key)) >= 0)
+                    if (key.NotNullOrEmpty() && (index = this.styles.FindIndex(x => x.slot.Text == text && x.slot.Slot == styleType && x.slot.key == key)) >= 0)
                         styles.Add(this.styles[index].style.Name);
                 }
             }

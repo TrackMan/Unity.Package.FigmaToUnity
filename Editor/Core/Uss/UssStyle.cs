@@ -165,7 +165,7 @@ namespace Figma.Core.Uss
                     break;
 
                 case StyleType.TEXT when node is TextNode text:
-                    AddText(text);
+                    AddSharedTextStyle(text.style);
                     break;
 
                 case StyleType.EFFECT when node is IBlendMixin blend:
@@ -496,64 +496,23 @@ namespace Figma.Core.Uss
         void AddText(TextNode text)
         {
             TextNode.Style style = text.style;
-            bool TryGetFontWithExtension(string font, out string resource)
+            string horizontal = style.textAlignHorizontal switch
             {
-                if (assetsInfo.GetAssetPath(font, KnownFormats.ttf, out string ttfPath))
-                {
-                    resource = Url(ttfPath);
-                    return true;
-                }
-
-                if (assetsInfo.GetAssetPath(font, KnownFormats.otf, out string otfPath))
-                {
-                    resource = Url(otfPath);
-                    return true;
-                }
-
-                resource = Resource("Inter-Regular");
-                return false;
-            }
-
-            (string, string) GetFont()
+                TextAlignHorizontal.LEFT => nameof(left),
+                TextAlignHorizontal.RIGHT => nameof(right),
+                TextAlignHorizontal.CENTER => "center",
+                TextAlignHorizontal.JUSTIFIED => throw new NotSupportedException(),
+                _ => throw new NotSupportedException()
+            };
+            string vertical = style.textAlignVertical switch
             {
-                string fontPostScriptName = style.fontPostScriptName ?? (style.fontFamily == "Inter" ? "Inter-Regular" : null);
+                TextAlignVertical.TOP => "upper",
+                TextAlignVertical.BOTTOM => "lower",
+                TextAlignVertical.CENTER => "middle",
+                _ => throw new NotSupportedException()
+            };
 
-                if (fontPostScriptName == null)
-                    return (null, null);
-
-                string weightPostfix = style.fontWeight > 0
-                    ? Enum.GetValues(typeof(FontWeight)).GetValue((int)(style.fontWeight / 100) - 1).ToString()
-                    : fontPostScriptName.Contains('-')
-                        ? fontPostScriptName.Split('-')[1].Replace(nameof(Index), string.Empty)
-                        : string.Empty;
-                string italicPostfix = style.italic || fontPostScriptName.Contains(nameof(FontStyle.Italic)) ? nameof(FontStyle.Italic) : string.Empty;
-
-                string fontName = $"{style.fontFamily}-{weightPostfix}{italicPostfix}";
-                if (!TryGetFontWithExtension(fontName, out string font) && !TryGetFontWithExtension(fontPostScriptName, out font))
-                    Debug.LogWarning(Extensions.BuildTargetMessage("Cannot find Font", fontName, string.Empty));
-
-                bool exists = assetsInfo.GetAssetPath(fontName, KnownFormats.asset, out string path);
-                return (font, exists ? path : null);
-            }
-            EnumProperty<TextAlign> GetTextAlignment()
-            {
-                string horizontal = style.textAlignHorizontal switch
-                {
-                    TextAlignHorizontal.LEFT => nameof(left),
-                    TextAlignHorizontal.RIGHT => nameof(right),
-                    TextAlignHorizontal.CENTER => "center",
-                    TextAlignHorizontal.JUSTIFIED => throw new NotSupportedException(),
-                    _ => throw new NotSupportedException()
-                };
-                string vertical = style.textAlignVertical switch
-                {
-                    TextAlignVertical.TOP => "upper",
-                    TextAlignVertical.BOTTOM => "lower",
-                    TextAlignVertical.CENTER => "middle",
-                    _ => throw new NotSupportedException()
-                };
-                return $"{vertical}-{horizontal}";
-            }
+            unityTextAlign = (EnumProperty<TextAlign>)$"{vertical}-{horizontal}";
 
             if (style.textTruncation is TextTruncation.ENDING)
             {
@@ -563,13 +522,8 @@ namespace Figma.Core.Uss
 
             if (style.textAutoResize is TextAutoResize.NONE || (style.textAutoResize is TextAutoResize.HEIGHT && style.maxLines is not 1))
                 whiteSpace = Wrap.Normal;
-            unityTextAlign = GetTextAlignment();
-            fontSize = style.fontSize;
-            (string font, string fontDefinition) = GetFont();
-            if (font != null)
-                unityFont = font;
-            if (fontDefinition != null)
-                unityFontDefinition = Url(fontDefinition);
+
+            AddSharedTextStyle(style);
         }
         void AddBlend(IBlendMixin blend)
         {
@@ -638,6 +592,58 @@ namespace Figma.Core.Uss
         #endregion
 
         #region Support Methods
+        void AddSharedTextStyle(TextNode.Style style)
+        {
+            bool TryGetFontWithExtension(string font, out string resource)
+            {
+                if (assetsInfo.GetAssetPath(font, KnownFormats.ttf, out string ttfPath))
+                {
+                    resource = Url(ttfPath);
+                    return true;
+                }
+
+                if (assetsInfo.GetAssetPath(font, KnownFormats.otf, out string otfPath))
+                {
+                    resource = Url(otfPath);
+                    return true;
+                }
+
+                resource = Resource("Inter-Regular");
+                return false;
+            }
+
+            (string, string) GetFont()
+            {
+                string fontPostScriptName = style.fontPostScriptName ?? (style.fontFamily == "Inter" ? "Inter-Regular" : null);
+
+                if (fontPostScriptName == null)
+                    return (null, null);
+
+                string weightPostfix;
+                if (style.fontWeight > 0)
+                    weightPostfix = Enum.GetValues(typeof(FontWeight)).GetValue((int)(style.fontWeight / 100) - 1).ToString();
+                else
+                    weightPostfix = fontPostScriptName.Contains('-') ? fontPostScriptName.Split('-')[1].Replace(nameof(Index), string.Empty) : string.Empty;
+
+                string italicPostfix = style.italic || fontPostScriptName.Contains(nameof(FontStyle.Italic)) ? nameof(FontStyle.Italic) : string.Empty;
+
+                string fontName = $"{style.fontFamily}-{weightPostfix}{italicPostfix}";
+                if (!TryGetFontWithExtension(fontName, out string font) && !TryGetFontWithExtension(fontPostScriptName, out font))
+                    Debug.LogWarning(Extensions.BuildTargetMessage("Cannot find Font", fontName, string.Empty));
+
+                bool exists = assetsInfo.GetAssetPath(fontName, KnownFormats.asset, out string path);
+                return (font, exists ? path : null);
+            }
+
+            fontSize = style.fontSize;
+            (string font, string fontDefinition) = GetFont();
+
+            if (font != null)
+                unityFont = font;
+
+            if (fontDefinition != null)
+                unityFontDefinition = Url(fontDefinition);
+        }
         void AddFill(IGeometryMixin geometry)
         {
             bool urlExists = false;
