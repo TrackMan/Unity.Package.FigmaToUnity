@@ -5,6 +5,7 @@ using UnityEngine.UIElements;
 namespace Figma
 {
     using Attributes;
+    using System.Threading.Tasks;
 
     [DefaultExecutionOrder(-10)]
     [RequireComponent(typeof(UIDocument))]
@@ -24,40 +25,47 @@ namespace Figma
         #endregion
 
         #region Base Methods
-        async void OnEnable()
+        void OnEnable()
         {
-            if (Application.isBatchMode) 
+            if (Application.isBatchMode)
                 return;
 
             UIDocument document = GetComponent<UIDocument>();
-            
-            if (document.rootVisualElement is null) 
+
+            if (document.rootVisualElement is null)
                 return;
 
             IRootElement[] elements = GetComponentsInChildren<IRootElement>();
+
             VisualElementMetadata.Initialize(document, elements);
 
-            if (!Application.isPlaying) 
+            if (!Application.isPlaying)
                 return;
 
-            // Do not change this to Awaiters, since it is breaking the loading.
-            if (waitFrameBeforeRebuild)
-                await new WaitForEndOfFrame();
-            
-            VisualElementMetadata.Rebuild(elements);
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+            OnEnableNextFrameAsync();
+#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+            return;
 
-            VisualElement root = document.rootVisualElement.Q(UxmlAttribute.prefix);
-            
-            if (root is null || !reorder) 
-                return;
-
-            foreach (IRootElement element in elements.OrderBy(x => x.RootOrder))
+            // Do not make MonoBehaviour.OnEnable async because Unity calls async methods after non-async MonoBehaviour methods
+            async Task OnEnableNextFrameAsync()
             {
-                if (element.Root is null) 
-                    continue;
+                // Do not change this to Awaiters, since it is breaking the loading.
+                if (waitFrameBeforeRebuild)
+                    await new WaitForEndOfFrame();
 
-                element.Root.RemoveFromHierarchy();
-                root.Add(element.Root);
+                VisualElementMetadata.Rebuild(elements);
+
+                VisualElement root = document.rootVisualElement.Q(UxmlAttribute.prefix);
+
+                if (root is null || !reorder)
+                    return;
+
+                foreach (IRootElement element in elements.Where(x => x.Root is not null).OrderBy(x => x.RootOrder))
+                {
+                    element.Root.RemoveFromHierarchy();
+                    root.Add(element.Root);
+                }
             }
         }
         void OnDestroy() => VisualElementMetadata.Dispose();
