@@ -15,15 +15,12 @@ namespace Figma.Core.Assets
         #region Methods
         void OnPreprocessAsset()
         {
-            DirectoryInfo parentDirectory = Directory.GetParent(assetPath)?.Parent;
-            
-            if (parentDirectory is null || !Directory.GetFiles(parentDirectory!.FullName, "*." + KnownFormats.uxml).Any()) 
-                return;
+            if (!assetPath.Contains("UI/Assets/Images")) return;
 
-            if (assetPath.Contains(imagesDirectoryName) && assetImporter is SVGImporter svgImporter)
+            if (assetImporter is SVGImporter svgImporter)
                 svgImporter.SvgType = SVGType.UIToolkit;
 
-            if (!assetPath.Contains(imagesDirectoryName) || assetImporter is not TextureImporter textureImporter) 
+            if (assetImporter is not TextureImporter textureImporter)
                 return;
 
             textureImporter.npotScale = TextureImporterNPOTScale.None;
