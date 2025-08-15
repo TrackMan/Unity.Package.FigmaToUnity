@@ -56,6 +56,8 @@ namespace Figma
 
             return color;
         }
+        // Magical formula found by testing different methods. including LinearToGammaSpaceExact(a), 1-GammaToLinearSpaceExact(1-a), pow(a, 1/2.2), pow(a, 1/1.8), 1.0-pow(1-a, 2.2). This method yielded results close to figma with only one layer of blending. With multiple layers all tried corrections becomes too dark
+        internal static double AlphaCorrection(double a) => UnityEditor.PlayerSettings.colorSpace is UnityEngine.ColorSpace.Linear && a is > 0.0 and < 1.0 ? LinearToGammaSpaceExact(a) : a;
         #endregion
 
         #region Support Methods
@@ -65,6 +67,13 @@ namespace Figma
             StrokeAlign.CENTER => 0.5,
             StrokeAlign.INSIDE => 0.0,
             _ => throw new NotSupportedException()
+        };
+        static double LinearToGammaSpaceExact(double value) => value switch // copied from unity shader UnityCG.cginc
+        {
+            <= 0.0 => 0.0,
+            <= 0.0031308 => 12.92 * value,
+            < 1.0 => 1.055 * Math.Pow(value, 0.4166667) - 0.055,
+            _ => Math.Pow(value, 0.45454545)
         };
         #endregion
     }

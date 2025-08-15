@@ -528,7 +528,7 @@ namespace Figma.Core.Uss
         void AddBlend(IBlendMixin blend)
         {
             if (blend.opacity < 1.0 - tolerance)
-                opacity = blend.opacity;
+                opacity = UssStyleExtension.AlphaCorrection(blend.opacity);
 
             IEnumerable<ShadowEffect> effects = blend.effects.OfType<ShadowEffect>().Where(x => x.visible);
             ShadowEffect effect = effects.FirstOrDefault();
@@ -690,6 +690,7 @@ namespace Figma.Core.Uss
                         break;
                 }
 
+                finalColor.a = UssStyleExtension.AlphaCorrection(finalColor.a);
                 if (geometry is TextNode)
                     color = new ColorProperty(finalColor);
                 else
@@ -719,6 +720,7 @@ namespace Figma.Core.Uss
                 finalColor = finalColor.BlendWith(color);
             }
 
+            finalColor.a = UssStyleExtension.AlphaCorrection(finalColor.a);
             borderColor = finalColor;
         }
         internal static List<UssStyle> MakeTransitionStyles(UssStyle root, UssStyle idle, UssStyle hover = null, UssStyle active = null)
