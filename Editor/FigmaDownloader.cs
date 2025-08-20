@@ -237,7 +237,14 @@ namespace Figma
         }
         async Task GetImageAsync(string nodeID, string url, string extension, int progress, CancellationToken token)
         {
+            if (string.IsNullOrEmpty(url))
+            {
+                Debug.LogWarning($"Node {nodeID} does not have any URL for image. Most likely, this node uses a mask.");
+                return;
+            }
+
             bool fileExists = assetsInfo.GetAssetPath(nodeID, extension, out string assetPath);
+
             if (assetsInfo.modifiedContent.Contains(assetsInfo.GetAbsolutePath(assetPath)))
                 return;
 
@@ -291,7 +298,7 @@ namespace Figma
             {
                 assetsInfo.GetAssetPath(key, KnownFormats.svg, out string relativePath);
                 string xmlPath = assetsInfo.GetAbsolutePath(relativePath);
-                using GradientWriter writer = new GradientWriter(xmlPath);
+                using GradientWriter writer = new(xmlPath);
                 await writer.WriteAsync(gradient, token);
                 assetsInfo.modifiedContent.Add(xmlPath);
             }
