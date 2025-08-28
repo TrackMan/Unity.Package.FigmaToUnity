@@ -1,5 +1,3 @@
-using System.IO;
-using System.Linq;
 using Unity.VectorGraphics.Editor;
 using UnityEditor;
 
@@ -7,9 +5,6 @@ using UnityEditor;
 
 namespace Figma.Core.Assets
 {
-    using Internals;
-    using static Internals.Const;
-
     internal class ImagesPostprocessor : AssetPostprocessor
     {
         #region Methods
