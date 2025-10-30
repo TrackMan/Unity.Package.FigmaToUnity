@@ -1,8 +1,11 @@
 using System.Collections.Generic;
+using System.Linq;
+using UnityEngine;
 
 namespace Figma.Core
 {
     using Internals;
+    using Attributes;
 
     internal class RootNodes
     {
@@ -41,7 +44,14 @@ namespace Figma.Core
                         frames.Add(frameNode);
                         break;
 
-                    case DefaultShapeNode defaultShapeNode when nodeMetadata.GetTemplate(defaultShapeNode) is (_, { } template) && template.NotNullOrEmpty():
+                    case DefaultShapeNode defaultShapeNode when nodeMetadata.GetTemplate(defaultShapeNode) is (var isHash, { } template) && template.NotNullOrEmpty():
+                        if (!isHash && elements.Any(x => x.hash == template))
+                        {
+                            Debug.LogWarning($"Duplicate hash was found: {template}. This might happen when [{nameof(QueryAttribute)}] is inherited in multiple classes. " +
+                                             "This could also happen when you have a template with the same name. In order to fix that in that case, please use \"Hash = true\" parameter.");
+                            break;
+                        }
+
                         elements.Add((defaultShapeNode, template));
                         break;
                 }
