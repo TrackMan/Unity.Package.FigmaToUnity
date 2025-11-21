@@ -74,7 +74,7 @@ namespace Figma
             }
 
             // Writing UXML files
-            UxmlBuilder uxmlBuilder = new(data, nodeMetadata, ussPath, stylesPreprocessor.GetClassList);
+            UxmlBuilder uxmlBuilder = new(data, nodeMetadata, ussPath, stylesPreprocessor);
             Dictionary<string, IReadOnlyList<string>> framesPaths = new(rootNodes.Frames.Count);
 
             foreach (CanvasNode canvasNode in rootNodes.Canvases)

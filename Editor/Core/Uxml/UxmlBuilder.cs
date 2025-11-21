@@ -18,16 +18,16 @@ namespace Figma.Core.Uxml
         readonly Data data;
         readonly NodeMetadata nodeMetadata;
         readonly string globalUssFilePath;
-        readonly Func<BaseNode, string> getClassList;
+        readonly StylesPreprocessor stylesPreprocessor;
         #endregion
 
         #region Constructors
-        public UxmlBuilder(Data data, NodeMetadata nodeMetadata, string globalUssFilePath, Func<BaseNode, string> getClassList)
+        public UxmlBuilder(Data data, NodeMetadata nodeMetadata, string globalUssFilePath, StylesPreprocessor stylesPreprocessor)
         {
             this.data = data;
             this.nodeMetadata = nodeMetadata;
             this.globalUssFilePath = globalUssFilePath;
-            this.getClassList = getClassList;
+            this.stylesPreprocessor = stylesPreprocessor;
         }
         #endregion
 
@@ -39,7 +39,7 @@ namespace Figma.Core.Uxml
             using UxmlWriter writer = new(directory, fileName);
 
             writer.WriteUssStyleReference(GetRelativePath(writer.filePath, globalUssFilePath));
-            writer.StartElement(documentNode, getClassList(documentNode), nodeMetadata.GetElementType(documentNode));
+            writer.StartElement(documentNode, stylesPreprocessor.GetClassList(documentNode), nodeMetadata.GetElementType(documentNode));
 
             foreach (string templatePath in framesPaths.SelectMany(framesPath => framesPath.Value))
             {
@@ -59,6 +59,7 @@ namespace Figma.Core.Uxml
                     string templateName = CreateTemplateName(GetRelativePath(writer.filePath, path));
                     writer.WriteInstance(frameName, templateName, Uss.UssStyle.viewportClass.Name);
                 }
+
                 writer.EndElement();
             }
 
@@ -104,13 +105,13 @@ namespace Figma.Core.Uxml
         {
             void WriteCanvasNode(CanvasNode canvasNode, UxmlWriter writer)
             {
-                writer.StartElement(canvasNode, getClassList(canvasNode), nodeMetadata.GetElementType(canvasNode));
+                writer.StartElement(canvasNode, stylesPreprocessor.GetClassList(canvasNode), nodeMetadata.GetElementType(canvasNode));
                 canvasNode.children.ForEach(child => WriteNodesRecursively(child, writer));
                 writer.EndElement();
             }
             void WriteSectionNode(SectionNode sectionNode, UxmlWriter writer)
             {
-                writer.StartElement(sectionNode, getClassList(sectionNode), nodeMetadata.GetElementType(sectionNode));
+                writer.StartElement(sectionNode, stylesPreprocessor.GetClassList(sectionNode), nodeMetadata.GetElementType(sectionNode));
                 sectionNode.children.ForEach(child => WriteNodesRecursively(child, writer));
                 writer.EndElement();
 
@@ -118,12 +119,12 @@ namespace Figma.Core.Uxml
             }
             void WriteSliceNode(SliceNode sliceNode, UxmlWriter writer)
             {
-                writer.StartElement(sliceNode, getClassList(sliceNode), nodeMetadata.GetElementType(sliceNode));
+                writer.StartElement(sliceNode, stylesPreprocessor.GetClassList(sliceNode), nodeMetadata.GetElementType(sliceNode));
                 writer.EndElement();
             }
             void WriteTextNode(TextNode textNode, UxmlWriter writer)
             {
-                writer.StartElement(textNode, getClassList(textNode), nodeMetadata.GetElementType(textNode));
+                writer.StartElement(textNode, stylesPreprocessor.GetClassList(textNode), nodeMetadata.GetElementType(textNode));
 
                 string text = textNode.style.textCase switch
                 {
@@ -150,7 +151,7 @@ namespace Figma.Core.Uxml
                 if (nodeMetadata.GetTemplate(defaultShapeNode) is (var hash, { } template) && template.NotNullOrEmpty())
                     tooltip = hash ? template : null;
 
-                writer.StartElement(defaultShapeNode, getClassList(defaultShapeNode), nodeMetadata.GetElementType(defaultShapeNode));
+                writer.StartElement(defaultShapeNode, stylesPreprocessor.GetClassList(defaultShapeNode), nodeMetadata.GetElementType(defaultShapeNode));
                 if (tooltip.NotNullOrEmpty())
                     writer.xmlWriter.WriteAttributeString(nameof(tooltip), tooltip!); // Use tooltip as a storage for hash template name
                 if (closeElement)
@@ -163,7 +164,7 @@ namespace Figma.Core.Uxml
                     data.componentSets.TryGetValue(component.componentSetId, out Component target) && !target.remote)
                 {
                     string componentSetName = target.name;
-                    string classList = getClassList(instanceNode);
+                    string classList = stylesPreprocessor.GetClassList(instanceNode);
 
                     writer.WriteInstance(instanceNode.name, componentSetName, classList);
                 }

@@ -229,7 +229,6 @@ namespace Figma.Core
         #endregion
 
         #region Support Methods
-        IBaseNodeMixin FindNode(string id) => data.document.Flatten().FirstOrDefault(x => x.id == id);
         internal IReadOnlyList<UssStyle> GetStyles(IBaseNodeMixin root) =>
             root.Flatten(node => node.IsVisible() && node is not ComponentSetNode)
                 .Select(node => componentStyleMap.TryGetValue(node, out UssStyle style) || nodeStyleMap.TryGetValue(node, out style) ? style : null)
@@ -243,29 +242,8 @@ namespace Figma.Core
             foreach (IBaseNodeMixin node in root.Flatten(x => x.parent is not BooleanOperationNode))
             {
                 UssStyle style = GetStyle(node);
-                UssStyle component = null;
-
-                if (node is InstanceNode instance)
-                {
-                    IBaseNodeMixin componentNode = FindNode(instance.componentId);
-
-                    if (componentNode != null)
-                        component = GetStyle(componentNode);
-                }
-                else if (node.id.Contains(';'))
-                {
-                    string[] splits = node.id.Split(';');
-                    if (splits.Length >= 2)
-                    {
-                        string componentId = splits[^1];
-                        IBaseNodeMixin componentNode = FindNode(componentId);
-
-                        if (componentNode != null)
-                            component = GetStyle(componentNode);
-                    }
-                }
-
                 if (node is IBlendMixin { styles: not null } blend)
+                {
                     foreach (KeyValuePair<string, string> keyValue in blend.styles)
                     {
                         bool text = node.type == NodeType.TEXT;
@@ -287,45 +265,20 @@ namespace Figma.Core
                         if (key.NotNullOrEmpty() && (index = this.styles.FindIndex(x => x.slot.Text == text && x.slot.Slot == styleType && x.slot.key == key)) >= 0)
                             styles.Add(this.styles[index].style);
                     }
+                }
 
-                if (component != null && styles.Count > 0) style.Inherit(component, styles);
-                else if (component != null) style.Inherit(component);
-                else if (styles.Count > 0) style.Inherit(styles);
-
+                if (styles.Count > 0) style.Inherit(styles);
                 styles.Clear();
             }
         }
         internal string GetClassList(IBaseNodeMixin node)
         {
-            string classList = string.Empty;
             UssStyle style = GetStyle(node);
 
             if (style == null)
-                return classList;
+                return string.Empty;
 
-            string component = string.Empty;
-            List<string> styles = new();
-
-            if (node is InstanceNode instance)
-            {
-                IBaseNodeMixin componentNode = FindNode(instance.componentId);
-
-                if (componentNode != null)
-                    component = GetStyle(componentNode).Name;
-            }
-            else if (node.id.Contains(';'))
-            {
-                string[] splits = node.id.Split(';');
-                if (splits.Length >= 2)
-                {
-                    string componentId = splits[^1];
-                    IBaseNodeMixin componentNode = FindNode(componentId);
-
-                    if (componentNode != null)
-                        component = GetStyle(componentNode).Name;
-                }
-            }
-
+            List<string> styles = new List<string>();
             if (node is IBlendMixin { styles: not null } blend)
             {
                 foreach (KeyValuePair<string, string> keyValue in blend.styles)
@@ -354,21 +307,17 @@ namespace Figma.Core
             }
 
             if (node.IsSvgNode())
-            {
-                component = null;
                 styles.Clear();
-            }
 
-            classList = component.NotNullOrEmpty()
-                ? styles.Count > 0 ? style.ResolveClassList(component, styles) : style.ResolveClassList(component)
-                : styles.Count > 0
-                    ? style.ResolveClassList(styles)
-                    : style.ResolveClassList();
-
+            List<string> classes = new List<string>();
+            classes.Add(UssStyle.overrideClass.Name);
+            if (style.Attributes.Count > 0)
+                classes.Add(style.Name);
+            classes.AddRange(styles);
             if (node.IsRootNode())
-                classList += $"{(string.IsNullOrEmpty(classList) ? string.Empty : " ")}{UssStyle.viewportClass.Name}";
+                classes.Add(UssStyle.viewportClass.Name);
 
-            return $"{UssStyle.overrideClass.Name} {classList}";
+            return string.Join(" ", classes);
         }
         UssStyle GetStyle(IBaseNodeMixin node) => componentStyleMap.TryGetValue(node, out UssStyle style) || nodeStyleMap.TryGetValue(node, out style) ? style : null;
         #endregion

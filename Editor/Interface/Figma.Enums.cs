@@ -64,7 +64,7 @@ namespace Figma.Internals
 
     public enum TextAlignVertical { TOP, CENTER, BOTTOM }
 
-    public enum TextAutoResize { NONE, WIDTH_AND_HEIGHT, HEIGHT }
+    public enum TextAutoResize { NONE, WIDTH_AND_HEIGHT, HEIGHT, TRUNCATE }
 
     public enum BooleanOperation { UNION, INTERSECT, SUBTRACT, EXCLUDE }
 

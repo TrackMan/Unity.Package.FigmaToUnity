@@ -48,44 +48,16 @@ namespace Figma.Core.Uss
         }
 
         public bool DoesInherit(BaseUssStyle style) => inherited.Contains(style);
-        public void Inherit(BaseUssStyle component)
-        {
-            inherited.Add(component);
-            component.Attributes.Keys.Where(key => Attributes.TryGetValue(key, out string value) && value == component.Attributes[key])
-                     .ForEach(x => Attributes.Remove(x));
-        }
         public void Inherit(IReadOnlyCollection<BaseUssStyle> styles)
         {
             inherited.AddRange(styles);
-            styles.SelectMany(style => style.Attributes.Where(keyValue => Attributes.TryGetValue(keyValue.Key, out string value) && value == style.Attributes[keyValue.Key]))
+            styles.SelectMany(style => style.Attributes.Where(keyValue => Attributes.TryGetValue(keyValue.Key, out string value) && value == keyValue.Value))
                   .Select(x => x.Key)
                   .ForEach(key => Attributes.Remove(key));
         }
-        public void Inherit(BaseUssStyle component, IReadOnlyCollection<BaseUssStyle> styles)
-        {
-            inherited.Add(component);
-            inherited.AddRange(styles);
-
-            List<string> preserve = (from keyValue in component.Attributes
-                                     from style in styles
-                                     where style.Attributes.ContainsKey(keyValue.Key) && style.Attributes[keyValue.Key] != keyValue.Value
-                                     select keyValue.Key).ToList();
-
-            component.Attributes.Keys.Where(key => Attributes.ContainsKey(key) && Attributes[key] == component.Attributes[key]).ForEach(key => Attributes.Remove(key));
-            styles.SelectMany(style => style.Attributes.Where(keyValue => Attributes.ContainsKey(keyValue.Key) &&
-                                                                          Attributes[keyValue.Key] == style.Attributes[keyValue.Key] &&
-                                                                          !preserve.Contains(keyValue.Key)))
-                  .Select(x => x.Key)
-                  .ForEach(x => Attributes.Remove(x));
-        }
-        public string ResolveClassList(string component) => Attributes.Count > 0 ? $"{Name} {component}" : component;
-        public string ResolveClassList(IEnumerable<string> styles) => Attributes.Count > 0 ? $"{Name} {string.Join(" ", styles)}" : string.Join(" ", styles);
-        public string ResolveClassList(string component, IEnumerable<string> styles) => Attributes.Count > 0 ? $"{Name} {component} {string.Join(" ", styles)}" : $"{component} {string.Join(" ", styles)}";
-        public string ResolveClassList() => Attributes.Count > 0 ? Name : string.Empty;
         #endregion
 
         #region Support Methods
-        protected bool Has(string name) => Attributes.ContainsKey(name);
         protected string Get(string name) => Attributes[name];
         protected string GetDefault(string name, string defaultValue) => Attributes.ContainsKey(name) ? Attributes[name] : defaultValue;
         protected string Get1(string name, string group, int index)

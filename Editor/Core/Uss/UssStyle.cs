@@ -487,7 +487,7 @@ namespace Figma.Core.Uss
                 else
                 {
                     const double idealLineHeightFactor = 1.2;
-                    height = text.style.lineHeightPx; // Unity text only aligns correctly when height is 1.2 times font size. Figma allows any text height
+                    height = text.style.lineHeightPx;                                           // Unity text only aligns correctly when height is 1.2 times font size. Figma allows any text height
                     if (text.style.lineHeightPx <= text.style.fontSize * idealLineHeightFactor) // Figma centers text when lineheight is too small
                         text.style.textAlignVertical = TextAlignVertical.CENTER;
                 }
@@ -520,8 +520,17 @@ namespace Figma.Core.Uss
                 overflow = Visibility.Hidden;
             }
 
-            if (style.textAutoResize is TextAutoResize.NONE || (style.textAutoResize is TextAutoResize.HEIGHT && style.maxLines is not 1))
-                whiteSpace = Wrap.Normal;
+            switch (style.textAutoResize)
+            {
+                case TextAutoResize.NONE:
+                case TextAutoResize.HEIGHT when style.maxLines is not 1:
+                    whiteSpace = Wrap.Normal;
+                    break;
+
+                case TextAutoResize.TRUNCATE:
+                    LogWarningIgnoredFigmaProperty(text, $"{nameof(TextAutoResize)}.{nameof(TextAutoResize.TRUNCATE)} is deprecated, should be changed for element in figma document to use either {nameof(TextAutoResize.HEIGHT)} or {nameof(TextAutoResize.WIDTH_AND_HEIGHT)}");
+                    break;
+            }
 
             AddSharedTextStyle(style);
         }
@@ -761,8 +770,8 @@ namespace Figma.Core.Uss
 
             return transitions;
         }
-        static void LogWarningIgnoredFigmaProperty(IBaseNodeMixin node, string message) => Debug.LogWarning(Extensions.BuildTargetMessage("Ignored figma property", $"{node.parent?.name}/{node.name}", $"No support for {message}. Not implemented."));
-        static void LogWarningImpossibleDesign(IBaseNodeMixin node, string message) => Debug.LogWarning(Extensions.BuildTargetMessage("Wrong figma design", $"{node.parent?.name}/{node.name}", $"{message}. We cant create this in Unity."));
+        static void LogWarningIgnoredFigmaProperty(IBaseNodeMixin node, string message) => Debug.LogWarning(Extensions.BuildTargetMessage("Ignored figma property", node.GetFullPath(), $"No support for {message}. Not implemented."));
+        static void LogWarningImpossibleDesign(IBaseNodeMixin node, string message) => Debug.LogWarning(Extensions.BuildTargetMessage("Wrong figma design", node.GetFullPath(), $"{message}. We cant create this in Unity."));
         #endregion
     }
 }
