@@ -52,7 +52,7 @@ namespace Figma.Core.Uxml
                 if (scope.Count == 0)
                     continue;
 
-                writer.StartElement(nameof(UnityEngine.UIElements.VisualElement), ("class", "unity-viewport"), (nameof(name), name));
+                writer.StartElement(nameof(UnityEngine.UIElements.VisualElement), ("picking-mode", "ignore"), ("class", "unity-viewport"), (nameof(name), name));
                 foreach (string path in scope)
                 {
                     string frameName = Path.GetFileNameWithoutExtension(path);
