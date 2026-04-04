@@ -11,5 +11,12 @@
   },
   "author": "TrackMan",
   "type": "trackman.package",
-  "hideInEditor": false
+  "hideInEditor": false,
+  "samples": [
+    {
+      "displayName": "Basic Usage",
+      "description": "Demonstrates element binding, cloning, and syncing using Figma UI components.",
+      "path": "Samples~"
+    }
+  ]
 }
