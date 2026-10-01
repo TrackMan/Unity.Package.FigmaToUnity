@@ -88,13 +88,15 @@ namespace Figma
 
             await Task.WhenAll(tasks);
 
-            Dictionary<string, IReadOnlyList<string>> orderedFramesPaths = framesPaths.ToDictionary(
-                x => x.Key,
-                x => (IReadOnlyList<string>)x.Value.OrderBy(frame => frame.index).Select(frame => frame.path).ToArray());
-
             // Creating main UXML document
             if (overrideGlobal)
+            {
+                Dictionary<string, IReadOnlyList<string>> orderedFramesPaths = framesPaths.ToDictionary(
+                    x => x.Key,
+                    x => (IReadOnlyList<string>)x.Value.OrderBy(frame => frame.index).Select(frame => frame.path).ToArray());
+
                 uxmlBuilder.CreateDocument(directory, fileName, data.document, orderedFramesPaths);
+            }
         }
         #endregion
 
