@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -75,13 +76,13 @@ namespace Figma
 
             // Writing UXML files
             UxmlBuilder uxmlBuilder = new(data, nodeMetadata, ussPath, stylesPreprocessor);
-            Dictionary<string, IReadOnlyList<string>> framesPaths = new(rootNodes.Frames.Count);
+            Dictionary<string, ConcurrentBag<(int index, string path)>> framesPaths = new(rootNodes.Frames.Count);
 
             foreach (CanvasNode canvasNode in rootNodes.Canvases)
-                framesPaths.Add(canvasNode.name, new List<string>());
+                framesPaths.Add(canvasNode.name, new ConcurrentBag<(int index, string path)>());
 
             List<Task> tasks = new(rootNodes.Frames.Count + rootNodes.ComponentSets.Count + rootNodes.Elements.Count);
-            tasks.AddRange(rootNodes.Frames.Select(x => Task.Run(() => WriteFrame(uxmlBuilder, framesPaths, componentSets, x))));
+            tasks.AddRange(rootNodes.Frames.Select((x, index) => Task.Run(() => WriteFrame(uxmlBuilder, framesPaths, componentSets, x, index))));
             tasks.AddRange(rootNodes.ComponentSets.Select(x => Task.Run(() => WriteComponentSet(uxmlBuilder, x))));
             tasks.AddRange(rootNodes.Elements.Select(x => Task.Run(() => WriteTemplate(uxmlBuilder, x))));
 
@@ -89,12 +90,18 @@ namespace Figma
 
             // Creating main UXML document
             if (overrideGlobal)
-                uxmlBuilder.CreateDocument(directory, fileName, data.document, framesPaths);
+            {
+                Dictionary<string, IReadOnlyList<string>> orderedFramesPaths = framesPaths.ToDictionary(
+                    x => x.Key,
+                    x => (IReadOnlyList<string>)x.Value.OrderBy(frame => frame.index).Select(frame => frame.path).ToArray());
+
+                uxmlBuilder.CreateDocument(directory, fileName, data.document, orderedFramesPaths);
+            }
         }
         #endregion
 
         #region Support Methods
-        void WriteFrame(UxmlBuilder uxmlBuilder, Dictionary<string, IReadOnlyList<string>> framesPaths, Dictionary<string, ComponentSetNode> componentSets, FrameNode frameNode)
+        void WriteFrame(UxmlBuilder uxmlBuilder, Dictionary<string, ConcurrentBag<(int index, string path)>> framesPaths, Dictionary<string, ComponentSetNode> componentSets, FrameNode frameNode, int frameIndex)
         {
             Dictionary<string, string> templates = new();
 
@@ -150,7 +157,7 @@ namespace Figma
             FindTemplates(frameNode);
 
             string uxmlPath = uxmlBuilder.CreateFrame(rootDirectory, new[] { ussPath, ussWriter.Path }, templates, frameNode);
-            framesPaths[frameNode.parent.name].As<List<string>>().Add(uxmlPath);
+            framesPaths[frameNode.parent.name].Add((frameIndex, uxmlPath));
 
             assetsInfo.AddModifiedFiles(uxmlPath, ussWriter.Path);
             templates.Clear();
